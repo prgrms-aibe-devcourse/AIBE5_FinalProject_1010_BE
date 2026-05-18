@@ -1,7 +1,7 @@
 # Team10_1010_Backend
 
 <div align="center">
-  <h3>🎓 페이스터디 (FaceStudy)</h3>
+  
   <strong>선생님과 학생을 연결하는 양방향 비대면 강의 플랫폼</strong>
   <p>실시간 화이트보드 · 화상통화 · QnA 등 상호작용 기반의 양방향 비대면 강의 환경을 제공합니다.</p>
 </div>
