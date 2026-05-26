@@ -44,3 +44,4 @@ logs/
 Thumbs.db
 Thumbs.db:encryptable
 Desktop.ini
+src/main/resources/application-prod.yml.example
