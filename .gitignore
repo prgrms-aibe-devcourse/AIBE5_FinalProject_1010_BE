@@ -7,13 +7,20 @@ build/
 *.iml
 *.iws
 out/
+bin/
+
+### Java ###
+*.class
 
 ### Spring Boot ###
 *.jar
 *.war
+HELP.md
 
 ### Env / Secrets ###
-src/main/resources/application-prod.yml
+src/main/resources/application.yml
+src/main/resources/application-*.yml
+!src/main/resources/application.yml.example
 
 ### AWS ###
 *.pem
@@ -22,7 +29,12 @@ src/main/resources/application-prod.yml
 
 ### Docker ###
 .env
+.env.*
 docker-compose.override.yml
+
+### Logs ###
+logs/
+*.log
 
 ### Claude Code ###
 .claude/
@@ -30,3 +42,5 @@ docker-compose.override.yml
 ### OS ###
 .DS_Store
 Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
