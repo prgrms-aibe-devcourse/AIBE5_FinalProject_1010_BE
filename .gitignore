@@ -13,8 +13,8 @@ bin/
 *.class
 
 ### Spring Boot ###
-*.jar
-*.war
+build/**/*.jar
+build/**/*.war
 HELP.md
 
 ### Env / Secrets ###
@@ -44,4 +44,3 @@ logs/
 Thumbs.db
 Thumbs.db:encryptable
 Desktop.ini
-src/main/resources/application-prod.yml.example
