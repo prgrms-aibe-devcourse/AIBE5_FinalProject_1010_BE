@@ -20,7 +20,7 @@ spring:
       max-request-size: 50MB
 
 jwt:
-  secret: OaZWhnQqr7mlKMbmNClc+YMzSNwNDWJSmE9BCniSWVc=
+  secret: 
   access-token-expiration: 3600000      # 1시간
   refresh-token-expiration: 604800000   # 7일
 
