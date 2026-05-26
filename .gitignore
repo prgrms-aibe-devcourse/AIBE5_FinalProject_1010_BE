@@ -1,0 +1,32 @@
+### Gradle ###
+.gradle/
+build/
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+out/
+
+### Spring Boot ###
+*.jar
+*.war
+
+### Env / Secrets ###
+src/main/resources/application-prod.yml
+
+### AWS ###
+*.pem
+*.p12
+*.jks
+
+### Docker ###
+.env
+docker-compose.override.yml
+
+### Claude Code ###
+.claude/
+
+### OS ###
+.DS_Store
+Thumbs.db
