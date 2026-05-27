@@ -1,5 +1,6 @@
 package com.studyflow.domain.user.entity;
 import com.studyflow.domain.constant.SocialProvider;
+import com.studyflow.domain.constant.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -12,7 +13,9 @@ import javax.management.relation.Role;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users") // PostgreSQL 예약어 충돌 방지
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email_social_isdeleted", columnNames = {"email", "social_provider", "is_deleted"})
+}) // PostgreSQL 예약어 충돌 방지
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 
@@ -39,10 +42,10 @@ public class User extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role;
+    private UserRole role;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "social_provider", nullable = false)
     private SocialProvider socialProvider;
 
     @Column(length = 255)
@@ -67,6 +70,9 @@ public class User extends BaseTimeEntity {
     private LocalDateTime updatedAt;
 
     // 삭제 시 PK값을 넣기 위한 컬럼 (고유키 제약조건 방어용)
-    @Column(nullable = false)
+    @Column(name = "is_deleted", nullable = false)
     private Long isDeleted = 0L;
+
+    @Column(nullable = false)
+    private boolean marketingAgreed = false;
 }
