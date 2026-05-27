@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "student_profile")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-
 public class StudentProfile extends BaseTimeEntity {
 
     @Id

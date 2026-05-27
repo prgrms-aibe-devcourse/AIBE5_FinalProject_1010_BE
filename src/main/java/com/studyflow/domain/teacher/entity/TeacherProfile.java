@@ -7,11 +7,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "teacher_profile")
@@ -58,5 +55,5 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(nullable = false, precision = 10, scale = 1)
     private BigDecimal totalTeachingHours = BigDecimal.ZERO;
 
-   
+
 }
