@@ -78,8 +78,8 @@ public class SecurityConfig {
 
         // 개발 환경 예시: 프론트엔드(예: Vite)의 로컬 호스트 허용
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        // 허용할 HTTP 메서드
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH"));
+        // 허용할 HTTP 메서드 (preflight를 위해 OPTIONS, HEAD 포함)
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         // 허용할 헤더 (필요 시 구체적으로 제한 권장)
         configuration.setAllowedHeaders(List.of("*"));
         // 쿠키/자격증명 전송 허용
