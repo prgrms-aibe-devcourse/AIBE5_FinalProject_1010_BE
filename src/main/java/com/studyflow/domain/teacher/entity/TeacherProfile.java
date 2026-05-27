@@ -58,11 +58,5 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(nullable = false, precision = 10, scale = 1)
     private BigDecimal totalTeachingHours = BigDecimal.ZERO;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+   
 }
