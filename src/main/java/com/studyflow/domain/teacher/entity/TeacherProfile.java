@@ -1,14 +1,14 @@
-package com.studyflow.domain.teacher;
+package com.studyflow.domain.teacher.entity;
 
 import com.studyflow.domain.constant.Gender;
-import com.studyflow.domain.user.User;
+import com.studyflow.domain.user.entity.User;
+import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,8 +17,7 @@ import java.time.LocalDateTime;
 @Table(name = "teacher_profile")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
-public class TeacherProfile {
+public class TeacherProfile extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,12 +1,12 @@
-package com.studyflow.domain.user;
+package com.studyflow.domain.user.entity;
 import com.studyflow.domain.constant.SocialProvider;
+import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import javax.management.relation.Role;
 import java.time.LocalDateTime;
@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @Table(name = "users") // PostgreSQL 예약어 충돌 방지
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
-public class User {
+
+public class User extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,23 +1,19 @@
-package com.studyflow.domain.student;
+package com.studyflow.domain.student.entity;
 
 import com.studyflow.domain.constant.Gender;
-import com.studyflow.domain.user.User;
+import com.studyflow.domain.user.entity.User;
+import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "student_profile")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
-public class StudentProfile {
+
+public class StudentProfile extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,11 +39,5 @@ public class StudentProfile {
     @Column(columnDefinition = "TEXT")
     private String goal;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 }
