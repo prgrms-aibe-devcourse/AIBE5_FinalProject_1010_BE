@@ -1,19 +1,25 @@
 package com.studyflow.domain.user.entity;
+import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.constant.SocialProvider;
+import com.studyflow.domain.constant.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.management.relation.Role;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users") // PostgreSQL 예약어 충돌 방지
-@Getter
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email_social_isdeleted", columnNames = {"email", "social_provider", "is_deleted"})
+}) // PostgreSQL 예약어 충돌 방지
+@Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 
 public class User extends BaseTimeEntity {
@@ -39,10 +45,10 @@ public class User extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role;
+    private UserRole role;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "social_provider", nullable = false)
     private SocialProvider socialProvider;
 
     @Column(length = 255)
@@ -58,15 +64,26 @@ public class User extends BaseTimeEntity {
 
     private LocalDateTime deletedAt;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
     // 삭제 시 PK값을 넣기 위한 컬럼 (고유키 제약조건 방어용)
-    @Column(nullable = false)
+    @Column(name = "is_deleted", nullable = false)
     private Long isDeleted = 0L;
+
+    @Column(nullable = false)
+    private boolean marketingAgreed = false;
+
+    public static User createUser(SignupRequest request, PasswordEncoder passwordEncoder, boolean marketingAgreed) {
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setName(request.getName());
+        user.setSocialProvider(SocialProvider.LOCAL);
+        user.setPhone(request.getPhone());
+        if(request.getRole().equals("STUDENT")) {
+            user.setRole(UserRole.STUDENT);
+        } else {
+            user.setRole(UserRole.TEACHER);
+        }
+        user.setMarketingAgreed(marketingAgreed);
+        return user;
+    }
 }
