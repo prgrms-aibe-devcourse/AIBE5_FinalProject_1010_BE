@@ -17,8 +17,7 @@ jobs:
       - name: PR Agent Review
         uses: qodo-ai/pr-agent@main
         env:
-          OPENAI.KEY: "na"
           GEMINI.KEY: ${{ secrets.GEMINI_API_KEY }}
           CONFIG.AI_PROVIDER: "gemini"
-          CONFIG.MODEL: "gemini/gemini-2.0-flash"
+          CONFIG.MODEL: "gemini/gemini-1.5-flash"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
