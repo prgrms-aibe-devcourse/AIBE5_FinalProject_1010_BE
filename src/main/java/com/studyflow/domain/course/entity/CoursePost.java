@@ -7,6 +7,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 수업 자유 게시판 게시글 엔티티
  *
@@ -28,12 +30,12 @@ public class CoursePost extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 게시글 작성자 */
+    // 게시글 작성자
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /** 게시글이 속한 수업 */
+    // 게시글이 속한 수업
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
@@ -43,6 +45,13 @@ public class CoursePost extends BaseTimeEntity {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    @Column(nullable = false)
+    private int viewCount = 0;
+
+    // null이면 정상 상태, 값이 있으면 소프트 딜리트된 게시글
+    @Column
+    private LocalDateTime deletedAt;
 
     public static CoursePost create(User user, Course course, String title, String content) {
         CoursePost post = new CoursePost();
@@ -56,5 +65,17 @@ public class CoursePost extends BaseTimeEntity {
     public void update(String title, String content) {
         this.title = title;
         this.content = content;
+    }
+
+    public void incrementViewCount() {
+        this.viewCount++;
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

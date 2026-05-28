@@ -31,12 +31,12 @@ public class CourseNotice extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 공지를 작성한 선생님 */
+    // 공지를 작성한 선생님
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /** 공지가 속한 수업 */
+    // 공지가 속한 수업
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
@@ -47,32 +47,28 @@ public class CourseNotice extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    /** 중요 공지 여부 (상단 고정 등에 활용) */
-    @Column(nullable = false)
-    private boolean isImportant = false;
+    // 중요 공지 여부 (상단 고정 등에 활용)
+    @Column(name = "is_important", nullable = false)
+    private boolean important = false;
 
-    /**
-     * 소프트 딜리트 시각.
-     *
-     * null이면 정상 상태, 값이 있으면 삭제된 공지.
-     */
+    // null이면 정상 상태, 값이 있으면 소프트 딜리트된 공지
     @Column
     private LocalDateTime deletedAt;
 
-    public static CourseNotice create(User user, Course course, String title, String content, boolean isImportant) {
+    public static CourseNotice create(User user, Course course, String title, String content, boolean important) {
         CourseNotice notice = new CourseNotice();
         notice.user = user;
         notice.course = course;
         notice.title = title;
         notice.content = content;
-        notice.isImportant = isImportant;
+        notice.important = important;
         return notice;
     }
 
-    public void update(String title, String content, boolean isImportant) {
+    public void update(String title, String content, boolean important) {
         this.title = title;
         this.content = content;
-        this.isImportant = isImportant;
+        this.important = important;
     }
 
     public void delete() {

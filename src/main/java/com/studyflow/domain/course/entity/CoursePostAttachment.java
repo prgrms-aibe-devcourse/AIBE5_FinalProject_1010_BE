@@ -34,25 +34,25 @@ public class CoursePostAttachment extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 첨부파일이 연결된 게시글 */
+    // 첨부파일이 연결된 게시글
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_post_id", nullable = false)
     private CoursePost coursePost;
 
-    /** 실제 파일 메타데이터 */
+    // 실제 파일 메타데이터
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_asset_id", nullable = false)
     private FileAsset fileAsset;
 
-    /** 게시글에 파일 여러 개일 때 표시 순서 */
+    // 게시글에 파일 여러 개일 때 표시 순서
     @Column(name = "sort_order", nullable = false)
-    private Integer sortOrder = 0;
+    private int sortOrder = 0;
 
-    public static CoursePostAttachment create(CoursePost coursePost, FileAsset fileAsset, Integer sortOrder) {
+    public static CoursePostAttachment create(CoursePost coursePost, FileAsset fileAsset, int sortOrder) {
         CoursePostAttachment attachment = new CoursePostAttachment();
         attachment.coursePost = coursePost;
         attachment.fileAsset = fileAsset;
-        attachment.sortOrder = sortOrder == null ? 0 : sortOrder;
+        attachment.sortOrder = sortOrder;
         return attachment;
     }
 }

@@ -7,6 +7,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 수업 게시판 댓글 엔티티
  *
@@ -29,18 +31,22 @@ public class CoursePostComment extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 댓글이 달린 게시글 */
+    // 댓글이 달린 게시글
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_post_id", nullable = false)
     private CoursePost coursePost;
 
-    /** 댓글 작성자 */
+    // 댓글 작성자
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    // null이면 정상 상태, 값이 있으면 소프트 딜리트된 댓글
+    @Column
+    private LocalDateTime deletedAt;
 
     public static CoursePostComment create(CoursePost coursePost, User user, String content) {
         CoursePostComment comment = new CoursePostComment();
@@ -52,5 +58,13 @@ public class CoursePostComment extends BaseTimeEntity {
 
     public void update(String content) {
         this.content = content;
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }
