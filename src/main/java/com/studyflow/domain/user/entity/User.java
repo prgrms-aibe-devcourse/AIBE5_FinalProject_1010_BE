@@ -5,11 +5,8 @@ import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.management.relation.Role;
 import java.time.LocalDateTime;
 
 @Entity
