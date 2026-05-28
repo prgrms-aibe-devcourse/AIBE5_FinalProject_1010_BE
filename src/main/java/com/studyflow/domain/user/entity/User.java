@@ -1,7 +1,7 @@
 package com.studyflow.domain.user.entity;
 import com.studyflow.domain.auth.dto.SignupRequest;
-import com.studyflow.domain.constant.SocialProvider;
-import com.studyflow.domain.constant.UserRole;
+import com.studyflow.domain.user.enums.SocialProvider;
+import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;

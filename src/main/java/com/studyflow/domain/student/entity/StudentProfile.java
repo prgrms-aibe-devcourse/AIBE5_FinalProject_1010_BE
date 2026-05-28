@@ -1,6 +1,6 @@
 package com.studyflow.domain.student.entity;
 
-import com.studyflow.domain.constant.Gender;
+import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
