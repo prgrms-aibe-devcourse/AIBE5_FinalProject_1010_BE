@@ -51,6 +51,9 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    // 토큰 검증 관련 메서드
+
+    // 주어진 토큰의 검증 성공 여부만 반환 (예외 발생 시 false)
     public boolean validateToken(String token) {
         try {
             validateTokenOrThrow(token);
@@ -66,6 +69,15 @@ public class JwtTokenProvider {
      * 컨트롤러 등에서 에러 코드를 전달하려면 이 메서드를 호출하고 예외를 처리하면 됩니다.
      */
     public void validateTokenOrThrow(String token) {
+        // reuse validateAndGetClaims to perform validation; discard returned claims
+        validateAndGetClaims(token);
+    }
+
+    /**
+     * 검증(헤더 alg 검사, 서명/만료 검사)과 함께 Claims(토큰 페이로드로 이해하면 편함)를 반환합니다.
+     * 문제 발생 시 {@link AuthException}을 던집니다.
+     */
+    public Claims validateAndGetClaims(String token) {
         if (token == null || token.trim().isEmpty()) {
             log.warn("JWT token is null or empty");
             throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Token is null or empty");
@@ -99,7 +111,7 @@ public class JwtTokenProvider {
         }
 
         try {
-            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
+            return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
         } catch (ExpiredJwtException e) {
             log.warn("Expired JWT token: {}", e.getMessage());
             throw new AuthException(ErrorCode.AUTH_EXPIRED_TOKEN, e.getMessage());
@@ -109,19 +121,32 @@ public class JwtTokenProvider {
         }
     }
 
+    // 토큰을 검증한 후 Claims에서 userId를 추출
     public Long getUserId(String token) {
-        return Long.parseLong(getClaims(token).getSubject());
+        Claims claims = validateAndGetClaims(token);
+        return Long.parseLong(claims.getSubject());
     }
 
+    // 토큰을 검증한 후 Claims에서 role을 추출
     public String getRole(String token) {
-        return getClaims(token).get("role", String.class);
+        Claims claims = validateAndGetClaims(token);
+        return claims.get("role", String.class);
     }
 
-    private Claims getClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+    /**
+     * Claims에서 userId를 추출합니다. 이미 Claims를 가지고 있을 때 사용하세요
+     * (validateAndGetClaims를 한 번만 호출하고 여러번 재사용하기 위한 편의 메서드).
+     */
+    public Long getUserIdFromClaims(Claims claims) {
+        if (claims == null) return null;
+        return Long.parseLong(claims.getSubject());
+    }
+
+    /**
+     * Claims에서 role을 추출합니다. 이미 Claims를 가지고 있을 때 사용하세요.
+     */
+    public String getRoleFromClaims(Claims claims) {
+        if (claims == null) return null;
+        return claims.get("role", String.class);
     }
 }

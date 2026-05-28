@@ -2,6 +2,7 @@ package com.studyflow.global.exception;
 
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
+import com.studyflow.domain.auth.exception.TermsAgreementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -39,8 +40,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
-        // 예외 객체 자체를 body에 넣으면 표준 에러 포맷(RFC 7807)으로 출력됩니다.
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(TermsAgreementException.class)
+    public ResponseEntity<Object> handleTermsAgreementException(TermsAgreementException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
     // 기타 예외는 필요에 따라 추가 처리

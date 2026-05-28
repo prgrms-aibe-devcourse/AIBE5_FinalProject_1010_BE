@@ -3,7 +3,7 @@ package com.studyflow.domain.auth.controller;
 import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.service.AuthService;
-import com.studyflow.global.auth.JwtTokenProvider;
+import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
 import jakarta.validation.Valid;
 import com.studyflow.domain.auth.dto.LoginRequest;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -20,6 +21,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+
+    @Value("${spring.profiles.active:local}")
+    private String activeProfile;
 
     @PostMapping("/signup")
     public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequest request) {
@@ -34,46 +38,38 @@ public class AuthController {
             return ResponseEntity.badRequest().build();
         }
         // termsAgreement가 없거나, termsAgreement의 SERVICE와 PRIVACY가 false면 400 반환
-        if (request.getTermsAgreements() == null || request.getTermsAgreements().size() != 3) {
+        if (request.getTermsAgreements() == null || request.getTermsAgreements().size() != TermsType.values().length) {
             // 약관 항목이 3개가 아니면 에러
             return ResponseEntity.badRequest().build();
         }
 
-        boolean serviceAgreed = false;
-        boolean privacyAgreed = false;
-        boolean marketingPresent = false;
-        boolean marketingAgreed = false;
-        for (SignupRequest.TermsAgreement ta : request.getTermsAgreements()) {
-            if (ta.getTermsType() == SignupRequest.TermsType.SERVICE && ta.isAgreed()) {
-                serviceAgreed = true;
-            }
-            if (ta.getTermsType() == SignupRequest.TermsType.PRIVACY && ta.isAgreed()) {
-                privacyAgreed = true;
-            }
-            if (ta.getTermsType() == SignupRequest.TermsType.MARKETING) {
-                // MARKETING은 동의 여부(true/false) 상관없이 항목 자체가 존재해야 함
-                marketingPresent = true;
-                marketingAgreed = ta.isAgreed();
-            }
-        }
-        if (!serviceAgreed || !privacyAgreed || !marketingPresent) {
+        // 실제 가입 처리(서비스에 위임)
+        try {
+            authService.signup(request);
+        } catch (IllegalArgumentException e) {
+            /*
+            잘못된 role 회원가입 시도
+            이미 방어 로직이 컨트롤러에 있지만, 2중 방어 목적 및
+            User.createUser의 예외 캐치 목적
+             */
             return ResponseEntity.badRequest().build();
         }
-
-        // 실제 가입 처리(서비스에 위임)
-        authService.signup(request, marketingAgreed);
         return ResponseEntity.status(201).build();
     }
-
-    @Value("${spring.profiles.active:local}")
-    private String activeProfile;
 
     // 로그인
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         // @Valid 검사 먼저 함
         // UserService로 넘어가서 로그인 검사
-        LoginResponse resp = authService.login(request);
+        LoginResponse resp;
+        try {
+            resp = authService.login(request);
+        } catch (IllegalStateException e) {
+            // ID 비밀번호 일치하지만, 조회한 사용자가 유효하지 않은 Role일 때
+            // body는 나중에 작성 예정
+            return ResponseEntity.status(403).build();
+        }
 
         // refresh token은 HttpOnly 쿠키로 전달
         boolean secure = !"local".equalsIgnoreCase(activeProfile);
@@ -98,13 +94,23 @@ public class AuthController {
 
     // 학생 인증 테스트용 api
     @GetMapping("/test/student")
-    public ResponseEntity<String> studentTest() {
-        return ResponseEntity.ok("학생 인증 성공");
+    public ResponseEntity<String> studentTest(@AuthenticationPrincipal Long userId) {
+        /*
+         Spring Security에서 인증/인가된 사용자의 userId를 @AuthenticationPrincipal로 꺼내 쓸 수 있음
+         비즈니스 로직에 필요한 추가적인 인증/인가(예: 게시글 수정/삭제 - 본인의 게시글인지 확인)는
+         추가적인 토큰 파싱 없이 이 userId 기반으로 직접 구현 가능
+        */
+        return ResponseEntity.ok("학생 인증 성공: userId = " + userId);
     }
 
     // 선생님 인증 테스트용 api
     @GetMapping("/test/teacher")
-    public ResponseEntity<String> teacherTest() {
-        return ResponseEntity.ok("선생님 인증 성공");
+    public ResponseEntity<String> teacherTest(@AuthenticationPrincipal Long userId) {
+        /*
+         Spring Security에서 인증/인가된 사용자의 userId를 @AuthenticationPrincipal로 꺼내 쓸 수 있음
+         비즈니스 로직에 필요한 추가적인 인증/인가(예: 게시글 수정/삭제 - 본인의 게시글인지 확인)는
+         추가적인 토큰 파싱 없이 이 userId 기반으로 직접 구현 가능
+        */
+        return ResponseEntity.ok("선생님 인증 성공: userId = " + userId);
     }
 }

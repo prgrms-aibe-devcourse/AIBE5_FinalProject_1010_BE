@@ -5,6 +5,7 @@ import com.studyflow.global.auth.JwtAuthenticationEntryPoint;
 import com.studyflow.global.auth.JwtAuthenticationFilter;
 import com.studyflow.global.auth.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,6 +30,10 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final com.studyflow.global.config.PublicUrlProvider publicUrlProvider;
+
+    // Read allowed origins as a single comma-separated property (fallback to empty)
+    @Value("${cors.allowed-origins:}")
+    private String allowedOriginsProp;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -77,7 +82,17 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // 개발 환경 예시: 프론트엔드(예: Vite)의 로컬 호스트 허용
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        List<String> origins;
+        if (allowedOriginsProp == null || allowedOriginsProp.isBlank()) {
+            origins = List.of("http://localhost:5173");
+        } else {
+            // support comma-separated or single value
+            origins = java.util.Arrays.stream(allowedOriginsProp.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+        }
+        configuration.setAllowedOrigins(origins);
         // 허용할 HTTP 메서드 (preflight를 위해 OPTIONS, HEAD 포함)
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         // 허용할 헤더 (필요 시 구체적으로 제한 권장)

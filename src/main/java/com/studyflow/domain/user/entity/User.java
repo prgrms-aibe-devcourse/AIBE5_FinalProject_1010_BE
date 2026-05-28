@@ -4,10 +4,7 @@ import com.studyflow.domain.constant.SocialProvider;
 import com.studyflow.domain.constant.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,9 +16,10 @@ import java.time.LocalDateTime;
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "uk_users_email_social_isdeleted", columnNames = {"email", "social_provider", "is_deleted"})
 }) // PostgreSQL 예약어 충돌 방지
-@Getter @Setter
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-
+@AllArgsConstructor
+@Builder
 public class User extends BaseTimeEntity {
 
     @Id
@@ -72,18 +70,26 @@ public class User extends BaseTimeEntity {
     private boolean marketingAgreed = false;
 
     public static User createUser(SignupRequest request, PasswordEncoder passwordEncoder, boolean marketingAgreed) {
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setName(request.getName());
-        user.setSocialProvider(SocialProvider.LOCAL);
-        user.setPhone(request.getPhone());
+        UserRole userRole;
         if(request.getRole().equals("STUDENT")) {
-            user.setRole(UserRole.STUDENT);
+            userRole = UserRole.STUDENT;
+        } else if(request.getRole().equals("TEACHER")){
+            userRole = UserRole.TEACHER;
+        } else if(request.getRole().equals("ADMIN")) {
+            userRole = UserRole.ADMIN;
         } else {
-            user.setRole(UserRole.TEACHER);
+            throw new IllegalArgumentException("Invalid role: " + request.getRole());
         }
-        user.setMarketingAgreed(marketingAgreed);
-        return user;
+        return User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .name(request.getName())
+                .socialProvider(SocialProvider.LOCAL)
+                .phone(request.getPhone())
+                .role(userRole)
+                .marketingAgreed(marketingAgreed)
+                .isDeleted(0L)
+                .isActive(true)
+                .build();
     }
 }
