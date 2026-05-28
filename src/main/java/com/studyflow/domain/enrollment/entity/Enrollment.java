@@ -65,8 +65,30 @@ public class Enrollment {
     /**
      * 수업 종료 시각.
      *
-     * status가 COMPLETED일 때 서비스 계층에서 직접 설정한다.
+     * status가 COMPLETED일 때 complete()로 설정한다.
      */
     @Column
     private LocalDateTime completedAt;
+
+    public static Enrollment create(User user, Course course, EnrollmentRequest enrollmentRequest) {
+        Enrollment enrollment = new Enrollment();
+        enrollment.user = user;
+        enrollment.course = course;
+        enrollment.enrollmentRequest = enrollmentRequest;
+        return enrollment;
+    }
+
+    public void complete() {
+        this.status = EnrollmentStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+    }
+
+    public void expel(String reason) {
+        this.status = EnrollmentStatus.EXPELLED;
+        this.expelReason = reason;
+    }
+
+    public void cancel() {
+        this.status = EnrollmentStatus.CANCELLED;
+    }
 }
