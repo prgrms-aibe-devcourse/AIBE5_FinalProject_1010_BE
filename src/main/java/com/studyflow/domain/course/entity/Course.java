@@ -1,8 +1,8 @@
 package com.studyflow.domain.course.entity;
 
-import com.studyflow.domain.constant.CourseStatus;
-import com.studyflow.domain.constant.CurriculumType;
-import com.studyflow.domain.constant.TargetGrade;
+import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.course.enums.CurriculumType;
+import com.studyflow.domain.course.enums.TargetGrade;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.global.audit.BaseTimeEntity;
