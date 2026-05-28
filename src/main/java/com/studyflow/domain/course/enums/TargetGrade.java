@@ -1,4 +1,4 @@
-package com.studyflow.domain.constant;
+package com.studyflow.domain.course.enums;
 
 public enum TargetGrade {
     ELEMENTARY_1, ELEMENTARY_2, ELEMENTARY_3, ELEMENTARY_4, ELEMENTARY_5, ELEMENTARY_6,
