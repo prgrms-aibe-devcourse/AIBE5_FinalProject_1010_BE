@@ -1,7 +1,7 @@
 package com.studyflow.domain.user.repository;
 
-import com.studyflow.domain.constant.SocialProvider;
 import com.studyflow.domain.user.entity.User;
+import com.studyflow.domain.user.enums.SocialProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
