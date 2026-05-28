@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.management.relation.Role;
+import com.studyflow.domain.constant.Role;
 import java.time.LocalDateTime;
 
 @Entity
