@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -350,6 +351,8 @@ public class ChatService {
         Map<Long, FileAsset> fileMap = files.stream()
                 .collect(Collectors.toMap(FileAsset::getId, Function.identity()));
 
+        List<ChatMessageAttachment> attachments = new ArrayList<>();
+
         for (int i = 0; i < fileIds.size(); i++) {
             FileAsset fileAsset = fileMap.get(fileIds.get(i));
 
@@ -365,14 +368,15 @@ public class ChatService {
                 throw new IllegalArgumentException("본인이 업로드한 파일만 첨부할 수 있습니다.");
             }
 
-            ChatMessageAttachment attachment = ChatMessageAttachment.create(
+            attachments.add(ChatMessageAttachment.create(
                     savedMessage,
                     fileAsset,
                     i
-            );
-
-            chatMessageAttachmentRepository.save(attachment);
+            ));
         }
+
+        // 첨부마다 save 를 호출하는 대신 한 번에 저장한다.
+        chatMessageAttachmentRepository.saveAll(attachments);
     }
 
     private void validateTextMessage(ChatMessageSendRequest request) {
