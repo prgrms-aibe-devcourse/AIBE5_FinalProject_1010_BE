@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,6 +42,14 @@ public class FileService {
      * file_asset 구조는 LOCAL이든 S3든 그대로 사용할 수 있다.
      */
     private static final String LOCAL_UPLOAD_DIR = "uploads/chat";
+
+    /**
+     * 업로드 파일을 chat/년/월/일 하위 폴더로 분산 저장하기 위한 날짜 경로 포맷.
+     *
+     * 한 폴더에 파일이 무한정 쌓이는 것을 막고, 날짜별로 찾기/정리하기 쉽게 한다.
+     * 예: chat/2026/05/29/{uuid}.png
+     */
+    private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     private final FileAssetRepository fileAssetRepository;
     private final UserRepository userRepository;
@@ -73,7 +83,10 @@ public class FileService {
              */
             byte[] bytes = file.getBytes();
 
-            Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR);
+            // chat/년/월/일 하위 폴더에 저장 (예: uploads/chat/2026/05/29/{uuid}.png)
+            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);   // "2026/05/29"
+
+            Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR, datePath);
             Files.createDirectories(uploadPath);
 
             Path storedPath = uploadPath.resolve(storedFileName);
@@ -81,8 +94,9 @@ public class FileService {
 
             ImageSize imageSize = readImageSize(bytes);
 
-            String objectKey = "chat/" + storedFileName;
-            String fileUrl = "/uploads/chat/" + storedFileName;
+            // objectKey / fileUrl 은 OS 와 무관하게 항상 '/' 구분자를 사용한다.
+            String objectKey = "chat/" + datePath + "/" + storedFileName;
+            String fileUrl = "/uploads/chat/" + datePath + "/" + storedFileName;
 
             FileAsset fileAsset = FileAsset.createImage(
                     uploader,
