@@ -1,8 +1,9 @@
 package com.studyflow.domain.chat.entity;
 
-//import com.studyflow.domain.course.entity.Course;
+
 import com.studyflow.domain.chat.enums.ChatRoomStatus;
 import com.studyflow.domain.chat.enums.ChatRoomType;
+import com.studyflow.domain.course.entity.Course;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -53,9 +54,9 @@ public class ChatRoom extends BaseTimeEntity {
      * 수업 기반 채팅이면 값 존재.
      * 일반 채팅까지 열어둘 경우 null 가능.
      */
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "course_id")
-//    private Course course;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id")
+    private Course course;
 
     /**
      * 채팅방 중복 생성 방지용 키.
@@ -101,24 +102,24 @@ public class ChatRoom extends BaseTimeEntity {
     private List<ChatMessage> messages = new ArrayList<>();
 
     public static ChatRoom createDirectRoom(
-            //Course course,
+            Course course,
             String roomKey
     ) {
         ChatRoom chatRoom = new ChatRoom();
         chatRoom.roomType = ChatRoomType.DIRECT;
-        //chatRoom.course = course;
+        chatRoom.course = course;
         chatRoom.roomKey = roomKey;
         chatRoom.status = ChatRoomStatus.ACTIVE;
         return chatRoom;
     }
 
     public static ChatRoom createCourseGroupRoom(
-            //Course course,
+            Course course,
             String roomKey
     ) {
         ChatRoom chatRoom = new ChatRoom();
         chatRoom.roomType = ChatRoomType.COURSE_GROUP;
-        //chatRoom.course = course;
+        chatRoom.course = course;
         chatRoom.roomKey = roomKey;
         chatRoom.status = ChatRoomStatus.ACTIVE;
         return chatRoom;
