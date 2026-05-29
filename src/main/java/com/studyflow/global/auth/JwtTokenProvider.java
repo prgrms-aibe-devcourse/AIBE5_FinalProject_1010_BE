@@ -34,17 +34,18 @@ public class JwtTokenProvider {
     }
 
     public String createAccessToken(Long userId, String role) {
-        return createToken(userId, role, accessTokenExpiration);
+        return createToken(userId, role, accessTokenExpiration, "access");
     }
 
     public String createRefreshToken(Long userId, String role) {
-        return createToken(userId, role, refreshTokenExpiration);
+        return createToken(userId, role, refreshTokenExpiration, "refresh");
     }
 
-    private String createToken(Long userId, String role, long expiration) {
+    private String createToken(Long userId, String role, long expiration, String tokenType) {
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("role", role)
+                .claim("type", tokenType)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(secretKey)
@@ -133,6 +134,12 @@ public class JwtTokenProvider {
         return claims.get("role", String.class);
     }
 
+    // 토큰을 검증한 후 Claims에서 type(access/refresh)을 추출
+    public String getTokenType(String token) {
+        Claims claims = validateAndGetClaims(token);
+        return claims.get("type", String.class);
+    }
+
     /**
      * Claims에서 userId를 추출합니다. 이미 Claims를 가지고 있을 때 사용하세요
      * (validateAndGetClaims를 한 번만 호출하고 여러번 재사용하기 위한 편의 메서드).
@@ -148,5 +155,13 @@ public class JwtTokenProvider {
     public String getRoleFromClaims(Claims claims) {
         if (claims == null) return null;
         return claims.get("role", String.class);
+    }
+
+    /**
+     * Claims에서 토큰 type을 추출합니다. 이미 Claims를 가지고 있을 때 사용하세요.
+     */
+    public String getTypeFromClaims(Claims claims) {
+        if (claims == null) return null;
+        return claims.get("type", String.class);
     }
 }

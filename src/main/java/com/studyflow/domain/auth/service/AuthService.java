@@ -2,6 +2,7 @@ package com.studyflow.domain.auth.service;
 
 import com.studyflow.domain.auth.dto.LoginRequest;
 import com.studyflow.domain.auth.dto.LoginResponse;
+import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
@@ -12,6 +13,9 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,6 +88,26 @@ public class AuthService {
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), role);
 
         return new LoginResponse(accessToken, refreshToken,
+                jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
+    }
+    
+    public ReissueResponse reissue(Long userId, String refreshToken) {
+        // TODO: Redis 도입 시 refreshToken 블랙리스트 처리 필요
+        // refreshToken 파라미터가 현재 사용되지 않음
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("권한 정보가 존재하지 않습니다."));
+        // 'ROLE_' 접두사가 붙어있는 경우 접두사를 제거하여 순수한 role 문자열(STUDENT 등)을 사용
+        if (role.startsWith("ROLE_")) {
+            role = role.substring(5);
+        }
+        String newAccessToken = jwtTokenProvider.createAccessToken(userId, role);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
+        return new ReissueResponse(newAccessToken, newRefreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
 }
