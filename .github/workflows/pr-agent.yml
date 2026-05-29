@@ -2,7 +2,7 @@ name: PR-Agent
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, synchronize]
   issue_comment:
 
 jobs:
@@ -17,10 +17,7 @@ jobs:
     steps:
       - name: PR Agent action step
         id: pragent
-        uses: Codiumai/pr-agent@main
+        uses: qodo-ai/pr-agent@main
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "gemini/gemini-2.0-flash"
-          config.model_turbo: "gemini/gemini-2.0-flash"
-          config.fallback_models: '["gemini/gemini-2.0-flash"]'
