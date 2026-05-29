@@ -7,8 +7,15 @@ import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.auth.exception.TermsAgreementException;
+import com.studyflow.domain.student.entity.StudentProfile;
+import com.studyflow.domain.student.repository.StudentProfileRepository;
+import com.studyflow.domain.teacher.entity.TeacherProfile;
+import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
+import com.studyflow.domain.user.enums.Gender;
+import com.studyflow.domain.auth.exception.InvalidGenderException;
+import com.studyflow.domain.auth.exception.InvalidRoleException;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
@@ -20,12 +27,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import com.studyflow.domain.auth.exception.InvalidBirthDateException;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
     public void signup(SignupRequest request) {
@@ -47,22 +61,56 @@ public class AuthService {
             }
         }
         if (!serviceAgreed) {
-            throw new TermsAgreementException("Service terms agreement must be accepted");
+            throw new TermsAgreementException("서비스 약관에 동의해야 합니다.");
         }
         if (!privacyAgreed) {
-            throw new TermsAgreementException("Privacy terms agreement must be accepted");
+            throw new TermsAgreementException("개인정보 수집 및 이용에 동의해야 합니다.");
         }
         if (!marketingPresent) {
-            throw new TermsAgreementException("Marketing terms agreement does not exist");
+            throw new TermsAgreementException("마케팅 약관 항목이 존재하지 않습니다.");
+        }
+        // SignupRequest의 birthDate를 LocalDate로 변환, 실패 시 커스텀 예외를 던집니다.
+        LocalDate birthDateParsed;
+        try {
+            birthDateParsed = LocalDate.parse(request.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException e) {
+            throw new InvalidBirthDateException("생년월일 형식이 올바르지 않습니다: " + request.getBirthDate(), e);
+        }
+
+        // SignupRequest의 gender를 user.enum.Gender로 변환, 실패 시 커스텀 예외
+        Gender genderEnum;
+        try {
+            genderEnum = Gender.valueOf(request.getGender().toUpperCase());
+        } catch (Exception e) {
+            throw new InvalidGenderException("유효하지 않은 성별입니다: " + request.getGender());
+        }
+
+        // SignupRequest의 role을 user.enum.UserRole로 변환, 실패 시 커스텀 예외
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(request.getRole().toUpperCase());
+        } catch (Exception e) {
+            throw new InvalidRoleException("유효하지 않은 권한입니다: " + request.getRole());
+        }
+        if (userRole == UserRole.ADMIN) {
+            throw new InvalidRoleException("회원가입에서 허용되지 않는 권한입니다.");
         }
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException("Email already in use: " + request.getEmail());
+            throw new AccountAlreadyExistsException("이미 사용 중인 이메일입니다: " + request.getEmail());
         });
 
-        User user = User.createUser(request, passwordEncoder, marketingAgreed);
+        User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
         userRepository.save(user);
+
+        if(userRole == UserRole.STUDENT) {
+            StudentProfile sp = StudentProfile.createForUser(user);
+            studentProfileRepository.save(sp);
+        } else if(userRole == UserRole.TEACHER) {
+            TeacherProfile tp = TeacherProfile.createForUser(user);
+            teacherProfileRepository.save(tp);
+        }
     }
 
     public LoginResponse login(LoginRequest request) {
