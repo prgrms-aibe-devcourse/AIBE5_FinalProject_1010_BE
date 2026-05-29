@@ -152,4 +152,5 @@ public class AuthController {
         */
         return ResponseEntity.ok("선생님 인증 성공: userId = " + userId);
     }
+    //empty line for test
 }
