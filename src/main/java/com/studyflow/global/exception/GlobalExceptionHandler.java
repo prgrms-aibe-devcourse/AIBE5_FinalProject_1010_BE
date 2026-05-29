@@ -1,6 +1,9 @@
 package com.studyflow.global.exception;
 
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
+import com.studyflow.domain.auth.exception.InvalidBirthDateException;
+import com.studyflow.domain.auth.exception.InvalidGenderException;
+import com.studyflow.domain.auth.exception.InvalidRoleException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.auth.exception.TermsAgreementException;
 import org.springframework.http.HttpStatus;
@@ -45,6 +48,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TermsAgreementException.class)
     public ResponseEntity<Object> handleTermsAgreementException(TermsAgreementException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidBirthDateException.class)
+    public ResponseEntity<Object> handleInvalidBirthDateException(InvalidBirthDateException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidGenderException.class)
+    public ResponseEntity<Object> handleInvalidGenderException(InvalidGenderException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidRoleException.class)
+    public ResponseEntity<Object> handleInvalidRoleException(InvalidRoleException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 

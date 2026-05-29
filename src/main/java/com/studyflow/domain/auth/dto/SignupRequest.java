@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -51,6 +52,13 @@ public class SignupRequest {
 	/** role은 문자열로 전달받아 서비스 레이어에서 변환 처리합니다 (예: STUDENT, TEACHER, ADMIN) */
 	@NotBlank
 	private String role;
+
+	@NotBlank
+	private String gender;
+
+	@NotBlank
+	@Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "birthDate must be in format yyyy-MM-dd")
+	private String birthDate;
 
 	@NotEmpty
 	private List<TermsAgreement> termsAgreements;

@@ -1,6 +1,5 @@
 package com.studyflow.domain.student.entity;
 
-import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -25,10 +24,6 @@ public class StudentProfile extends BaseTimeEntity {
     @Column(length = 20)
     private String grade;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Gender gender;
-
     @Column(length = 500)
     private String interestSubjects;
 
@@ -38,5 +33,10 @@ public class StudentProfile extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String goal;
 
-
+    // 팩토리 메서드: 회원가입 시 최소 정보로 StudentProfile 생성
+    public static StudentProfile createForUser(com.studyflow.domain.user.entity.User user) {
+        StudentProfile p = new StudentProfile();
+        p.user = user;
+        return p;
+    }
 }

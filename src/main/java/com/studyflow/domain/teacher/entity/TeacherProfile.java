@@ -1,6 +1,5 @@
 package com.studyflow.domain.teacher.entity;
 
-import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -33,10 +32,6 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String awards;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Gender gender;
-
     private Integer age;
 
     @Column(length = 200)
@@ -55,5 +50,12 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(nullable = false, precision = 10, scale = 1)
     private BigDecimal totalTeachingHours = BigDecimal.ZERO;
 
+
+    // 팩토리 메서드: 회원가입 시 최소 정보로 TeacherProfile 생성
+    public static TeacherProfile createForUser(com.studyflow.domain.user.entity.User user) {
+        TeacherProfile p = new TeacherProfile();
+        p.user = user;
+        return p;
+    }
 
 }

@@ -7,8 +7,13 @@ import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.auth.exception.TermsAgreementException;
+import com.studyflow.domain.student.entity.StudentProfile;
+import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
+import com.studyflow.domain.user.enums.Gender;
+import com.studyflow.domain.auth.exception.InvalidGenderException;
+import com.studyflow.domain.auth.exception.InvalidRoleException;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
@@ -20,12 +25,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import com.studyflow.domain.auth.exception.InvalidBirthDateException;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final com.studyflow.domain.student.repository.StudentProfileRepository studentProfileRepository;
+    private final com.studyflow.domain.teacher.repository.TeacherProfileRepository teacherProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
     public void signup(SignupRequest request) {
@@ -55,14 +67,45 @@ public class AuthService {
         if (!marketingPresent) {
             throw new TermsAgreementException("Marketing terms agreement does not exist");
         }
+        // SignupRequest의 birthDate를 LocalDate로 변환, 실패 시 커스텀 예외를 던집니다.
+        LocalDate birthDateParsed;
+        try {
+            birthDateParsed = LocalDate.parse(request.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException e) {
+            throw new InvalidBirthDateException("Invalid birthDate: " + request.getBirthDate(), e);
+        }
+
+        // SignupRequest의 gender를 user.enum.Gender로 변환, 실패 시 커스텀 예외
+        Gender genderEnum;
+        try {
+            genderEnum = Gender.valueOf(request.getGender().toUpperCase());
+        } catch (Exception e) {
+            throw new InvalidGenderException("Invalid gender: " + request.getGender());
+        }
+
+        // SignupRequest의 role을 user.enum.UserRole로 변환, 실패 시 커스텀 예외
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(request.getRole().toUpperCase());
+        } catch (Exception e) {
+            throw new InvalidRoleException("Invalid role: " + request.getRole());
+        }
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
             throw new AccountAlreadyExistsException("Email already in use: " + request.getEmail());
         });
 
-        User user = User.createUser(request, passwordEncoder, marketingAgreed);
+        User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
         userRepository.save(user);
+
+        if(userRole == UserRole.STUDENT) {
+            StudentProfile sp = StudentProfile.createForUser(user);
+            studentProfileRepository.save(sp);
+        } else if(userRole == UserRole.TEACHER) {
+            TeacherProfile tp = TeacherProfile.createForUser(user);
+            teacherProfileRepository.save(tp);
+        }
     }
 
     public LoginResponse login(LoginRequest request) {
