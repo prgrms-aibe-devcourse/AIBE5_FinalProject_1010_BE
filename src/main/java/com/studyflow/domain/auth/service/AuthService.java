@@ -61,20 +61,20 @@ public class AuthService {
             }
         }
         if (!serviceAgreed) {
-            throw new TermsAgreementException("Service terms agreement must be accepted");
+            throw new TermsAgreementException("서비스 약관에 동의해야 합니다.");
         }
         if (!privacyAgreed) {
-            throw new TermsAgreementException("Privacy terms agreement must be accepted");
+            throw new TermsAgreementException("개인정보 수집 및 이용에 동의해야 합니다.");
         }
         if (!marketingPresent) {
-            throw new TermsAgreementException("Marketing terms agreement does not exist");
+            throw new TermsAgreementException("마케팅 약관 항목이 존재하지 않습니다.");
         }
         // SignupRequest의 birthDate를 LocalDate로 변환, 실패 시 커스텀 예외를 던집니다.
         LocalDate birthDateParsed;
         try {
             birthDateParsed = LocalDate.parse(request.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (DateTimeParseException e) {
-            throw new InvalidBirthDateException("Invalid birthDate: " + request.getBirthDate(), e);
+            throw new InvalidBirthDateException("생년월일 형식이 올바르지 않습니다: " + request.getBirthDate(), e);
         }
 
         // SignupRequest의 gender를 user.enum.Gender로 변환, 실패 시 커스텀 예외
@@ -82,7 +82,7 @@ public class AuthService {
         try {
             genderEnum = Gender.valueOf(request.getGender().toUpperCase());
         } catch (Exception e) {
-            throw new InvalidGenderException("Invalid gender: " + request.getGender());
+            throw new InvalidGenderException("유효하지 않은 성별입니다: " + request.getGender());
         }
 
         // SignupRequest의 role을 user.enum.UserRole로 변환, 실패 시 커스텀 예외
@@ -90,12 +90,15 @@ public class AuthService {
         try {
             userRole = UserRole.valueOf(request.getRole().toUpperCase());
         } catch (Exception e) {
-            throw new InvalidRoleException("Invalid role: " + request.getRole());
+            throw new InvalidRoleException("유효하지 않은 권한입니다: " + request.getRole());
+        }
+        if (userRole == UserRole.ADMIN) {
+            throw new InvalidRoleException("회원가입에서 허용되지 않는 권한입니다.");
         }
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException("Email already in use: " + request.getEmail());
+            throw new AccountAlreadyExistsException("이미 사용 중인 이메일입니다: " + request.getEmail());
         });
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);

@@ -54,6 +54,7 @@ public class SignupRequest {
 	private String role;
 
 	@NotBlank
+	@Pattern(regexp = "MALE|FEMALE", flags = Pattern.Flag.CASE_INSENSITIVE)
 	private String gender;
 
 	@NotBlank
