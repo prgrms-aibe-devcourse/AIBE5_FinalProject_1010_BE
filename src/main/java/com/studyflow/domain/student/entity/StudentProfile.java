@@ -34,7 +34,7 @@ public class StudentProfile extends BaseTimeEntity {
     private String goal;
 
     // 팩토리 메서드: 회원가입 시 최소 정보로 StudentProfile 생성
-    public static StudentProfile createForUser(com.studyflow.domain.user.entity.User user) {
+    public static StudentProfile createForUser(User user) {
         StudentProfile p = new StudentProfile();
         p.user = user;
         return p;

@@ -8,7 +8,9 @@ import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.auth.exception.TermsAgreementException;
 import com.studyflow.domain.student.entity.StudentProfile;
+import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
+import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.enums.Gender;
@@ -36,8 +38,8 @@ import com.studyflow.domain.auth.exception.InvalidBirthDateException;
 public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-    private final com.studyflow.domain.student.repository.StudentProfileRepository studentProfileRepository;
-    private final com.studyflow.domain.teacher.repository.TeacherProfileRepository teacherProfileRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
     public void signup(SignupRequest request) {

@@ -52,7 +52,7 @@ public class TeacherProfile extends BaseTimeEntity {
 
 
     // 팩토리 메서드: 회원가입 시 최소 정보로 TeacherProfile 생성
-    public static TeacherProfile createForUser(com.studyflow.domain.user.entity.User user) {
+    public static TeacherProfile createForUser(User user) {
         TeacherProfile p = new TeacherProfile();
         p.user = user;
         return p;
