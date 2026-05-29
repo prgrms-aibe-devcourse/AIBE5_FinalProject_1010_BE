@@ -19,8 +19,5 @@ jobs:
         id: pragent
         uses: qodo-ai/pr-agent@main
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "gemini/gemini-2.0-flash"
-          config.model_turbo: "gemini/gemini-2.0-flash"
-          config.fallback_models: '["gemini/gemini-2.0-flash"]'
