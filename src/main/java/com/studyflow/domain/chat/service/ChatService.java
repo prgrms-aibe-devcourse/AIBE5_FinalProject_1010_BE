@@ -18,8 +18,10 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
@@ -41,6 +43,15 @@ public class ChatService {
     private final UserRepository userRepository;
 
     /**
+     * 자기 자신을 프록시 경유로 호출하기 위한 참조.
+     *
+     * 같은 빈 안에서 메서드를 직접 호출하면 Spring 트랜잭션 프록시를 타지 않아 @Transactional 이 적용되지 않는다.
+     * 채팅방 생성 동시성 처리에서 "조회"와 "생성"을 각각 별도 트랜잭션으로 실행해야 하므로
+     * selfProvider 로 프록시 빈을 받아 호출한다. (ObjectProvider 라 지연 조회 → 순환 의존 없음)
+     */
+    private final ObjectProvider<ChatService> selfProvider;
+
+    /**
      * 선생님-학생 1:1 매칭 문의 채팅방 생성.
      *
      * 지금은 Course가 확정되기 전, 선생님과 학생이 서로 조건을 맞춰보는 문의 채팅만 만든다.
@@ -48,7 +59,23 @@ public class ChatService {
      *
      * 이미 같은 teacherId/studentId 조합의 채팅방이 있으면 새로 만들지 않고 기존 방을 반환한다.
      */
-    @Transactional
+    /*
+     * 동시성 처리:
+     * room_key 에는 DB UNIQUE 제약(uk_chat_room_room_key)이 있어 같은 키의 방이 행으로 두 개 만들어지는 일은 없다.
+     * 다만 동시에 두 요청이 들어오면 둘 다 findByRoomKey 에서 empty 를 보고 INSERT 를 시도하는데,
+     * 먼저 커밋한 쪽만 성공하고 진 쪽은 DataIntegrityViolationException 을 받는다.
+     * 그 경우 새 트랜잭션으로 기존 방을 다시 조회해서 반환한다.
+     *
+     * 이 메서드는 NOT_SUPPORTED 로 트랜잭션 없이 실행하고, 실제 조회/생성은 self(프록시) 의 별도 트랜잭션 메서드로 위임한다.
+     * 그래야 경합에서 진 뒤의 재조회가 '새 스냅샷'에서 이뤄져 먼저 커밋된 방을 볼 수 있다.
+     * (같은 트랜잭션 안에서 재조회하면 MySQL REPEATABLE READ 스냅샷 때문에 그 방이 안 보일 수 있다.)
+     *
+     * 동시 INSERT 가 같은 unique 키에 몰리면 진 쪽은 중복키(DataIntegrityViolationException) 뿐 아니라
+     * 락 경합/데드락(다른 DataAccessException), 커밋 단계 실패(TransactionSystemException) 등 다양한 예외로 실패할 수 있다.
+     * 예외 타입을 일일이 가리기 어려우므로 넓게 잡되, "잡은 뒤 방이 실제로 존재하면 경합으로 보고 반환,
+     * 끝까지 없으면 원래 예외를 다시 던진다"는 식으로 처리한다. (진짜 오류는 그대로 표출됨)
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ChatRoomResponse createDirectRoom(Long currentUserId, ChatRoomCreateRequest request) {
         validateCurrentUserIsParticipant(
                 currentUserId,
@@ -69,23 +96,84 @@ public class ChatService {
                 request.getStudentId()
         );
 
-        ChatRoom chatRoom = chatRoomRepository.findByRoomKey(roomKey)
-                .orElseGet(() -> {
-                    /*
-                     * 기존 ChatRoom 엔티티는 course를 받을 수 있는 구조다.
-                     * 하지만 지금 단계의 매칭 문의 채팅은 Course가 아직 없어도 되어야 하므로 null을 넣는다.
-                     * 나중에 Course 기반 채팅으로 확장할 때 이 부분에서 Course를 조회해서 넣으면 된다.
-                     */
-                    ChatRoom newRoom = ChatRoom.createDirectRoom(null, roomKey);
+        ChatService self = selfProvider.getObject();
 
-                    // 1:1 문의 채팅이므로 참여자는 선생님 1명, 학생 1명만 넣는다.
-                    ChatRoomParticipant.createTeacher(newRoom, teacher);
-                    ChatRoomParticipant.createStudent(newRoom, student);
+        RuntimeException lastError = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            // 1) 이미 있으면 그대로 반환 (대부분의 동시 요청은 여기서 끝난다)
+            ChatRoomResponse existing = self.findDirectRoomResponse(roomKey, currentUserId);
+            if (existing != null) {
+                return existing;
+            }
 
-                    return chatRoomRepository.save(newRoom);
-                });
+            // 2) 없으면 생성 시도. 동시 요청과 경합하면(중복키/락/커밋 실패 등) 다음 회차에서 재조회한다.
+            try {
+                return self.createDirectRoomInNewTx(
+                        roomKey,
+                        request.getTeacherId(),
+                        request.getStudentId(),
+                        currentUserId
+                );
+            } catch (RuntimeException e) {
+                lastError = e;
+            }
+        }
 
-        return toChatRoomResponse(chatRoom, currentUserId);
+        // 재시도 후 마지막 확인: 경합 끝에 누군가 만들어 둔 방이 있으면 그걸 반환
+        ChatRoomResponse finalCheck = self.findDirectRoomResponse(roomKey, currentUserId);
+        if (finalCheck != null) {
+            return finalCheck;
+        }
+        // 경합이 아니라 진짜 DB 오류면 그대로 던진다
+        throw lastError;
+    }
+
+    /**
+     * roomKey 로 기존 1:1 방을 조회해 응답으로 변환. 없으면 null.
+     *
+     * 별도 트랜잭션으로 실행되어, 동시성 경합 후 재조회 시 새 스냅샷에서 먼저 커밋된 방을 볼 수 있다.
+     * (외부에서 직접 쓰지 말 것 — createDirectRoom 내부 동시성 처리용.)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public ChatRoomResponse findDirectRoomResponse(String roomKey, Long currentUserId) {
+        return chatRoomRepository.findByRoomKey(roomKey)
+                .map(room -> toChatRoomResponse(room, currentUserId))
+                .orElse(null);
+    }
+
+    /**
+     * 1:1 방을 새로 만들어 응답으로 변환. room_key 가 이미 있으면 UNIQUE 제약 위반으로 예외가 난다(호출부에서 처리).
+     *
+     * 응답 변환(지연 로딩 포함)을 같은 트랜잭션 안에서 끝내, 엔티티가 detach 되어 LazyInitializationException 이 나는 것을 막는다.
+     * (외부에서 직접 쓰지 말 것 — createDirectRoom 내부 동시성 처리용.)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ChatRoomResponse createDirectRoomInNewTx(
+            String roomKey,
+            Long teacherId,
+            Long studentId,
+            Long currentUserId
+    ) {
+        User teacher = userRepository.findById(teacherId)
+                .orElseThrow(() -> new IllegalArgumentException("선생님을 찾을 수 없습니다."));
+
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+
+        /*
+         * 기존 ChatRoom 엔티티는 course를 받을 수 있는 구조다.
+         * 하지만 지금 단계의 매칭 문의 채팅은 Course가 아직 없어도 되어야 하므로 null을 넣는다.
+         * 나중에 Course 기반 채팅으로 확장할 때 이 부분에서 Course를 조회해서 넣으면 된다.
+         */
+        ChatRoom newRoom = ChatRoom.createDirectRoom(null, roomKey);
+
+        // 1:1 문의 채팅이므로 참여자는 선생님 1명, 학생 1명만 넣는다.
+        ChatRoomParticipant.createTeacher(newRoom, teacher);
+        ChatRoomParticipant.createStudent(newRoom, student);
+
+        ChatRoom saved = chatRoomRepository.save(newRoom);
+
+        return toChatRoomResponse(saved, currentUserId);
     }
 
     /**
