@@ -1,0 +1,43 @@
+[config]
+language = "korean"
+
+[pr_description]
+publish_labels = true
+add_original_user_description = true
+generate_ai_title = true
+extra_instructions = """
+- 변경된 기능의 목적과 영향 범위를 명확히 설명해주세요.
+- API 엔드포인트가 추가/변경된 경우 메서드, 경로, 요청/응답 구조를 명시해주세요.
+- DB 스키마나 엔티티가 변경된 경우 반드시 언급해주세요.
+"""
+
+[pr_reviewer]
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+require_security_review = true
+enable_review_labels_security_hot_spot = true
+enable_review_labels_effort = true
+num_code_suggestions = 5
+inline_code_comments = true
+extra_instructions = """
+Spring Boot / JPA 기반 백엔드 프로젝트입니다. 아래 항목을 중점적으로 검토해주세요:
+1. N+1 쿼리 문제 및 Lazy/Eager 로딩 전략이 적절한지
+2. 트랜잭션 경계(@Transactional)가 올바르게 설정되어 있는지
+3. 비즈니스 로직이 Service 레이어에 위치하는지 (Controller 비대화 여부)
+4. 예외 처리 누락 및 적절한 HTTP 상태코드 반환 여부
+5. 입력값 검증(@Valid, @Validated) 누락 여부
+6. 민감 정보 노출 가능성 (토큰, 비밀번호, 개인정보 등)
+7. 인증/인가 누락된 엔드포인트 여부
+"""
+
+[pr_code_suggestions]
+num_code_suggestions = 20
+commitable_code_suggestions = true
+extra_instructions = """
+Java/Spring Boot 관점에서 실질적인 개선 사항만 제안해주세요:
+- 코드 중복 제거 및 공통화 기회
+- 명확하지 않은 변수명/메서드명 개선
+- 불필요한 의존성 또는 순환 참조 가능성
+- 성능 저하 가능성이 있는 구현 패턴
+"""
