@@ -3,6 +3,12 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.auth.exception.TermsAgreementException;
+import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
+import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
+import com.studyflow.domain.course.exception.CourseNotFoundException;
+import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
+import com.studyflow.domain.course.exception.CoursePostNotFoundException;
+import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -48,5 +54,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
-    // 기타 예외는 필요에 따라 추가 처리
+    @ExceptionHandler(CourseNotFoundException.class)
+    public ResponseEntity<String> handleCourseNotFound(CourseNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(CourseNoticeNotFoundException.class)
+    public ResponseEntity<String> handleCourseNoticeNotFound(CourseNoticeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(CoursePostNotFoundException.class)
+    public ResponseEntity<String> handleCoursePostNotFound(CoursePostNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(CoursePostCommentNotFoundException.class)
+    public ResponseEntity<String> handleCoursePostCommentNotFound(CoursePostCommentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    // 수업 참여자가 아닌 사용자 접근 (403)
+    @ExceptionHandler(NotCourseParticipantException.class)
+    public ResponseEntity<String> handleNotCourseParticipant(NotCourseParticipantException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    // 권한 없는 수업 내 작업 시도 (403)
+    @ExceptionHandler(CourseAccessForbiddenException.class)
+    public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
 }
