@@ -9,7 +9,11 @@ public class PublicUrlProvider {
     public String[] getPublicUrls() {
         return new String[] {
                 "/api/v1/auth/signup",
-                "/api/v1/auth/login"
+                "/api/v1/auth/login",
+                // Swagger UI 접근 허용
+                "/swagger-ui/**",
+                "/v3/api-docs/**",
+                "/swagger-ui.html"
         };
     }
 
