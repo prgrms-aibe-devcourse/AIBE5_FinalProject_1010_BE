@@ -54,33 +54,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
+    // ── 수업별 페이지 예외 처리 ──────────────────────
+
+    // 존재하지 않는 수업 조회 (404)
     @ExceptionHandler(CourseNotFoundException.class)
     public ResponseEntity<String> handleCourseNotFound(CourseNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    // 존재하지 않거나 삭제된 공지 조회 (404)
     @ExceptionHandler(CourseNoticeNotFoundException.class)
     public ResponseEntity<String> handleCourseNoticeNotFound(CourseNoticeNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    // 존재하지 않거나 삭제된 게시글 조회 (404)
     @ExceptionHandler(CoursePostNotFoundException.class)
     public ResponseEntity<String> handleCoursePostNotFound(CoursePostNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    // 존재하지 않거나 삭제된 댓글 조회 (404)
     @ExceptionHandler(CoursePostCommentNotFoundException.class)
     public ResponseEntity<String> handleCoursePostCommentNotFound(CoursePostCommentNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
-    // 수업 참여자가 아닌 사용자 접근 (403)
+    // 수업 참여자(선생님·수강생)가 아닌 사용자 접근 (403)
     @ExceptionHandler(NotCourseParticipantException.class)
     public ResponseEntity<String> handleNotCourseParticipant(NotCourseParticipantException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
     }
 
-    // 권한 없는 수업 내 작업 시도 (403)
+    // 선생님 전용 기능이거나 본인 게시물이 아닌 경우 (403)
     @ExceptionHandler(CourseAccessForbiddenException.class)
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
