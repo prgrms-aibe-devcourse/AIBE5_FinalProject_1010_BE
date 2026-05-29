@@ -40,3 +40,4 @@ public class StudentProfile extends BaseTimeEntity {
         return p;
     }
 }
+
