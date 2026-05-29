@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,13 +65,21 @@ public class FileService {
         String storedFileName = UUID.randomUUID() + extension;
 
         try {
+            /*
+             * MultipartFile 의 InputStream 은 한 번 소비하면 재사용되지 않는다.
+             * 예전에는 Files.copy 로 스트림을 소비한 뒤 readImageSize 에서 다시 getInputStream() 을 호출해서
+             * 두 번째 스트림이 비어 ImageIO.read() 가 null 을 반환 → width/height 가 항상 null 로 저장됐다.
+             * 그래서 파일 내용을 byte[] 로 한 번만 읽어, 저장과 이미지 크기 측정에 함께 사용한다.
+             */
+            byte[] bytes = file.getBytes();
+
             Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR);
             Files.createDirectories(uploadPath);
 
             Path storedPath = uploadPath.resolve(storedFileName);
-            Files.copy(file.getInputStream(), storedPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(new ByteArrayInputStream(bytes), storedPath, StandardCopyOption.REPLACE_EXISTING);
 
-            ImageSize imageSize = readImageSize(file);
+            ImageSize imageSize = readImageSize(bytes);
 
             String objectKey = "chat/" + storedFileName;
             String fileUrl = "/uploads/chat/" + storedFileName;
@@ -131,9 +140,9 @@ public class FileService {
         return originalFileName.substring(originalFileName.lastIndexOf("."));
     }
 
-    private ImageSize readImageSize(MultipartFile file) {
+    private ImageSize readImageSize(byte[] bytes) {
         try {
-            BufferedImage image = ImageIO.read(file.getInputStream());
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
 
             if (image == null) {
                 return new ImageSize(null, null);
