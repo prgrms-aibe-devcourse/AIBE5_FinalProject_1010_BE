@@ -44,3 +44,6 @@ logs/
 Thumbs.db
 Thumbs.db:encryptable
 Desktop.ini
+
+### Uploaded files (로컬 채팅 이미지 저장 경로) ###
+uploads/
