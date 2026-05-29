@@ -49,6 +49,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
+                        .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER") // 테스트용

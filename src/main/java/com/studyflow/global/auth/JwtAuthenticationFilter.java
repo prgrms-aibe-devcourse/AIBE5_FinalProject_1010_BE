@@ -49,13 +49,74 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
 
+        // refresh token 기반 인증 (PublicUrlProvider#getUrlsWithoutAccessToken에 명시된 경로들)
+        String servletPath = request.getServletPath();
+        for (String urlWithoutAccess : publicUrlProvider.getUrlsWithoutAccessToken()) {
+            if (PATH_MATCHER.match(urlWithoutAccess, servletPath)) {
+                // HttpOnly 쿠키에 있는 refresh token을 가져오기
+                jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+                String refreshToken = null;
+                if (cookies != null) {
+                    for (jakarta.servlet.http.Cookie c : cookies) {
+                        if ("refreshToken".equals(c.getName())) {
+                            refreshToken = c.getValue();
+                            break;
+                        }
+                    }
+                }
+
+                if (!StringUtils.hasText(refreshToken)) {
+                    // 쿠키에 토큰이 없으면 인증 실패 응답
+                    writeAuthErrorResponse(response, ErrorCode.AUTH_INVALID_TOKEN);
+                    return;
+                }
+
+                try {
+                    // 토큰 검증 및 Claims 추출
+                    Claims claims = jwtTokenProvider.validateAndGetClaims(refreshToken);
+
+                    // 토큰 타입이 refresh인지 확인
+                    String type = jwtTokenProvider.getTypeFromClaims(claims);
+                    if (!"refresh".equals(type)) {
+                        throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Not a refresh token");
+                    }
+
+                    // Claims에서 사용자 정보 추출 후 인증 객체 설정
+                    Long userId = jwtTokenProvider.getUserIdFromClaims(claims);
+                    String role = jwtTokenProvider.getRoleFromClaims(claims);
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    // refresh 전용 로직이므로 여기서 필터 체인을 진행하고 리턴
+                    filterChain.doFilter(request, response);
+                    return;
+                } catch (AuthException e) {
+                    SecurityContextHolder.clearContext();
+                    writeAuthErrorResponse(response, e.getErrorCode());
+                    return;
+                }
+            }
+        }
+
+        // Authorization 헤더에 토큰이 없을 경우 조기 리턴
         if (!StringUtils.hasText(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // access token 기반 인증
         try {
             Claims claims = jwtTokenProvider.validateAndGetClaims(token);
+
+            // 토큰이 access인지 확인 (refresh 토큰이면 실패)
+            String type = jwtTokenProvider.getTypeFromClaims(claims);
+            if (!"access".equals(type)) {
+                throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Not an access token");
+            }
 
             Long userId = Long.parseLong(claims.getSubject());
             String role = claims.get("role", String.class);

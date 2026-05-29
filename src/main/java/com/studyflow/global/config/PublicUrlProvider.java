@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 //애플리케이션에서 공개(permitAll) URL 목록을 중앙에서 관리합니다.
 @Component
 public class PublicUrlProvider {
+    // 인증/인가를 거치지 않는 url 목록
     public String[] getPublicUrls() {
         return new String[] {
                 "/api/v1/auth/signup",
@@ -16,7 +17,20 @@ public class PublicUrlProvider {
 
                 // 업로드된 채팅 이미지 정적 제공 경로. 브라우저 <img> 가 토큰 없이 GET 하므로 허용.
                 // 운영에서는 S3 + 서명 URL 등으로 보호하는 것을 권장.
-                "/uploads/**"
+                "/uploads/**",
+
+                // Swagger UI 접근 허용
+                "/swagger-ui/**",
+                "/v3/api-docs/**",
+                "/swagger-ui.html"
+        };
+    }
+
+    // access token 기반 인증이 아닌 url 목록
+    // JwtAuthenticationFilter에서는 제외하지 않음
+    public String[] getUrlsWithoutAccessToken() {
+        return new String[] {
+                "/api/v1/auth/reissue"
         };
     }
 }

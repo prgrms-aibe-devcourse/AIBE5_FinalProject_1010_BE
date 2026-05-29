@@ -1,5 +1,6 @@
 package com.studyflow.domain.user.entity;
 import com.studyflow.domain.auth.dto.SignupRequest;
+import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.audit.BaseTimeEntity;
@@ -7,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,8 +17,6 @@ import java.time.LocalDateTime;
 }) // PostgreSQL 예약어 충돌 방지
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
 public class User extends BaseTimeEntity {
 
     @Id
@@ -54,6 +54,13 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isVerified = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Gender gender;
+
+    @Column(nullable = false)
+    private LocalDate birthDate;
+
     @Column(nullable = false)
     private boolean isActive = true;
 
@@ -66,27 +73,24 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean marketingAgreed = false;
 
-    public static User createUser(SignupRequest request, PasswordEncoder passwordEncoder, boolean marketingAgreed) {
-        UserRole userRole;
-        if(request.getRole().equals("STUDENT")) {
-            userRole = UserRole.STUDENT;
-        } else if(request.getRole().equals("TEACHER")){
-            userRole = UserRole.TEACHER;
-        } else if(request.getRole().equals("ADMIN")) {
-            userRole = UserRole.ADMIN;
-        } else {
-            throw new IllegalArgumentException("Invalid role: " + request.getRole());
-        }
-        return User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .socialProvider(SocialProvider.LOCAL)
-                .phone(request.getPhone())
-                .role(userRole)
-                .marketingAgreed(marketingAgreed)
-                .isDeleted(0L)
-                .isActive(true)
-                .build();
+    public static User createUser(SignupRequest request, PasswordEncoder passwordEncoder, 
+                                  boolean marketingAgreed, LocalDate birthDateParsed, 
+                                  Gender genderEnum, UserRole userRole) {
+        // builder 스타일 대신 필드 직접 할당 방식으로 User 인스턴스 생성
+        User user = new User();
+        user.email = request.getEmail();
+        user.password = passwordEncoder.encode(request.getPassword());
+        user.name = request.getName();
+        user.socialProvider = SocialProvider.LOCAL;
+        user.phone = request.getPhone();
+        user.gender = genderEnum;
+        user.birthDate = birthDateParsed;
+        user.role = userRole;
+        user.marketingAgreed = marketingAgreed;
+        user.isDeleted = 0L;
+        user.isActive = true;
+
+        return user;
     }
 }
+

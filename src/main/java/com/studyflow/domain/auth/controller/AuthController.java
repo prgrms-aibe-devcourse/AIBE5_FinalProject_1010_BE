@@ -1,6 +1,7 @@
 package com.studyflow.domain.auth.controller;
 
 import com.studyflow.domain.auth.dto.LoginResponse;
+import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
@@ -52,7 +53,7 @@ public class AuthController {
             이미 방어 로직이 컨트롤러에 있지만, 2중 방어 목적 및
             User.createUser의 예외 캐치 목적
              */
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(422).build();
         }
         return ResponseEntity.status(201).build();
     }
@@ -66,20 +67,15 @@ public class AuthController {
         try {
             resp = authService.login(request);
         } catch (IllegalStateException e) {
-            // ID 비밀번호 일치하지만, 조회한 사용자가 유효하지 않은 Role일 때
+            /*
+            Role이 Spring Security에서 확인되었으나, 서비스 레벨에서 확인되지 않는 경우
+            request 데이터 무결성 파괴 - 403과 구분
+             */
             // body는 나중에 작성 예정
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(422).build();
         }
 
-        // refresh token은 HttpOnly 쿠키로 전달
-        boolean secure = !"local".equalsIgnoreCase(activeProfile);
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", resp.getRefreshToken())
-                .httpOnly(true)
-                .secure(secure)
-                .path("/")
-                .maxAge(resp.getRefreshExpiresIn() / 1000)
-                .sameSite("None")
-                .build();
+        ResponseCookie refreshCookie = createRefreshCookie(resp.getRefreshToken(), resp.getRefreshExpiresIn());
 
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
@@ -90,6 +86,48 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(body);
+    }
+
+    // refresh token을 통한 (access token, refresh token) 재발급
+    // RTR 전략 채택
+    @PostMapping("/reissue")
+    public ResponseEntity<?> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken,
+                                     @AuthenticationPrincipal Long userId) {
+        if(refreshToken == null || userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        ReissueResponse reissueResponse;
+        try {
+            reissueResponse = authService.reissue(userId, refreshToken);
+        } catch(IllegalStateException e) {
+            // 인증된 사용자의 권한 정보가 없는 이상한 경우
+            // 컴파일 및 디버깅을 위함
+            return ResponseEntity.status(422).build();
+        }
+
+        ResponseCookie refreshCookie = createRefreshCookie(reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
+
+        // 응답 바디에는 access token과 만료시간만 전달
+        Map<String, Object> body = Map.of(
+                "accessToken", reissueResponse.getAccessToken(),
+                "accessExpiresIn", reissueResponse.getAccessExpiresIn()
+        );
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(body);
+    }
+
+    // helper: refresh token을 HttpOnly 쿠키로 만드는 공통 로직
+    private ResponseCookie createRefreshCookie(String refreshToken, long refreshExpiresInMillis) {
+        boolean secure = !"local".equalsIgnoreCase(activeProfile);
+        return ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(refreshExpiresInMillis / 1000)
+                .sameSite("None")
+                .build();
     }
 
     // 학생 인증 테스트용 api
