@@ -1,6 +1,7 @@
 package com.studyflow.domain.auth.controller;
 
 import com.studyflow.domain.auth.dto.LoginResponse;
+import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
@@ -52,7 +53,7 @@ public class AuthController {
             이미 방어 로직이 컨트롤러에 있지만, 2중 방어 목적 및
             User.createUser의 예외 캐치 목적
              */
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(422).build();
         }
         return ResponseEntity.status(201).build();
     }
@@ -68,7 +69,7 @@ public class AuthController {
         } catch (IllegalStateException e) {
             // ID 비밀번호 일치하지만, 조회한 사용자가 유효하지 않은 Role일 때
             // body는 나중에 작성 예정
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(422).build();
         }
 
         // refresh token은 HttpOnly 쿠키로 전달
@@ -85,6 +86,44 @@ public class AuthController {
         Map<String, Object> body = Map.of(
                 "accessToken", resp.getAccessToken(),
                 "accessExpiresIn", resp.getAccessExpiresIn()
+        );
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(body);
+    }
+
+    // refresh token을 통한 (access token, refresh token) 재발급
+    // RTR 전략 채택
+    @PostMapping("/reissue")
+    public ResponseEntity<?> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken,
+                                     @AuthenticationPrincipal Long userId) {
+        if(refreshToken == null || userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        ReissueResponse reissueResponse;
+        try {
+            reissueResponse = authService.reissue(userId, refreshToken);
+        } catch(IllegalStateException e) {
+            // 인증된 사용자의 권한 정보가 없는 이상한 경우
+            // 컴파일 및 디버깅을 위함
+            return ResponseEntity.status(422).build();
+        }
+
+        // refresh token은 HttpOnly 쿠키로 전달
+        boolean secure = !"local".equalsIgnoreCase(activeProfile);
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", reissueResponse.getRefreshToken())
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(reissueResponse.getRefreshExpiresIn() / 1000)
+                .sameSite("None")
+                .build();
+
+        // 응답 바디에는 access token과 만료시간만 전달
+        Map<String, Object> body = Map.of(
+                "accessToken", reissueResponse.getAccessToken(),
+                "accessExpiresIn", reissueResponse.getAccessExpiresIn()
         );
 
         return ResponseEntity.ok()
