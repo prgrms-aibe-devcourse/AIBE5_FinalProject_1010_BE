@@ -67,20 +67,15 @@ public class AuthController {
         try {
             resp = authService.login(request);
         } catch (IllegalStateException e) {
-            // ID 비밀번호 일치하지만, 조회한 사용자가 유효하지 않은 Role일 때
+            /*
+            Role이 Spring Security에서 확인되었으나, 서비스 레벨에서 확인되지 않는 경우
+            request 데이터 무결성 파괴 - 403과 구분
+             */
             // body는 나중에 작성 예정
             return ResponseEntity.status(422).build();
         }
 
-        // refresh token은 HttpOnly 쿠키로 전달
-        boolean secure = !"local".equalsIgnoreCase(activeProfile);
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", resp.getRefreshToken())
-                .httpOnly(true)
-                .secure(secure)
-                .path("/")
-                .maxAge(resp.getRefreshExpiresIn() / 1000)
-                .sameSite("None")
-                .build();
+        ResponseCookie refreshCookie = createRefreshCookie(resp.getRefreshToken(), resp.getRefreshExpiresIn());
 
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
@@ -110,15 +105,7 @@ public class AuthController {
             return ResponseEntity.status(422).build();
         }
 
-        // refresh token은 HttpOnly 쿠키로 전달
-        boolean secure = !"local".equalsIgnoreCase(activeProfile);
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", reissueResponse.getRefreshToken())
-                .httpOnly(true)
-                .secure(secure)
-                .path("/")
-                .maxAge(reissueResponse.getRefreshExpiresIn() / 1000)
-                .sameSite("None")
-                .build();
+        ResponseCookie refreshCookie = createRefreshCookie(reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
 
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
@@ -129,6 +116,18 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(body);
+    }
+
+    // helper: refresh token을 HttpOnly 쿠키로 만드는 공통 로직
+    private ResponseCookie createRefreshCookie(String refreshToken, long refreshExpiresInMillis) {
+        boolean secure = !"local".equalsIgnoreCase(activeProfile);
+        return ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(refreshExpiresInMillis / 1000)
+                .sameSite("None")
+                .build();
     }
 
     // 학생 인증 테스트용 api
@@ -152,5 +151,4 @@ public class AuthController {
         */
         return ResponseEntity.ok("선생님 인증 성공: userId = " + userId);
     }
-    //empty line for test
 }

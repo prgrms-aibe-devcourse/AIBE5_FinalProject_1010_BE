@@ -7,7 +7,6 @@ import lombok.Setter;
 
 // LoginResponse와 내용은 동일하지만 요구사항 변동에 대비해 별도의 DTO로 분리
 @Getter
-@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class ReissueResponse {

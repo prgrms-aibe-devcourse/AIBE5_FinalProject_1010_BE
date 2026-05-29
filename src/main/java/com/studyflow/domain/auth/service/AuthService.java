@@ -92,6 +92,8 @@ public class AuthService {
     }
     
     public ReissueResponse reissue(Long userId, String refreshToken) {
+        // TODO: Redis 도입 시 refreshToken 블랙리스트 처리 필요
+        // refreshToken 파라미터가 현재 사용되지 않음
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
@@ -99,6 +101,10 @@ public class AuthService {
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("권한 정보가 존재하지 않습니다."));
+        // 'ROLE_' 접두사가 붙어있는 경우 접두사를 제거하여 순수한 role 문자열(STUDENT 등)을 사용
+        if (role.startsWith("ROLE_")) {
+            role = role.substring(5);
+        }
         String newAccessToken = jwtTokenProvider.createAccessToken(userId, role);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
         return new ReissueResponse(newAccessToken, newRefreshToken,
