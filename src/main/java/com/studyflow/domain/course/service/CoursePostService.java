@@ -51,7 +51,7 @@ public class CoursePostService {
         accessValidator.validateParticipantAndGetCourse(courseId, userId);
         CoursePost post = postRepository.findByIdAndCourseIdAndDeletedAtIsNull(postId, courseId)
                 .orElseThrow(() -> new CoursePostNotFoundException(postId));
-        post.incrementViewCount();
+        postRepository.incrementViewCount(postId);
 
         List<CoursePostCommentResponse> comments = commentRepository
                 .findByCoursePostIdAndDeletedAtIsNullOrderByCreatedAtAsc(postId)
@@ -81,13 +81,7 @@ public class CoursePostService {
         validateAuthor(post.getUser().getId(), userId);
 
         post.update(request.getTitle(), request.getContent());
-
-        List<CoursePostCommentResponse> comments = commentRepository
-                .findByCoursePostIdAndDeletedAtIsNullOrderByCreatedAtAsc(postId)
-                .stream()
-                .map(CoursePostCommentResponse::from)
-                .toList();
-        return CoursePostDetailResponse.of(post, comments);
+        return CoursePostDetailResponse.of(post, List.of());
     }
 
     // 게시글 소프트 딜리트 — 작성자 본인 또는 담당 선생님 가능

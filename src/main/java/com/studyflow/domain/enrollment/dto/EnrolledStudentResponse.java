@@ -14,7 +14,6 @@ public class EnrolledStudentResponse {
 
     private Long userId;
     private String name;
-    private String email;
     private String profileImageUrl;
     private LocalDateTime enrolledAt;
 
@@ -23,7 +22,6 @@ public class EnrolledStudentResponse {
         return EnrolledStudentResponse.builder()
                 .userId(user.getId())
                 .name(user.getName())
-                .email(user.getEmail())
                 .profileImageUrl(user.getProfileImageUrl())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .build();
