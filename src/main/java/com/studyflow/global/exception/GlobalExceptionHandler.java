@@ -48,5 +48,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
+    /**
+     * 잘못된 요청 인자에 대한 처리.
+     *
+     * 서비스 계층에서 클라이언트 입력 문제로 던지는 IllegalArgumentException
+     * (예: 허용되지 않는 확장자/형식, 존재하지 않는 대상 등)을 500이 아닌 400으로 내려주고,
+     * 사유 메시지를 함께 전달한다.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        Map<String, String> body = new HashMap<>();
+        body.put("message", ex.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     // 기타 예외는 필요에 따라 추가 처리
 }

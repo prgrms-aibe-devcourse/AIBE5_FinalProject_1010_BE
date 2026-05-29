@@ -36,6 +36,18 @@ public class FileService {
     );
 
     /**
+     * 허용 확장자 화이트리스트. (소문자로 비교)
+     *
+     * Content-Type(클라이언트가 보낸 헤더, 위조 가능) 외에 확장자도 한 겹 더 검사한다.
+     */
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp"
+    );
+
+    /**
      * 개발용 로컬 저장 경로.
      *
      * 실제 운영에서는 S3로 교체하는 것을 추천한다.
@@ -71,7 +83,8 @@ public class FileService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         String originalFileName = file.getOriginalFilename();
-        String extension = extractExtension(originalFileName);
+        String extension = extractExtension(originalFileName).toLowerCase();
+        validateExtension(extension);   // 확장자 화이트리스트 검사
         String storedFileName = UUID.randomUUID() + extension;
 
         try {
@@ -82,6 +95,10 @@ public class FileService {
              * 그래서 파일 내용을 byte[] 로 한 번만 읽어, 저장과 이미지 크기 측정에 함께 사용한다.
              */
             byte[] bytes = file.getBytes();
+
+            // 매직바이트(파일 시그니처) 검사: 실제로 JPEG/PNG/WEBP 인지 확인한다.
+            // Content-Type·확장자는 위조 가능하므로, 내용 자체를 검사해 위장 업로드를 막는다.
+            validateMagicBytes(bytes);
 
             // chat/년/월/일 하위 폴더에 저장 (예: uploads/chat/2026/05/29/{uuid}.png)
             String datePath = LocalDate.now().format(DATE_PATH_FORMAT);   // "2026/05/29"
@@ -143,6 +160,50 @@ public class FileService {
 
         if (file.getSize() > maxSize) {
             throw new IllegalArgumentException("이미지는 최대 10MB까지 업로드할 수 있습니다.");
+        }
+    }
+
+    /**
+     * 확장자 화이트리스트 검사. (소문자 기준)
+     *
+     * 확장자가 없거나 허용 목록에 없으면 거부한다.
+     */
+    private void validateExtension(String extension) {
+        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("허용되지 않는 파일 확장자입니다. (jpg, jpeg, png, webp만 가능)");
+        }
+    }
+
+    /**
+     * 매직바이트(파일 시그니처) 검사.
+     *
+     * 파일 앞부분 바이트를 보고 실제 포맷을 판별한다. Content-Type/확장자와 달리 위조하기 어렵다.
+     * - PNG : 89 50 4E 47 0D 0A 1A 0A
+     * - JPEG: FF D8 FF
+     * - WEBP: "RIFF" .... "WEBP"
+     *
+     * 셋 중 어느 것도 아니면 실제 이미지가 아니라고 보고 거부한다.
+     */
+    private void validateMagicBytes(byte[] bytes) {
+        if (bytes == null || bytes.length < 12) {
+            throw new IllegalArgumentException("이미지 파일이 손상되었거나 너무 작습니다.");
+        }
+
+        boolean png = (bytes[0] & 0xFF) == 0x89 && (bytes[1] & 0xFF) == 0x50
+                && (bytes[2] & 0xFF) == 0x4E && (bytes[3] & 0xFF) == 0x47
+                && (bytes[4] & 0xFF) == 0x0D && (bytes[5] & 0xFF) == 0x0A
+                && (bytes[6] & 0xFF) == 0x1A && (bytes[7] & 0xFF) == 0x0A;
+
+        boolean jpeg = (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8
+                && (bytes[2] & 0xFF) == 0xFF;
+
+        boolean webp = (bytes[0] & 0xFF) == 0x52 && (bytes[1] & 0xFF) == 0x49   // "RIFF"
+                && (bytes[2] & 0xFF) == 0x46 && (bytes[3] & 0xFF) == 0x46
+                && (bytes[8] & 0xFF) == 0x57 && (bytes[9] & 0xFF) == 0x45        // "WEBP"
+                && (bytes[10] & 0xFF) == 0x42 && (bytes[11] & 0xFF) == 0x50;
+
+        if (!png && !jpeg && !webp) {
+            throw new IllegalArgumentException("실제 이미지 파일이 아닙니다. (지원: JPEG, PNG, WEBP)");
         }
     }
 
