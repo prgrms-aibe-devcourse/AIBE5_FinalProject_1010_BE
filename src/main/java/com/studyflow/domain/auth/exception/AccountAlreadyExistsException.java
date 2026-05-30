@@ -1,11 +1,12 @@
 package com.studyflow.domain.auth.exception;
 
-public class AccountAlreadyExistsException extends RuntimeException {
-    public AccountAlreadyExistsException(String message) {
-        super(message);
-    }
+import com.studyflow.global.exception.ErrorCode;
 
-    public AccountAlreadyExistsException(String message, Throwable cause) {
-        super(message, cause);
+public class AccountAlreadyExistsException extends RuntimeException {
+    private final ErrorCode errorCode;
+
+    public AccountAlreadyExistsException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
     }
 }

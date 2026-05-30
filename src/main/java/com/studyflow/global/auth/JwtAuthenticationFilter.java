@@ -67,7 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (!StringUtils.hasText(refreshToken)) {
                     // 쿠키에 토큰이 없으면 인증 실패 응답
-                    writeAuthErrorResponse(response, ErrorCode.AUTH_INVALID_TOKEN);
+                    writeAuthErrorResponse(response, ErrorCode.AUTH_INVALID_TOKEN, "토큰이 없습니다.");
                     return;
                 }
 
@@ -78,7 +78,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 토큰 타입이 refresh인지 확인
                     String type = jwtTokenProvider.getTypeFromClaims(claims);
                     if (!"refresh".equals(type)) {
-                        throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Not a refresh token");
+                        throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "토큰 타입이 적절하지 않습니다.");
                     }
 
                     // Claims에서 사용자 정보 추출 후 인증 객체 설정
@@ -96,7 +96,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 } catch (AuthException e) {
                     SecurityContextHolder.clearContext();
-                    writeAuthErrorResponse(response, e.getErrorCode());
+                    writeAuthErrorResponse(response, e.getErrorCode(), e.getMessage());
                     return;
                 }
             }
@@ -115,7 +115,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 토큰이 access인지 확인 (refresh 토큰이면 실패)
             String type = jwtTokenProvider.getTypeFromClaims(claims);
             if (!"access".equals(type)) {
-                throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Not an access token");
+                throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "토큰 타입이 적절하지 않습니다.");
             }
 
             Long userId = Long.parseLong(claims.getSubject());
@@ -130,7 +130,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (AuthException e) {
             SecurityContextHolder.clearContext();
-            writeAuthErrorResponse(response, e.getErrorCode());
+            writeAuthErrorResponse(response, e.getErrorCode(), e.getMessage());
         }
     }
 
@@ -143,8 +143,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void writeAuthErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        writeAuthErrorResponse(response, errorCode, errorCode.getMessage());
+    }
+
+    private void writeAuthErrorResponse(HttpServletResponse response, ErrorCode errorCode, String customMessage) throws IOException {
         response.setStatus(errorCode.getStatus().value());
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(String.format("{\"code\":\"%s\",\"message\":\"%s\"}", errorCode.name(), errorCode.getMessage()));
+        response.getWriter().write(String.format("{\"code\":\"%s\",\"message\":\"%s\"}", errorCode.name(), customMessage));
     }
 }

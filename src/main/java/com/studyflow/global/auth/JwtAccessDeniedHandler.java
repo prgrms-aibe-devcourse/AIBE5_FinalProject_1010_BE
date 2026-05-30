@@ -1,6 +1,6 @@
 package com.studyflow.global.auth;
 
-import jakarta.servlet.ServletException;
+import com.studyflow.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,15 +17,13 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
             HttpServletRequest request,
             HttpServletResponse response,
             AccessDeniedException accessDeniedException
-    ) throws IOException, ServletException {
+    ) throws IOException {
 
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
 
-        response.getWriter().write("""
-            {
-              "message": "권한이 없습니다."
-            }
-        """);
+        ErrorCode ec = ErrorCode.ACCESS_DENIED;
+        String body = String.format("{\n  \"success\":false,\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
+        response.getWriter().write(body);
     }
 }

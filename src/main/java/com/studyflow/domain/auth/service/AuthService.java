@@ -4,9 +4,7 @@ import com.studyflow.domain.auth.dto.LoginRequest;
 import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
-import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
-import com.studyflow.domain.auth.exception.InvalidCredentialsException;
-import com.studyflow.domain.auth.exception.TermsAgreementException;
+import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -14,11 +12,11 @@ import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.enums.Gender;
-import com.studyflow.domain.auth.exception.InvalidGenderException;
-import com.studyflow.domain.auth.exception.InvalidRoleException;
+import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
+import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -30,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import com.studyflow.domain.auth.exception.InvalidBirthDateException;
 
 @Service
 @Transactional
@@ -61,20 +58,20 @@ public class AuthService {
             }
         }
         if (!serviceAgreed) {
-            throw new TermsAgreementException("서비스 약관에 동의해야 합니다.");
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "서비스 약관에 동의해야 합니다.");
         }
         if (!privacyAgreed) {
-            throw new TermsAgreementException("개인정보 수집 및 이용에 동의해야 합니다.");
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "개인정보 수집 및 이용에 동의해야 합니다.");
         }
         if (!marketingPresent) {
-            throw new TermsAgreementException("마케팅 약관 항목이 존재하지 않습니다.");
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "마케팅 약관 항목이 존재하지 않습니다.");
         }
         // SignupRequest의 birthDate를 LocalDate로 변환, 실패 시 커스텀 예외를 던집니다.
         LocalDate birthDateParsed;
         try {
             birthDateParsed = LocalDate.parse(request.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (DateTimeParseException e) {
-            throw new InvalidBirthDateException("생년월일 형식이 올바르지 않습니다: " + request.getBirthDate(), e);
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "생년월일 형식이 올바르지 않습니다: " + request.getBirthDate());
         }
 
         // SignupRequest의 gender를 user.enum.Gender로 변환, 실패 시 커스텀 예외
@@ -82,7 +79,7 @@ public class AuthService {
         try {
             genderEnum = Gender.valueOf(request.getGender().toUpperCase());
         } catch (Exception e) {
-            throw new InvalidGenderException("유효하지 않은 성별입니다: " + request.getGender());
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "유효하지 않은 성별입니다: " + request.getGender());
         }
 
         // SignupRequest의 role을 user.enum.UserRole로 변환, 실패 시 커스텀 예외
@@ -90,15 +87,17 @@ public class AuthService {
         try {
             userRole = UserRole.valueOf(request.getRole().toUpperCase());
         } catch (Exception e) {
-            throw new InvalidRoleException("유효하지 않은 권한입니다: " + request.getRole());
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "유효하지 않은 권한입니다: " + request.getRole());
         }
+
+        // 관리자 회원가입 시도 차단
         if (userRole == UserRole.ADMIN) {
-            throw new InvalidRoleException("회원가입에서 허용되지 않는 권한입니다.");
+            throw new SignupWithAdminException(ErrorCode.ACCESS_DENIED, "회원가입에서 허용되지 않는 권한입니다.");
         }
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException("이미 사용 중인 이메일입니다: " + request.getEmail());
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFILCT, "이미 사용 중인 이메일입니다: " + request.getEmail());
         });
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
@@ -115,10 +114,10 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findActiveByEmailAndSocialProvider(request.getEmail(),SocialProvider.LOCAL)
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+                .orElseThrow(() -> new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다."));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new InvalidCredentialsException("Invalid email or password");
+            throw new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다.");
         }
 
         // 성공: access + refresh 토큰 발급

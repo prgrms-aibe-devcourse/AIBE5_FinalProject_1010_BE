@@ -3,8 +3,10 @@ package com.studyflow.domain.auth.controller;
 import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
+import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
+import com.studyflow.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import com.studyflow.domain.auth.dto.LoginRequest;
 import lombok.RequiredArgsConstructor;
@@ -27,35 +29,31 @@ public class AuthController {
     private String activeProfile;
 
     @PostMapping("/signup")
-    public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequest request) {
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
         // 필드 레벨 검증은 @Valid가 처리합니다.
         // 비밀번호와 비밀번호 확인이 일치하지 않으면 400 반환
-        if (request.getPassword() == null || request.getPasswordConfirm() == null
-                || !request.getPassword().equals(request.getPasswordConfirm())) {
-            return ResponseEntity.badRequest().build();
+        if (!request.getPassword().equals(request.getPasswordConfirm())) {
+            throw new SignupRequestException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "비밀번호와 비밀번호 확인이 일치하지 않습니다.");
         }
-        // role이 STUDENT 또는 TEACHER가 아니면 400 반환
-        if (!request.getRole().equals("STUDENT") && !request.getRole().equals("TEACHER")) {
-            return ResponseEntity.badRequest().build();
-        }
+
+        // role 정보는 Service layer에서 검증
+
         // termsAgreement가 없거나, termsAgreement의 SERVICE와 PRIVACY가 false면 400 반환
         if (request.getTermsAgreements() == null || request.getTermsAgreements().size() != TermsType.values().length) {
             // 약관 항목이 3개가 아니면 에러
-            return ResponseEntity.badRequest().build();
+            throw new SignupRequestException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "약관 동의 정보가 유효하지 않습니다.");
         }
 
         // 실제 가입 처리(서비스에 위임)
-        try {
-            authService.signup(request);
-        } catch (IllegalArgumentException e) {
-            /*
-            잘못된 role 회원가입 시도
-            이미 방어 로직이 컨트롤러에 있지만, 2중 방어 목적 및
-            User.createUser의 예외 캐치 목적
-             */
-            return ResponseEntity.status(422).build();
-        }
-        return ResponseEntity.status(201).build();
+        authService.signup(request);
+        Map<String, Object> body = Map.of(
+                "message", "회원 가입에 성공했습니다."
+        );
+        return ResponseEntity.status(201).body(body);
     }
 
     // 로그인
@@ -80,7 +78,8 @@ public class AuthController {
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
                 "accessToken", resp.getAccessToken(),
-                "accessExpiresIn", resp.getAccessExpiresIn()
+                "accessExpiresIn", resp.getAccessExpiresIn(),
+                "message", "로그인에 성공했습니다."
         );
 
         return ResponseEntity.ok()
@@ -94,7 +93,11 @@ public class AuthController {
     public ResponseEntity<?> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken,
                                      @AuthenticationPrincipal Long userId) {
         if(refreshToken == null || userId == null) {
-            return ResponseEntity.status(401).build();
+            Map<String, Object> body = Map.of(
+                    "code", "AUTH_REQUIRED",
+                    "message", "인증 정보가 유효하지 않습니다."
+            );
+            return ResponseEntity.status(401).body(body);
         }
         ReissueResponse reissueResponse;
         try {
@@ -110,7 +113,8 @@ public class AuthController {
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
                 "accessToken", reissueResponse.getAccessToken(),
-                "accessExpiresIn", reissueResponse.getAccessExpiresIn()
+                "accessExpiresIn", reissueResponse.getAccessExpiresIn(),
+                "message", "토큰 재발급에 성공했습니다."
         );
 
         return ResponseEntity.ok()
