@@ -27,7 +27,9 @@ public class OpenAiConfig {
     @Bean
     public RestClient openAiRestClient(
             @Value("${openai.base-url}") String baseUrl,
-            @Value("${openai.api-key}") String apiKey,
+            // 키가 정의되지 않아도(시크릿 파일 부재) 앱이 기동되도록 빈 문자열을 기본값으로 둔다.
+            // 이 경우 실제 호출 시 OpenAI가 401을 반환하고 AiServiceException(502)으로 변환된다.
+            @Value("${openai.api-key:}") String apiKey,
             @Value("${openai.timeout-seconds:60}") long timeoutSeconds
     ) {
         // OpenAI 응답은 수 초~수십 초가 걸릴 수 있으므로 read 타임아웃을 넉넉히 둔다.
