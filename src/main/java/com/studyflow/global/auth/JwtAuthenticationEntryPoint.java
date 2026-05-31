@@ -24,7 +24,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         // 공통 ErrorCode를 사용하여 응답의 code와 message를 일관되게 반환
         ErrorCode ec = ErrorCode.AUTH_REQUIRED;
-        String body = String.format("{\n  \"success\":false,\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
+        String body = String.format("{\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
         response.getWriter().write(body);
     }
 }

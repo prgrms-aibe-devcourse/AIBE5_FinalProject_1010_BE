@@ -97,7 +97,7 @@ public class AuthService {
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFILCT, "이미 사용 중인 이메일입니다: " + request.getEmail());
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
         });
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);

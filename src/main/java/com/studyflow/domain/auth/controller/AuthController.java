@@ -50,10 +50,7 @@ public class AuthController {
 
         // 실제 가입 처리(서비스에 위임)
         authService.signup(request);
-        Map<String, Object> body = Map.of(
-                "message", "회원 가입에 성공했습니다."
-        );
-        return ResponseEntity.status(201).body(body);
+        return ResponseEntity.status(201).build();
     }
 
     // 로그인
@@ -78,8 +75,7 @@ public class AuthController {
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
                 "accessToken", resp.getAccessToken(),
-                "accessExpiresIn", resp.getAccessExpiresIn(),
-                "message", "로그인에 성공했습니다."
+                "accessExpiresIn", resp.getAccessExpiresIn()
         );
 
         return ResponseEntity.ok()
@@ -113,8 +109,7 @@ public class AuthController {
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
                 "accessToken", reissueResponse.getAccessToken(),
-                "accessExpiresIn", reissueResponse.getAccessExpiresIn(),
-                "message", "토큰 재발급에 성공했습니다."
+                "accessExpiresIn", reissueResponse.getAccessExpiresIn()
         );
 
         return ResponseEntity.ok()

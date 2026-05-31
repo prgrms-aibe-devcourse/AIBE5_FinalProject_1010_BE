@@ -23,7 +23,7 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
         response.setContentType("application/json;charset=UTF-8");
 
         ErrorCode ec = ErrorCode.ACCESS_DENIED;
-        String body = String.format("{\n  \"success\":false,\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
+        String body = String.format("{\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
         response.getWriter().write(body);
     }
 }

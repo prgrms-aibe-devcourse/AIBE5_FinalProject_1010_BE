@@ -40,8 +40,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody("올바르지 않은 입력 형식입니다.");
-        // 원인 메시지를 detail 필드에 추가하여 디버깅에 도움을 줄 수 있습니다.
-        body.put("detail", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -66,28 +64,28 @@ public class GlobalExceptionHandler {
     // 가입 시도하는 이메일이 이미 가입된 경우 (409)
     @ExceptionHandler(AccountAlreadyExistsException.class)
     public ResponseEntity<Map<String, Object>> handleEmailExists(AccountAlreadyExistsException ex) {
-        Map<String, Object> body = ErrorCode.EMAIL_CONFILCT.toBody(ex.getMessage());
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     // 이메일 또는 비밀번호 불일치로 로그인 실패한 경우 (401)
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
-        Map<String, Object> body = ErrorCode.AUTH_LOGIN_FAILED.toBody(ex.getMessage());
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
     // 회원가입 요청이 회원가입 비즈니스 로직에 위배되는 경우 (400)
     @ExceptionHandler(SignupRequestException.class)
     public ResponseEntity<Map<String, Object>> handleSignupRequestException(SignupRequestException ex) {
-        Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(ex.getMessage());
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     // 관리자로 회원가입을 시도하는 경우 (403)
     @ExceptionHandler(SignupWithAdminException.class)
     public ResponseEntity<Map<String, Object>> handleSignupWithAdminException(SignupWithAdminException ex) {
-        Map<String, Object> body = ErrorCode.ACCESS_DENIED.toBody(ex.getMessage());
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 

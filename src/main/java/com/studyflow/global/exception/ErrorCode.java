@@ -18,7 +18,7 @@ public enum ErrorCode {
     AUTH_EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "토큰이 만료되었습니다."),
     AUTH_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 일치하지 않습니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "권한이 없습니다."),
-    EMAIL_CONFILCT(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
+    EMAIL_CONFLICT(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
 
     // 수업
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의를 찾을 수 없습니다."),
