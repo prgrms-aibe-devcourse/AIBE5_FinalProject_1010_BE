@@ -2,10 +2,10 @@ package com.studyflow.domain.auth.exception;
 
 import com.studyflow.global.exception.ErrorCode;
 
-public class InvalidCredentialsException extends RuntimeException {
+public class SignupWithAdminException extends RuntimeException {
     private final ErrorCode errorCode;
 
-    public InvalidCredentialsException(ErrorCode errorCode, String message) {
+    public SignupWithAdminException(ErrorCode errorCode, String message) {
         super(message);
         this.errorCode = errorCode;
     }

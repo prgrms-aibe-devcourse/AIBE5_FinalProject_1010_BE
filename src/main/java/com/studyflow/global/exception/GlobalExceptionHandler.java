@@ -1,11 +1,9 @@
 package com.studyflow.global.exception;
 
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
-import com.studyflow.domain.auth.exception.InvalidBirthDateException;
-import com.studyflow.domain.auth.exception.InvalidGenderException;
-import com.studyflow.domain.auth.exception.InvalidRoleException;
+import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.auth.exception.InvalidCredentialsException;
-import com.studyflow.domain.auth.exception.TermsAgreementException;
+import com.studyflow.domain.auth.exception.SignupWithAdminException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -18,43 +16,31 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
 
+// 가독성을 위해 자바 및 스프링 표준 Exception을 위에, 커스텀 Exception을 아래에 정리
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
+    // @Valid 어노테이션 검증에 실패한 경우 (400)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-        return ResponseEntity.badRequest().body(errors);
+        Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(null);
+        body.put("errors", errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    @ExceptionHandler(AccountAlreadyExistsException.class)
-    public ResponseEntity<String> handleEmailExists(AccountAlreadyExistsException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<String> handleInvalidCredentials(InvalidCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
-    }
-
+    // request JSON 형식이 올바르지 않은 경우 (400)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(TermsAgreementException.class)
-    public ResponseEntity<Object> handleTermsAgreementException(TermsAgreementException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody("올바르지 않은 입력 형식입니다.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**
@@ -71,19 +57,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    @ExceptionHandler(InvalidBirthDateException.class)
-    public ResponseEntity<Object> handleInvalidBirthDateException(InvalidBirthDateException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    // 커스텀 Exception Handling
+
+    // ── 회원 인증 도메인(회원가입, 로그인 등) 예외 처리 ──────────────────────
+
+    // 가입 시도하는 이메일이 이미 가입된 경우 (409)
+    @ExceptionHandler(AccountAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailExists(AccountAlreadyExistsException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    @ExceptionHandler(InvalidGenderException.class)
-    public ResponseEntity<Object> handleInvalidGenderException(InvalidGenderException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    // 이메일 또는 비밀번호 불일치로 로그인 실패한 경우 (401)
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
-    @ExceptionHandler(InvalidRoleException.class)
-    public ResponseEntity<Object> handleInvalidRoleException(InvalidRoleException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    // 회원가입 요청이 회원가입 비즈니스 로직에 위배되는 경우 (400)
+    @ExceptionHandler(SignupRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleSignupRequestException(SignupRequestException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // 관리자로 회원가입을 시도하는 경우 (403)
+    @ExceptionHandler(SignupWithAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleSignupWithAdminException(SignupWithAdminException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────
@@ -123,6 +126,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
     }
-
     // 기타 예외는 필요에 따라 추가 처리
+
+    // 헬퍼 메서드는 ErrorCode enum 내부의 toBody 메서드를 사용하도록 이동했습니다.
 }

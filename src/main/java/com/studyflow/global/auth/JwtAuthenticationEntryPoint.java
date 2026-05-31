@@ -1,6 +1,6 @@
 package com.studyflow.global.auth;
 
-import jakarta.servlet.ServletException;
+import com.studyflow.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.AuthenticationException;
@@ -17,15 +17,14 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
             HttpServletRequest request,
             HttpServletResponse response,
             AuthenticationException authException
-    ) throws IOException, ServletException {
+    ) throws IOException {
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
 
-        response.getWriter().write("""
-            {
-              "message": "인증이 필요합니다."
-            }
-        """);
+        // 공통 ErrorCode를 사용하여 응답의 code와 message를 일관되게 반환
+        ErrorCode ec = ErrorCode.AUTH_REQUIRED;
+        String body = String.format("{\n  \"code\":\"%s\",\n  \"message\":\"%s\"\n}", ec.name(), ec.getMessage());
+        response.getWriter().write(body);
     }
 }
