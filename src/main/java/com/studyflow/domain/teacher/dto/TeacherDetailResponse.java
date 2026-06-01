@@ -19,7 +19,6 @@ public class TeacherDetailResponse {
     private String education;           // 학력 (전공 포함)
     private String career;              // 경력
     private String awards;              // 수상내역
-    private Integer age;
     private String address;             // 활동 지역
     private String teachingStyle;       // 수업 방식
     private String introduction;        // 자기소개 본문
@@ -39,7 +38,6 @@ public class TeacherDetailResponse {
                 .education(profile.getEducation())
                 .career(profile.getCareer())
                 .awards(profile.getAwards())
-                .age(profile.getAge())
                 .address(profile.getAddress())
                 .teachingStyle(profile.getTeachingStyle())
                 .introduction(profile.getIntroduction())
