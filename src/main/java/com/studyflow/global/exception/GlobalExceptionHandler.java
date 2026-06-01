@@ -133,14 +133,16 @@ public class GlobalExceptionHandler {
 
     // 존재하지 않는 과목으로 질문 시도 (404)
     @ExceptionHandler(SubjectNotFoundException.class)
-    public ResponseEntity<String> handleSubjectNotFound(SubjectNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleSubjectNotFound(SubjectNotFoundException ex) {
+        ErrorCode errorCode = ErrorCode.SUBJECT_NOT_FOUND;
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 외부 AI(OpenAI) 호출 실패 (502) — 우리 서버가 아닌 외부 의존 서비스 문제
     @ExceptionHandler(AiServiceException.class)
-    public ResponseEntity<String> handleAiService(AiServiceException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleAiService(AiServiceException ex) {
+        ErrorCode errorCode = ErrorCode.AI_SERVICE_ERROR;
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
     // 기타 예외는 필요에 따라 추가 처리
 

@@ -32,7 +32,11 @@ public enum ErrorCode {
     COURSE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 게시글을 찾을 수 없습니다."),
 
     // 댓글
-    COURSE_POST_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 게시글 댓글을 찾을 수 없습니다.");
+    COURSE_POST_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 게시글 댓글을 찾을 수 없습니다."),
+
+    // AI 질문
+    SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),
+    AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다.");
 
     private final HttpStatus status;
     private final String message;
