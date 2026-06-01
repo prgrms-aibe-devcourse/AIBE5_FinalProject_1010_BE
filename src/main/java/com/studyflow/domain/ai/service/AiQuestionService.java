@@ -47,9 +47,16 @@ public class AiQuestionService {
      * @param request 질문 요청 (subjectId, questionText, questionImageUrl)
      * @return 저장된 질문 + AI 답변
      */
-    @Transactional
+    /*
+     * 의도적으로 메서드에 @Transactional을 두지 않는다.
+     *
+     * OpenAI 호출은 최대 수십 초가 걸리는 외부 I/O다. 이를 트랜잭션 안에서 호출하면 그동안
+     * DB 커넥션을 점유해, 동시 요청이 쌓이면 커넥션 풀이 고갈되고 다른 API까지 멈출 수 있다.
+     * 따라서 (1) 검증/조회와 (2) 저장만 각각 짧은 트랜잭션 경계(JpaRepository 메서드는 자체
+     * 트랜잭션)에서 처리하고, OpenAI 호출은 그 사이의 트랜잭션 밖에서 수행한다.
+     */
     public AiQuestionResponse ask(Long userId, AiQuestionCreateRequest request) {
-        // 1) 사용자/과목 유효성 확인
+        // 1) 사용자/과목 유효성 확인 (각 findById가 자체 트랜잭션)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         Subject subject = subjectRepository.findById(request.subjectId())
@@ -58,7 +65,7 @@ public class AiQuestionService {
         // 2) 첨부 이미지(선택, 여러 장) 해석: fileId 목록을 FileAsset 목록으로 변환·검증한다.
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
-        // 3) OpenAI 호출로 답변 생성
+        // 3) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
         //    (1단계: 텍스트만 전달. 2단계에서 images의 URL들을 vision으로 함께 넘기도록 확장)
         String answerText = openAiClient.ask(request.questionText());
 
