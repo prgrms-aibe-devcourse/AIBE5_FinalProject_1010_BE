@@ -17,8 +17,8 @@ public class CourseSearchRequest {
     // 수업명 또는 설명 키워드 검색
     private String keyword;
 
-    // 과목 필터 (subject.id)
-    private Long subjectId;
+    // 과목 필터 — 다중 선택 가능, 선택한 과목 중 하나라도 일치하면 노출
+    private List<Long> subjectIds;
 
     // 학년 필터 — 다중 선택 가능, 선택한 학년 중 하나라도 일치하면 노출
     private List<TargetGrade> targetGrades;

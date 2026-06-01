@@ -36,7 +36,7 @@ public class CourseSearchService {
         // 각 조건이 null이면 해당 Specification이 null을 반환해 자동으로 무시됨
         Specification<Course> spec = CourseSpecification.isSearchable()
                 .and(CourseSpecification.hasKeyword(request.getKeyword()))
-                .and(CourseSpecification.hasSubject(request.getSubjectId()))
+                .and(CourseSpecification.hasSubjects(request.getSubjectIds()))
                 .and(CourseSpecification.hasTargetGrades(request.getTargetGrades()))
                 .and(CourseSpecification.hasMinPrice(request.getMinPrice()))
                 .and(CourseSpecification.hasMaxPrice(request.getMaxPrice()));
