@@ -5,6 +5,7 @@ import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.auth.exception.RefreshTokenNotInRedisException;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -149,9 +150,16 @@ public class AuthService {
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
     
-    public ReissueResponse reissue(Long userId) {
-        // refreshToken 파라미터 사용하지 않음 - refresh token을 Redis에서 단순 교체
+    public ReissueResponse reissue(String refreshToken, Long userId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // Redis에서 저장된 refresh token 조회 후 유효성 검증
+        String storedRefreshToken = redisTemplate.opsForValue().get(RedisPrefixProvider.refreshTokenKey(userId));
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            throw new RefreshTokenNotInRedisException(ErrorCode.AUTH_INVALID_TOKEN,
+                    "서버의 refresh token 정보와 일치하지 않거나 존재하지 않습니다.");
+        }
+
 
         // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
         String role = authentication.getAuthorities().stream()

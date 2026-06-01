@@ -97,7 +97,7 @@ public class AuthController {
         }
         ReissueResponse reissueResponse;
         try {
-            reissueResponse = authService.reissue(userId);
+            reissueResponse = authService.reissue(refreshToken, userId);
         } catch(IllegalStateException e) {
             // 인증된 사용자의 권한 정보가 없는 이상한 경우
             // 컴파일 및 디버깅을 위함
