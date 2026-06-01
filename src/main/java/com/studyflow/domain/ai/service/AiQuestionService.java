@@ -128,7 +128,7 @@ public class AiQuestionService {
      */
     @Transactional(readOnly = true)
     public List<AiQuestionHistoryResponse> getMyHistory(Long userId) {
-        return aiQuestionRepository.findByUser_IdOrderByCreatedAtDesc(userId)
+        return aiQuestionRepository.findHistoryByUserId(userId)
                 .stream()
                 .map(AiQuestionHistoryResponse::from)
                 .toList();
