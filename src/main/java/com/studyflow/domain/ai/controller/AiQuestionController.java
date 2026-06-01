@@ -6,11 +6,13 @@ import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.service.AiQuestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * AI 질문 API. (명세 §26)
@@ -45,12 +47,14 @@ public class AiQuestionController {
     }
 
     /**
-     * 내 AI 질문 기록 조회(최신순).
+     * 내 AI 질문 기록 조회(최신순, 페이징).
      */
     @GetMapping
-    public List<AiQuestionHistoryResponse> getMyHistory(
-            @AuthenticationPrincipal Long userId
+    public Page<AiQuestionHistoryResponse> getMyHistory(
+            @AuthenticationPrincipal Long userId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
     ) {
-        return aiQuestionService.getMyHistory(userId);
+        return aiQuestionService.getMyHistory(userId, pageable);
     }
 }

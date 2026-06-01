@@ -15,6 +15,8 @@ import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -129,16 +131,15 @@ public class AiQuestionService {
     }
 
     /**
-     * 내 AI 질문 기록을 최신순으로 조회한다. (GET /api/v1/ai/questions)
+     * 내 AI 질문 기록을 페이징하여 조회한다. (GET /api/v1/ai/questions)
      *
-     * @param userId 인증된 사용자 id
-     * @return 질문 기록 목록(최신순)
+     * @param userId   인증된 사용자 id
+     * @param pageable 페이징/정렬 (기본 createdAt DESC, size 20)
+     * @return 질문 기록 페이지
      */
     @Transactional(readOnly = true)
-    public List<AiQuestionHistoryResponse> getMyHistory(Long userId) {
-        return aiQuestionRepository.findHistoryByUserId(userId)
-                .stream()
-                .map(AiQuestionHistoryResponse::from)
-                .toList();
+    public Page<AiQuestionHistoryResponse> getMyHistory(Long userId, Pageable pageable) {
+        return aiQuestionRepository.findHistoryByUserId(userId, pageable)
+                .map(AiQuestionHistoryResponse::from);
     }
 }
