@@ -4,6 +4,7 @@ import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.TargetGrade;
 import org.springframework.data.jpa.domain.Specification;
+import java.util.List;
 
 // 수업 검색에 사용되는 동적 필터 조건 모음
 // 각 메서드가 null을 반환하면 해당 조건은 무시됨 (필터 미적용)
@@ -32,11 +33,11 @@ public class CourseSpecification {
         };
     }
 
-    // 대상 학년 필터
-    public static Specification<Course> hasTargetGrade(TargetGrade targetGrade) {
+    // 대상 학년 필터 — 다중 선택, 선택한 학년 중 하나라도 일치하면 노출 (OR 조건)
+    public static Specification<Course> hasTargetGrades(List<TargetGrade> targetGrades) {
         return (root, query, cb) -> {
-            if (targetGrade == null) return null;
-            return cb.equal(root.get("targetGrade"), targetGrade);
+            if (targetGrades == null || targetGrades.isEmpty()) return null;
+            return root.get("targetGrade").in(targetGrades);
         };
     }
 

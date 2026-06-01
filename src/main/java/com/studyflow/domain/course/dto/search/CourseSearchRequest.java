@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,8 +20,8 @@ public class CourseSearchRequest {
     // 과목 필터 (subject.id)
     private Long subjectId;
 
-    // 학년 필터 (예: HIGH_1, MIDDLE_3)
-    private TargetGrade targetGrade;
+    // 학년 필터 — 다중 선택 가능, 선택한 학년 중 하나라도 일치하면 노출
+    private List<TargetGrade> targetGrades;
 
     // 회당 가격 최솟값 필터
     @Min(value = 0, message = "최소 가격은 0원 이상이어야 합니다.")
