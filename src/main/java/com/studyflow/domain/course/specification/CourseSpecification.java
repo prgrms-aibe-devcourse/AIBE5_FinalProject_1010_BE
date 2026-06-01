@@ -25,11 +25,11 @@ public class CourseSpecification {
         };
     }
 
-    // 특정 과목 필터
-    public static Specification<Course> hasSubject(Long subjectId) {
+    // 과목 필터 — 다중 선택, 선택한 과목 중 하나라도 일치하면 노출 (OR 조건)
+    public static Specification<Course> hasSubjects(List<Long> subjectIds) {
         return (root, query, cb) -> {
-            if (subjectId == null) return null;
-            return cb.equal(root.get("subject").get("id"), subjectId);
+            if (subjectIds == null || subjectIds.isEmpty()) return null;
+            return root.get("subject").get("id").in(subjectIds);
         };
     }
 

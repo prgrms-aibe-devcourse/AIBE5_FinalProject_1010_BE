@@ -5,8 +5,6 @@ import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.TargetGrade;
 import lombok.Builder;
 import lombok.Getter;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 @Getter
 @Builder
@@ -35,19 +33,12 @@ public class CourseCardResponse {
     // 현재 수강 중인 학생 수 (Enrollment ACTIVE 기준)
     private long currentStudents;
 
-    // 리뷰 평균 평점 (Review 테이블 AVG, 소수점 1자리 반올림)
-    private BigDecimal avgRating;
-
-    // 리뷰 건수
-    private long reviewCount;
-
     private String thumbnailUrl;
     private CourseStatus status;
 
-    // course 엔티티 + 별도 집계값을 조합해 카드 응답 생성
-    // teacherProfile, user, subject는 JOIN FETCH 후 전달해야 LazyInitializationException
-    // 방지
-    public static CourseCardResponse of(Course course, long currentStudents, double avgRating, long reviewCount) {
+    // course 엔티티 + 수강생 수를 조합해 카드 응답 생성
+    // teacherProfile, user, subject는 JOIN FETCH 후 전달해야 LazyInitializationException 방지
+    public static CourseCardResponse of(Course course, long currentStudents) {
         return CourseCardResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -58,8 +49,6 @@ public class CourseCardResponse {
                 .pricePerSession(course.getPricePerSession())
                 .maxStudents(course.getMaxStudents())
                 .currentStudents(currentStudents)
-                .avgRating(BigDecimal.valueOf(avgRating).setScale(1, RoundingMode.HALF_UP))
-                .reviewCount(reviewCount)
                 .thumbnailUrl(course.getThumbnailUrl())
                 .status(course.getStatus())
                 .build();
