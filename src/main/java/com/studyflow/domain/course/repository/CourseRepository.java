@@ -1,13 +1,19 @@
 package com.studyflow.domain.course.repository;
 
 import com.studyflow.domain.course.entity.Course;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface CourseRepository extends JpaRepository<Course, Long> {
+// JpaSpecificationExecutor: 동적 필터 조건(Specification) 기반 조회 기능 추가
+public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
 
     // teacherProfile → user, subject 까지 한 번에 페치 — 수업별 페이지 진입마다 사용하므로 N+1 방지용으로 분리
     @Query("SELECT c FROM Course c " +
@@ -16,4 +22,10 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
            "JOIN FETCH c.subject " +
            "WHERE c.id = :courseId")
     Optional<Course> findWithTeacherAndSubjectById(@Param("courseId") Long courseId);
+
+    // 검색 필터(Specification) 적용 + teacherProfile → user, subject 한 번에 페치
+    // @EntityGraph로 ManyToOne 관계만 페치하기 때문에 컬렉션 페치가 없어 페이지네이션 메모리 경고 없음
+    // CourseCardResponse.of()에서 teacherProfile, user, subject에 접근하므로 반드시 함께 페치해야 LazyInitializationException 방지
+    @EntityGraph(attributePaths = {"teacherProfile", "teacherProfile.user", "subject"})
+    Page<Course> findAll(Specification<Course> spec, Pageable pageable);
 }
