@@ -1,12 +1,33 @@
 package com.studyflow.domain.teacher.repository;
 
 import com.studyflow.domain.teacher.entity.TeacherProfile;
-import com.studyflow.domain.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
 public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, Long> {
-    Optional<TeacherProfile> findById(Long id);
 
+    // 선생님 목록 페이지네이션 — user JOIN FETCH로 N+1 방지
+    // 탈퇴하지 않은 활성 선생님만 조회 (isDeleted=0, isActive=true)
+    @Query("SELECT tp FROM TeacherProfile tp " +
+           "JOIN FETCH tp.user u " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true")
+    Page<TeacherProfile> findAllWithUser(Pageable pageable);
+
+    // 선생님 상세 조회 — user JOIN FETCH
+    @Query("SELECT tp FROM TeacherProfile tp " +
+           "JOIN FETCH tp.user u " +
+           "WHERE tp.id = :id AND u.isDeleted = 0 AND u.isActive = true")
+    Optional<TeacherProfile> findWithUserById(@Param("id") Long id);
+
+    // 수업 수 일괄 조회 결과를 담는 타입 안전 프로젝션
+    // CourseRepository.countCoursesByTeacherProfileIds() 반환 타입으로 사용
+    interface TeacherCourseCount {
+        Long getTeacherProfileId();
+        Long getCount();
+    }
 }
