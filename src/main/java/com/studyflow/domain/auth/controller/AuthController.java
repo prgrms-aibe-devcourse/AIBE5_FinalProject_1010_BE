@@ -117,19 +117,43 @@ public class AuthController {
                 .body(body);
     }
 
+    // 로그아웃
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken,
+                                     @AuthenticationPrincipal Long userId) {
+        if(refreshToken == null || userId == null) {
+            Map<String, Object> body = Map.of(
+                    "code", "AUTH_REQUIRED",
+                    "message", "인증 정보가 유효하지 않습니다."
+            );
+            return ResponseEntity.status(401).body(body);
+        }
+        // refresh token의 만료시간을 0으로 설정하여 재발급
+        ResponseCookie deleteCookie = createRefreshCookie("",0);
+
+        // TODO: Service 계층에서 Redis의 refreshToken을 삭제
+        authService.logout(refreshToken);
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .build();
+    }
+
     // helper: refresh token을 HttpOnly 쿠키로 만드는 공통 로직
     private ResponseCookie createRefreshCookie(String refreshToken, long refreshExpiresInMillis) {
-        boolean secure = !"local".equalsIgnoreCase(activeProfile);
+        boolean isLocal = "local".equalsIgnoreCase(activeProfile);
+        boolean secure = !isLocal;
+        String sameSite = isLocal ? "Lax" : "None";
         return ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(secure)
                 .path("/")
                 .maxAge(refreshExpiresInMillis / 1000)
-                .sameSite("None")
+                .sameSite(sameSite)
                 .build();
     }
 
-    // 학생 인증 테스트용 api
+    // tester: 학생 인증 테스트용 api
     @GetMapping("/test/student")
     public ResponseEntity<String> studentTest(@AuthenticationPrincipal Long userId) {
         /*
@@ -140,7 +164,7 @@ public class AuthController {
         return ResponseEntity.ok("학생 인증 성공: userId = " + userId);
     }
 
-    // 선생님 인증 테스트용 api
+    // tester: 선생님 인증 테스트용 api
     @GetMapping("/test/teacher")
     public ResponseEntity<String> teacherTest(@AuthenticationPrincipal Long userId) {
         /*
