@@ -7,6 +7,7 @@ import com.studyflow.domain.course.enums.CourseSort;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.specification.CourseSpecification;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
+import com.studyflow.domain.enrollment.repository.EnrollmentRepository.CourseEnrollmentCount;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -60,7 +61,7 @@ public class CourseSearchService {
 
         // 결과가 없으면 빈 페이지 즉시 반환
         if (courseIds.isEmpty()) {
-            return Page.empty(pageable);
+            return Page.empty(sortedPageable);
         }
 
         // 5단계: 수강생 수 일괄 조회 (수업마다 쿼리를 따로 날리는 N+1 방지)
@@ -83,12 +84,11 @@ public class CourseSearchService {
         };
     }
 
-    // countByCourseIdsAndStatus 결과(Object[])를 courseId → 수강생 수 Map으로 변환
-    // Object[0] = courseId(Long), Object[1] = count(Long)
+    // countByCourseIdsAndStatus 결과를 courseId → 수강생 수 Map으로 변환
     private Map<Long, Long> buildEnrollmentCountMap(List<Long> courseIds) {
         Map<Long, Long> map = new HashMap<>();
         enrollmentRepository.countByCourseIdsAndStatus(courseIds, EnrollmentStatus.ACTIVE)
-                .forEach(row -> map.put((Long) row[0], ((Number) row[1]).longValue()));
+                .forEach(r -> map.put(r.getCourseId(), r.getCount()));
         return map;
     }
 }
