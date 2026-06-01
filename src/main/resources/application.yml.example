@@ -1,4 +1,7 @@
 spring:
+  # 비밀 값(OpenAI 키 등)은 application-secret.yml 에서 불러온다. (git 미커밋, optional)
+  config:
+    import: "optional:classpath:application-secret.yml"
   datasource:
     url: jdbc:mysql://localhost:3306/studyflow?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USERNAME}
@@ -35,6 +38,12 @@ livekit:
   api-key: ${LIVEKIT_API_KEY}
   api-secret: ${LIVEKIT_API_SECRET}
   url: ${LIVEKIT_URL}
+
+# OpenAI(AI 질문) 설정. api-key는 application-secret.yml 에 작성한다.
+openai:
+  base-url: https://api.openai.com/v1
+  model: gpt-4o-mini
+  timeout-seconds: 60
 
 server:
   port: 8080

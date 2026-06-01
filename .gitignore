@@ -20,6 +20,7 @@ HELP.md
 ### Env / Secrets ###
 src/main/resources/application.yml
 src/main/resources/application-*.yml
+src/main/resources/application-secret.yml   # OpenAI 키 등 비밀값 (절대 커밋 금지)
 !src/main/resources/application.yml.example
 
 ### AWS ###
