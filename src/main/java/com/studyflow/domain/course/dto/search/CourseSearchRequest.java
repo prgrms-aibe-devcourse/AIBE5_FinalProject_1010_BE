@@ -20,11 +20,12 @@ public class CourseSearchRequest {
     private String keyword;
 
     // 과목 필터 — 다중 선택 가능, 선택한 과목 중 하나라도 일치하면 노출
-    @Size(max = 20, message = "과목 필터는 최대 20개까지 선택할 수 있습니다.")
+    @Size(max = 10, message = "과목 필터는 최대 10개까지 선택할 수 있습니다.")
     private List<Long> subjectIds;
 
     // 학년 필터 — 다중 선택 가능, 선택한 학년 중 하나라도 일치하면 노출
-    @Size(max = 20, message = "학년 필터는 최대 20개까지 선택할 수 있습니다.")
+    // TargetGrade 열거형 값이 총 13개로 고정되어 있으므로 max = 13
+    @Size(max = 13, message = "학년 필터는 최대 13개까지 선택할 수 있습니다.")
     private List<TargetGrade> targetGrades;
 
     // 회당 가격 최솟값 필터
@@ -38,7 +39,8 @@ public class CourseSearchRequest {
     // minPrice > maxPrice 교차 검증
     @AssertTrue(message = "최소 가격은 최대 가격보다 클 수 없습니다.")
     public boolean isPriceRangeValid() {
-        if (minPrice == null || maxPrice == null) return true;
+        if (minPrice == null || maxPrice == null)
+            return true;
         return minPrice <= maxPrice;
     }
 
