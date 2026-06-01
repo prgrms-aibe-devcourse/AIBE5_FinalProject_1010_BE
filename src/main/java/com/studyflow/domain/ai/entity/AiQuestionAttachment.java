@@ -57,7 +57,7 @@ public class AiQuestionAttachment extends BaseTimeEntity {
      * 한 질문에 이미지가 여러 장일 때 표시/전달 순서.
      */
     @Column(name = "sort_order", nullable = false)
-    private Integer sortOrder = 0;
+    private int sortOrder = 0;
 
     /**
      * 첨부를 만들고 질문의 attachments 목록에 연결한다.
@@ -67,12 +67,12 @@ public class AiQuestionAttachment extends BaseTimeEntity {
     public static AiQuestionAttachment create(
             AiQuestion aiQuestion,
             FileAsset fileAsset,
-            Integer sortOrder
+            int sortOrder
     ) {
         AiQuestionAttachment attachment = new AiQuestionAttachment();
         attachment.aiQuestion = aiQuestion;
         attachment.fileAsset = fileAsset;
-        attachment.sortOrder = sortOrder == null ? 0 : sortOrder;
+        attachment.sortOrder = sortOrder;
 
         aiQuestion.addAttachment(attachment);
 

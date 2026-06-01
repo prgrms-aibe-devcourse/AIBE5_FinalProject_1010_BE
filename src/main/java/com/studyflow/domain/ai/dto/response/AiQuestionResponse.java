@@ -1,6 +1,7 @@
 package com.studyflow.domain.ai.dto.response;
 
 import com.studyflow.domain.ai.entity.AiQuestion;
+import com.studyflow.domain.ai.entity.AiQuestionAttachment;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -35,7 +36,7 @@ public record AiQuestionResponse(
     public static AiQuestionResponse from(AiQuestion q) {
         // 첨부 이미지들을 sortOrder 순으로 정렬해 FileAsset의 접근 URL 목록으로 펼친다.
         List<String> imageUrls = q.getAttachments().stream()
-                .sorted(Comparator.comparing(a -> a.getSortOrder() == null ? 0 : a.getSortOrder()))
+                .sorted(Comparator.comparingInt(AiQuestionAttachment::getSortOrder))
                 .map(a -> a.getFileAsset().getFileUrl())
                 .toList();
 
