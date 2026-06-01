@@ -119,15 +119,22 @@ public class AuthController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<?> logout (@CookieValue(name = "refreshToken", required = false) String refreshToken,
+    public ResponseEntity<?> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken,
                                      @AuthenticationPrincipal Long userId) {
+        if(refreshToken == null || userId == null) {
+            Map<String, Object> body = Map.of(
+                    "code", "AUTH_REQUIRED",
+                    "message", "인증 정보가 유효하지 않습니다."
+            );
+            return ResponseEntity.status(401).body(body);
+        }
         // refresh token의 만료시간을 0으로 설정하여 재발급
         ResponseCookie deleteCookie = createRefreshCookie("",0);
 
         // TODO: Service 계층에서 Redis의 refreshToken을 삭제
         authService.logout(refreshToken);
 
-        return ResponseEntity.ok()
+        return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
                 .build();
     }
