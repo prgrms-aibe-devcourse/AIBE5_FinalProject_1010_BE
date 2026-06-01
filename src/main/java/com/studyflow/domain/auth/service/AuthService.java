@@ -5,7 +5,6 @@ import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.*;
-import com.studyflow.domain.auth.exception.RefreshTokenNotInRedisException;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
