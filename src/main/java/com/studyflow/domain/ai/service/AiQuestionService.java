@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * AI 질문 도메인 서비스.
@@ -105,10 +107,16 @@ public class AiQuestionService {
         if (fileIds == null || fileIds.isEmpty()) {
             return Collections.emptyList();
         }
+        // fileId별 개별 SELECT(N+1) 대신 단일 IN 쿼리로 한 번에 조회한다. (uploader도 fetch join)
+        Map<Long, FileAsset> byId = fileAssetRepository.findByIdInWithUploader(fileIds).stream()
+                .collect(Collectors.toMap(FileAsset::getId, image -> image, (a, b) -> a));
+        // 요청한 fileIds 순서를 그대로 유지해 첨부 순서(sortOrder)에 반영한다.
         return fileIds.stream()
                 .map(fileId -> {
-                    FileAsset image = fileAssetRepository.findById(fileId)
-                            .orElseThrow(() -> new IllegalArgumentException("첨부 이미지를 찾을 수 없습니다. (fileId: " + fileId + ")"));
+                    FileAsset image = byId.get(fileId);
+                    if (image == null) {
+                        throw new IllegalArgumentException("첨부 이미지를 찾을 수 없습니다. (fileId: " + fileId + ")");
+                    }
                     if (!image.getUploader().getId().equals(userId)) {
                         throw new IllegalArgumentException("본인이 업로드한 이미지만 첨부할 수 있습니다.");
                     }
