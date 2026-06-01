@@ -113,6 +113,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
+        // TODO: Redis 도입 시 refresh token을 Redis에 저장
         User user = userRepository.findActiveByEmailAndSocialProvider(request.getEmail(),SocialProvider.LOCAL)
                 .orElseThrow(() -> new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다."));
 
@@ -156,5 +157,9 @@ public class AuthService {
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
         return new ReissueResponse(newAccessToken, newRefreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
+    }
+
+    public void logout(String refreshToken) {
+        // TODO: Redis에서 refreshToken을 삭제
     }
 }
