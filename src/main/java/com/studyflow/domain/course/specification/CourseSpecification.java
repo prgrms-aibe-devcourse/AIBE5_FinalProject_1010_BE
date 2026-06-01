@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.Specification;
 // Service에서 Specification.where(A).and(B).and(C) 형태로 조합해서 사용
 public class CourseSpecification {
 
+    private CourseSpecification() {} // 유틸리티 클래스 — 인스턴스화 방지
+
     // 수업명 또는 설명에 키워드 포함 여부 (부분 일치)
     public static Specification<Course> hasKeyword(String keyword) {
         return (root, query, cb) -> {
@@ -54,12 +56,13 @@ public class CourseSpecification {
         };
     }
 
-    // 검색 목록 기본 조건: 공개 수업(isListed=true) + 모집 중(status=RECRUITING)
-    // 모든 검색 요청에 항상 적용
+    // 검색 목록 기본 조건: 공개 수업(isListed=true) + 모집 중 또는 수강 중인 수업
+    // isListed는 선생님이 직접 토글로 제어하는 노출 여부 플래그
+    // IN_PROGRESS 포함: 수강 중인 수업도 선생님이 원하면 검색 노출 가능
     public static Specification<Course> isSearchable() {
         return (root, query, cb) -> cb.and(
                 cb.isTrue(root.get("isListed")),
-                cb.equal(root.get("status"), CourseStatus.RECRUITING)
+                root.get("status").in(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS)
         );
     }
 }

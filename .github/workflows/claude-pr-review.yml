@@ -15,15 +15,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          python-version: '3.11'
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Install dependencies
-        run: pip install anthropic requests
-
-      - name: Run Claude PR Review
+      - name: Compile and Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -31,4 +29,6 @@ jobs:
           REPO: ${{ github.repository }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: python .github/scripts/claude_review.py
+        run: |
+          javac .github/scripts/ReviewPR.java -d .github/scripts
+          java -cp .github/scripts ReviewPR
