@@ -8,7 +8,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,9 +22,8 @@ public class UserController {
     private final RefreshCookieCreator refreshCookieCreator;
 
     @DeleteMapping("/me")
-    public ResponseEntity<?> deleteUser(@CookieValue(name = "refreshToken", required = false) String refreshToken,
-                                        @AuthenticationPrincipal Long userId) {
-        if(refreshToken == null || userId == null) {
+    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal Long userId) {
+        if(userId == null) {
             Map<String, Object> body = Map.of(
                     "code", "AUTH_REQUIRED",
                     "message", "인증 정보가 유효하지 않습니다."

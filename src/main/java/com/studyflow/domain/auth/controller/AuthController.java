@@ -123,9 +123,8 @@ public class AuthController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken,
-                                     @AuthenticationPrincipal Long userId) {
-        if(refreshToken == null || userId == null) {
+    public ResponseEntity<?> logout(@AuthenticationPrincipal Long userId) {
+        if(userId == null) {
             Map<String, Object> body = Map.of(
                     "code", "AUTH_REQUIRED",
                     "message", "인증 정보가 유효하지 않습니다."

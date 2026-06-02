@@ -1,13 +1,10 @@
 package com.studyflow.domain.user.service;
 
-import com.studyflow.domain.auth.exception.InvalidCredentialsException;
 import com.studyflow.domain.user.entity.User;
-import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
-import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
-    private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
 
@@ -36,9 +32,6 @@ public class UserService {
 
         // user 객체의 isDeleted를 PK 값으로 변경
         user.deleteUser();
-
-        // 변경된 user 상태를 DB에 저장
-        userRepository.save(user);
 
         // Redis에서 refresh token 삭제: key = rt:{userId}
         redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(userId));
