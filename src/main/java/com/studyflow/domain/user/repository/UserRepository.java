@@ -14,4 +14,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findActiveByEmailAndSocialProvider(@Param("email") String email, @Param("socialProvider") SocialProvider socialProvider);
 
     Optional<User> findById(Long id);
+
+    // 주어진 id로 사용자 조회하되, is_deleted가 0인(삭제되지 않은) 사용자만 조회
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.isDeleted = 0")
+    Optional<User> findActiveById(Long id);
 }

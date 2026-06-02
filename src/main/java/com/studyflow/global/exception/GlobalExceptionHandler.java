@@ -10,6 +10,8 @@ import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.user.exception.DeleteAdminException;
+import com.studyflow.domain.user.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -89,11 +91,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
-    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우
+    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우 (401)
     @ExceptionHandler(RefreshTokenNotInRedisException.class)
     public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    // 사용자를 찾을 수 없는 경우 (404)
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFoundException(UserNotFoundException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    // 관리자 회원탈퇴를 시도하는 경우 (403)
+    @ExceptionHandler(DeleteAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleDeleteAdminException(DeleteAdminException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────

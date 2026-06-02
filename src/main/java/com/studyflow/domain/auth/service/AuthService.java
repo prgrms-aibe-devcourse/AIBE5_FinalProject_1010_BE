@@ -185,7 +185,7 @@ public class AuthService {
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
 
-    public void logout(String refreshToken, Long userId) {
+    public void logout(Long userId) {
         // Redis에서 refresh token 삭제: key = rt:{userId}
         redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(userId));
     }
