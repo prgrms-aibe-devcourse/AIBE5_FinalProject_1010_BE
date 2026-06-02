@@ -2,10 +2,7 @@ package com.studyflow.global.exception;
 
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
-import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
-import com.studyflow.domain.auth.exception.SignupRequestException;
-import com.studyflow.domain.auth.exception.InvalidCredentialsException;
-import com.studyflow.domain.auth.exception.SignupWithAdminException;
+import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -90,6 +87,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleSignupWithAdminException(SignupWithAdminException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우
+    @ExceptionHandler(RefreshTokenNotInRedisException.class)
+    public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────
