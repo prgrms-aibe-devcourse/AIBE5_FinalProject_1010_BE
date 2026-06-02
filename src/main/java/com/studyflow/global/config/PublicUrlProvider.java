@@ -14,6 +14,10 @@ public class PublicUrlProvider {
                 // 수업 검색 — 비로그인 사용자도 수업 목록 조회 가능
                 "/api/v1/courses",
 
+                // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
+                "/api/v1/teachers",
+                "/api/v1/teachers/**",
+
                 // WebSocket handshake와 SockJS 부가 요청은 HTTP 필터에서 막지 않는다.
                 // 실제 채팅 메시지 인증은 WebSocketAuthChannelInterceptor가 STOMP CONNECT에서 처리한다.
                 "/ws-stomp/**",
