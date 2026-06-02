@@ -92,5 +92,11 @@ public class User extends BaseTimeEntity {
 
         return user;
     }
+
+    public void deleteUser() {
+        this.isDeleted = this.id;
+        this.deletedAt = LocalDateTime.now();
+        this.isActive = false;
+    }
 }
 

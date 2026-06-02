@@ -6,6 +6,7 @@ import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
+import com.studyflow.global.auth.RefreshCookieCreator;
 import com.studyflow.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import com.studyflow.domain.auth.dto.LoginRequest;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+    private final RefreshCookieCreator refreshCookieCreator;
 
     @Value("${spring.profiles.active:local}")
     private String activeProfile;
@@ -70,7 +72,8 @@ public class AuthController {
             return ResponseEntity.status(422).build();
         }
 
-        ResponseCookie refreshCookie = createRefreshCookie(resp.getRefreshToken(), resp.getRefreshExpiresIn());
+        ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
+                resp.getRefreshToken(), resp.getRefreshExpiresIn());
 
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
@@ -104,7 +107,8 @@ public class AuthController {
             return ResponseEntity.status(422).build();
         }
 
-        ResponseCookie refreshCookie = createRefreshCookie(reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
+        ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
+                reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
 
         // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
@@ -129,26 +133,12 @@ public class AuthController {
             return ResponseEntity.status(401).body(body);
         }
         // refresh token의 만료시간을 0으로 설정하여 재발급
-        ResponseCookie deleteCookie = createRefreshCookie("",0);
+        ResponseCookie deleteCookie = refreshCookieCreator.createRefreshCookie("",0);
 
-        authService.logout(refreshToken, userId);
+        authService.logout(userId);
 
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
-                .build();
-    }
-
-    // helper: refresh token을 HttpOnly 쿠키로 만드는 공통 로직
-    private ResponseCookie createRefreshCookie(String refreshToken, long refreshExpiresInMillis) {
-        boolean isLocal = "local".equalsIgnoreCase(activeProfile);
-        boolean secure = !isLocal;
-        String sameSite = isLocal ? "Lax" : "None";
-        return ResponseCookie.from("refreshToken", refreshToken)
-                .httpOnly(true)
-                .secure(secure)
-                .path("/")
-                .maxAge(refreshExpiresInMillis / 1000)
-                .sameSite(sameSite)
                 .build();
     }
 
