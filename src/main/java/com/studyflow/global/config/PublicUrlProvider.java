@@ -33,6 +33,14 @@ public class PublicUrlProvider {
         };
     }
 
+    // JWT 필터가 동작하되 인증 없이도 접근 허용하는 URL — 토큰이 있으면 인증 처리, 없으면 통과
+    // 수업 상세: 비로그인도 조회 가능하되 로그인 시 myStatus 등 추가 정보 제공
+    public String[] getOptionalAuthUrls() {
+        return new String[] {
+                "/api/v1/courses/*"
+        };
+    }
+
     // access token 기반 인증이 아닌 url 목록
     // JwtAuthenticationFilter에서는 제외하지 않음
     public String[] getUrlsWithoutAccessToken() {

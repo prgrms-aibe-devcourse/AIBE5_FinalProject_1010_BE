@@ -34,6 +34,12 @@ public enum ErrorCode {
     // 댓글
     COURSE_POST_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 게시글 댓글을 찾을 수 없습니다."),
 
+    // 수강 신청
+    COURSE_NOT_RECRUITING(HttpStatus.BAD_REQUEST, "모집 중이 아닌 수업입니다."),
+    ALREADY_ENROLLED(HttpStatus.CONFLICT, "이미 수강 중인 수업입니다."),
+    ENROLLMENT_REQUEST_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 수강 신청이 접수되어 있습니다."),
+    SELF_ENROLLMENT(HttpStatus.BAD_REQUEST, "본인의 수업에는 신청할 수 없습니다."),
+
     // AI 질문
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다.");
