@@ -5,9 +5,11 @@ import com.studyflow.domain.ai.client.OpenAiClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
+import com.studyflow.domain.ai.entity.Conversation;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
+import com.studyflow.domain.ai.repository.ConversationRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.subject.entity.Subject;
@@ -49,6 +51,8 @@ class AiQuestionServiceTest {
     @Mock
     AiQuestionRepository aiQuestionRepository;
     @Mock
+    ConversationRepository conversationRepository;
+    @Mock
     SubjectRepository subjectRepository;
     @Mock
     UserRepository userRepository;
@@ -63,7 +67,7 @@ class AiQuestionServiceTest {
     void setUp() {
         // ObjectMapper는 done 이벤트 직렬화에 실제로 쓰이므로 진짜 인스턴스를 주입한다.
         service = new AiQuestionService(
-                aiQuestionRepository, subjectRepository, userRepository,
+                aiQuestionRepository, conversationRepository, subjectRepository, userRepository,
                 fileAssetRepository, openAiClient, new ObjectMapper()
         );
     }
@@ -92,9 +96,11 @@ class AiQuestionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(subjectRepository.findById(3L)).thenReturn(Optional.of(subject));
         when(openAiClient.ask(SubjectCategory.MATH, "2x=4")).thenReturn("x=2 입니다");
+        when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(aiQuestionRepository.save(any(AiQuestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AiQuestionResponse response = service.ask(1L, new AiQuestionCreateRequest(3L, "2x=4", null));
+        // conversationId=null → 새 대화 생성
+        AiQuestionResponse response = service.ask(1L, new AiQuestionCreateRequest(3L, "2x=4", null, null));
 
         // OpenAI는 과목 category와 함께 호출되었다
         verify(openAiClient).ask(SubjectCategory.MATH, "2x=4");
@@ -116,7 +122,7 @@ class AiQuestionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(mock(User.class)));
         when(subjectRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(99L, "q", null)))
+        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(99L, "q", null, null)))
                 .isInstanceOf(SubjectNotFoundException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -128,7 +134,7 @@ class AiQuestionServiceTest {
     void ask_userNotFound() {
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(3L, "q", null)))
+        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(3L, "q", null, null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -148,7 +154,7 @@ class AiQuestionServiceTest {
         when(fileAssetRepository.findByIdInWithUploader(List.of(12L))).thenReturn(List.of(foreign));
 
         assertThatThrownBy(() ->
-                service.ask(1L, new AiQuestionCreateRequest(3L, "q", List.of(12L))))
+                service.ask(1L, new AiQuestionCreateRequest(3L, "q", List.of(12L), null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -166,10 +172,11 @@ class AiQuestionServiceTest {
         when(subjectRepository.findById(1L)).thenReturn(Optional.of(subject));
         when(openAiClient.askStream(SubjectCategory.KOREAN, "정서?"))
                 .thenReturn(Flux.just("고독", "과 그리움"));
+        when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(aiQuestionRepository.save(any(AiQuestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
         List<ServerSentEvent<String>> events =
-                service.askStream(1L, new AiQuestionCreateRequest(1L, "정서?", null))
+                service.askStream(1L, new AiQuestionCreateRequest(1L, "정서?", null, null))
                         .collectList()
                         .block();
 
@@ -198,7 +205,7 @@ class AiQuestionServiceTest {
         when(subjectRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                service.askStream(1L, new AiQuestionCreateRequest(99L, "q", null)))
+                service.askStream(1L, new AiQuestionCreateRequest(99L, "q", null, null)))
                 .isInstanceOf(SubjectNotFoundException.class);
 
         verify(openAiClient, never()).askStream(any(), any());
@@ -214,7 +221,7 @@ class AiQuestionServiceTest {
         Subject subject = mock(Subject.class);
         when(subject.getId()).thenReturn(3L);
         when(subject.getName()).thenReturn("수학");
-        AiQuestion question = AiQuestion.create(user, subject, "2x=4?", "x=2 입니다");
+        AiQuestion question = AiQuestion.create(user, subject, null, "2x=4?", "x=2 입니다");
         when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
 
         AiQuestionResponse response = service.getDetail(1L, 5L);
@@ -229,7 +236,7 @@ class AiQuestionServiceTest {
     void getDetail_rejectsOtherUsersRecord() {
         User owner = mock(User.class);
         when(owner.getId()).thenReturn(999L);  // 다른 사람의 기록
-        AiQuestion question = AiQuestion.create(owner, mock(Subject.class), "q", "a");
+        AiQuestion question = AiQuestion.create(owner, mock(Subject.class), null, "q", "a");
         when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
 
         assertThatThrownBy(() -> service.getDetail(1L, 5L))

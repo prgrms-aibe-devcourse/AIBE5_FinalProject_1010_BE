@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 /**
  * AI 질문 기록 리포지토리.
  */
@@ -25,4 +27,10 @@ public interface AiQuestionRepository extends JpaRepository<AiQuestion, Long> {
             countQuery = "SELECT COUNT(q) FROM AiQuestion q WHERE q.user.id = :userId"
     )
     Page<AiQuestion> findHistoryByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    /** 한 대화의 질문들을 시간순(오래된 것 → 최신)으로 조회한다. (대화 상세/복원용) */
+    List<AiQuestion> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
+
+    /** 아직 대화에 편입되지 않은 질문들. (기존 데이터 backfill용) */
+    List<AiQuestion> findByConversationIsNull();
 }

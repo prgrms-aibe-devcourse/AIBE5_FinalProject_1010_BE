@@ -49,6 +49,14 @@ public class AiQuestion extends BaseTimeEntity {
     private User user;
 
     /**
+     * 이 질문이 속한 대화. 같은 대화의 질문들은 한 화면에 묶여 보인다.
+     * (기존 데이터 호환을 위해 nullable. 신규 질문은 항상 대화에 소속된다.)
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
+
+    /**
      * 질문 과목. (수학/영어 등 — subject 테이블 참조)
      */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -88,15 +96,22 @@ public class AiQuestion extends BaseTimeEntity {
     public static AiQuestion create(
             User user,
             Subject subject,
+            Conversation conversation,
             String questionText,
             String answerText
     ) {
         AiQuestion q = new AiQuestion();
         q.user = user;
         q.subject = subject;
+        q.conversation = conversation;
         q.questionText = questionText;
         q.answerText = answerText;
         return q;
+    }
+
+    /** 기존(대화 미지정) 질문을 사후에 대화에 편입할 때 사용한다. (backfill 전용) */
+    public void assignConversation(Conversation conversation) {
+        this.conversation = conversation;
     }
 
     /** 첨부 이미지를 목록에 추가한다. (AiQuestionAttachment.create에서 호출) */

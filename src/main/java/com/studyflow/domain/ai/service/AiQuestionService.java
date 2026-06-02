@@ -4,11 +4,16 @@ import com.studyflow.domain.ai.client.OpenAiClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionHistoryResponse;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
+import com.studyflow.domain.ai.dto.response.ConversationDetailResponse;
+import com.studyflow.domain.ai.dto.response.ConversationSummaryResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
 import com.studyflow.domain.ai.entity.AiQuestionAttachment;
+import com.studyflow.domain.ai.entity.Conversation;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
+import com.studyflow.domain.ai.exception.ConversationNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
+import com.studyflow.domain.ai.repository.ConversationRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.subject.entity.Subject;
@@ -48,6 +53,7 @@ import java.util.stream.Collectors;
 public class AiQuestionService {
 
     private final AiQuestionRepository aiQuestionRepository;
+    private final ConversationRepository conversationRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
@@ -79,13 +85,16 @@ public class AiQuestionService {
         // 2) 첨부 이미지(선택, 여러 장) 해석: fileId 목록을 FileAsset 목록으로 변환·검증한다.
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
-        // 3) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
+        // 3) 대화 결정: conversationId가 있으면 이어쓰기, 없으면 새 대화 생성.
+        Conversation conversation = resolveConversation(user, subject, request.conversationId(), request.questionText());
+
+        // 4) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
         //    과목 대분류를 함께 넘겨, 선택한 과목 특성에 맞는 풀이가 나오도록 한다.
         //    (1단계: 텍스트만 전달. 2단계에서 images의 URL들을 vision으로 함께 넘기도록 확장)
         String answerText = openAiClient.ask(subject.getCategory(), request.questionText());
 
-        // 4) 질문 + 답변 + 첨부를 저장하고 응답으로 변환한다.
-        AiQuestion saved = persist(user, subject, request.questionText(), answerText, images);
+        // 5) 질문 + 답변 + 첨부를 대화에 저장하고 응답으로 변환한다.
+        AiQuestion saved = persist(user, subject, conversation, request.questionText(), answerText, images);
         return AiQuestionResponse.from(saved);
     }
 
@@ -117,6 +126,8 @@ public class AiQuestionService {
         // (1단계: 동기 ask()와 동일하게 OpenAI 호출에는 텍스트만 보내고, 이미지는 vision으로
         //  전달하지 않는다. 2단계에서 images의 URL들을 vision 입력으로 확장 예정.)
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
+        // 대화 결정(이어쓰기/새 대화)도 스트림 시작 전에 동기로 끝낸다.
+        Conversation conversation = resolveConversation(user, subject, request.conversationId(), request.questionText());
 
         // 2) 답변 조각을 흘려보내면서 전체 답변을 누적한다.
         //    Reactor는 한 구독에 대해 onNext를 직렬로(겹치지 않게) 호출하므로, 누적은 단일 스레드에서만
@@ -134,7 +145,7 @@ public class AiQuestionService {
         // 3) 스트림이 정상 종료되면 누적된 전체 답변을 저장하고 done 이벤트를 1회 방출한다.
         //    JPA 저장은 블로킹이므로 별도 스케줄러(boundedElastic)에서 수행한다.
         Mono<ServerSentEvent<String>> done = Mono.fromCallable(() -> {
-                    AiQuestion saved = persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images);
+                    AiQuestion saved = persistOnce(savedRef, user, subject, conversation, request.questionText(), answer.toString(), images);
                     return ServerSentEvent.<String>builder(toJson(AiQuestionResponse.from(saved)))
                             .event("done")
                             .build();
@@ -148,7 +159,7 @@ public class AiQuestionService {
                 .doOnCancel(() -> {
                     if (answer.length() > 0) {
                         Schedulers.boundedElastic().schedule(() ->
-                                persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images));
+                                persistOnce(savedRef, user, subject, conversation, request.questionText(), answer.toString(), images));
                     }
                 })
                 .onErrorResume(e -> {
@@ -166,13 +177,13 @@ public class AiQuestionService {
      * 요청별 {@code savedRef}를 락으로 삼아 첫 호출에서만 실제 저장하고 이후엔 저장된 결과를 재사용한다.</p>
      */
     private AiQuestion persistOnce(AtomicReference<AiQuestion> savedRef, User user, Subject subject,
-                                   String questionText, String answerText, List<FileAsset> images) {
+                                   Conversation conversation, String questionText, String answerText, List<FileAsset> images) {
         synchronized (savedRef) {
             AiQuestion existing = savedRef.get();
             if (existing != null) {
                 return existing;
             }
-            AiQuestion saved = persist(user, subject, questionText, answerText, images);
+            AiQuestion saved = persist(user, subject, conversation, questionText, answerText, images);
             savedRef.set(saved);
             return saved;
         }
@@ -182,14 +193,35 @@ public class AiQuestionService {
      * 질문 본문 + 답변 + 첨부 이미지를 하나의 기록으로 저장한다.
      * (attachments는 cascade = ALL 로 함께 insert 된다.)
      */
-    private AiQuestion persist(User user, Subject subject, String questionText, String answerText, List<FileAsset> images) {
-        AiQuestion question = AiQuestion.create(user, subject, questionText, answerText);
+    private AiQuestion persist(User user, Subject subject, Conversation conversation,
+                               String questionText, String answerText, List<FileAsset> images) {
+        AiQuestion question = AiQuestion.create(user, subject, conversation, questionText, answerText);
         int order = 0;
         for (FileAsset image : images) {
             // create()가 내부에서 question.addAttachment를 호출 → cascade로 함께 저장됨
             AiQuestionAttachment.create(question, image, order++);
         }
         return aiQuestionRepository.save(question);
+    }
+
+    /**
+     * 질문이 속할 대화를 결정한다.
+     *
+     * <ul>
+     *   <li>conversationId가 있으면: 본인 소유 대화인지 확인하고 그 대화에 이어쓴다(없거나 타인 것이면 404).</li>
+     *   <li>conversationId가 없으면: 첫 질문으로 새 대화를 만든다(제목 = 첫 질문 요약).</li>
+     * </ul>
+     */
+    private Conversation resolveConversation(User user, Subject subject, Long conversationId, String firstQuestion) {
+        if (conversationId != null) {
+            Conversation conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new ConversationNotFoundException(conversationId));
+            if (!conversation.getUser().getId().equals(user.getId())) {
+                throw new ConversationNotFoundException(conversationId);
+            }
+            return conversation;
+        }
+        return conversationRepository.save(Conversation.createFromFirstQuestion(user, subject, firstQuestion));
     }
 
     /** 객체를 JSON 문자열로 직렬화한다(SSE done 이벤트 payload 용). */
@@ -272,5 +304,41 @@ public class AiQuestionService {
     public Page<AiQuestionHistoryResponse> getMyHistory(Long userId, Pageable pageable) {
         return aiQuestionRepository.findHistoryByUserId(userId, pageable)
                 .map(AiQuestionHistoryResponse::from);
+    }
+
+    /**
+     * 내 대화 목록을 조회한다. (GET /api/v1/ai/conversations)
+     * subjectId가 있으면 그 과목의 대화만, 없으면 전체를 최신 생성순으로 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<ConversationSummaryResponse> getConversations(Long userId, Long subjectId) {
+        List<Conversation> conversations = (subjectId == null)
+                ? conversationRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                : conversationRepository.findByUserIdAndSubjectIdOrderByCreatedAtDesc(userId, subjectId);
+        return conversations.stream().map(ConversationSummaryResponse::from).toList();
+    }
+
+    /**
+     * 대화 상세(질문+답변 전체)를 조회한다. (GET /api/v1/ai/conversations/{id})
+     * 본인 소유 대화만 조회할 수 있다.
+     */
+    @Transactional(readOnly = true)
+    public ConversationDetailResponse getConversationDetail(Long userId, Long conversationId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ConversationNotFoundException(conversationId));
+        if (!conversation.getUser().getId().equals(userId)) {
+            throw new ConversationNotFoundException(conversationId);
+        }
+        List<AiQuestionResponse> questions = aiQuestionRepository
+                .findByConversationIdOrderByCreatedAtAsc(conversationId)
+                .stream()
+                .map(AiQuestionResponse::from)
+                .toList();
+        return new ConversationDetailResponse(
+                conversation.getId(),
+                conversation.getTitle(),
+                conversation.getSubject().getId(),
+                questions
+        );
     }
 }
