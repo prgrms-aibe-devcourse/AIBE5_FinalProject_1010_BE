@@ -22,7 +22,7 @@ public class CourseDetailService {
     private final EnrollmentRequestRepository enrollmentRequestRepository;
 
     // currentUserId가 null이면 비로그인 — myStatus는 null로 반환
-    public CourseDetailResponse getCourseDetail(Long courseId, Long currentUserId) {
+    public CourseDetailResponse getCourseDetail(Long courseId, Long currentUserId, String role) {
         // teacherProfile → user, subject 한 번에 페치 (N+1 방지)
         Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
@@ -34,15 +34,20 @@ public class CourseDetailService {
         long totalEnrolledStudents = enrollmentRepository
                 .countByTeacherProfileIdAndStatus(course.getTeacherProfile().getId(), EnrollmentStatus.ACTIVE);
 
-        String myStatus = currentUserId == null ? null : determineMyStatus(currentUserId, course);
+        String myStatus = currentUserId == null ? null : determineMyStatus(currentUserId, role, course);
 
         return CourseDetailResponse.of(course, currentStudents, totalEnrolledStudents, myStatus);
     }
 
-    // myStatus 판단 순서: 선생님 본인 → 수강 중 → 최근 신청 상태 → 미신청
-    private String determineMyStatus(Long userId, Course course) {
+    // myStatus 판단 순서: 선생님 본인 → 다른 선생님 → 수강 중 → 최근 신청 상태 → 미신청
+    private String determineMyStatus(Long userId, String role, Course course) {
         if (course.getTeacherProfile().getUser().getId().equals(userId)) {
             return "OWNER";
+        }
+
+        // 선생님 역할이면 수강 신청 불가 — 프론트에서 신청하기 버튼 비활성화 처리
+        if ("TEACHER".equals(role)) {
+            return "TEACHER";
         }
 
         if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(userId, course.getId(), EnrollmentStatus.ACTIVE)) {

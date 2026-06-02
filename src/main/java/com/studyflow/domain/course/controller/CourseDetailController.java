@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,13 +24,20 @@ public class CourseDetailController {
     private final CourseDetailService courseDetailService;
     private final EnrollmentRequestService enrollmentRequestService;
 
-    // 수업 상세 조회 — userId는 비로그인 시 null
+    // 수업 상세 조회 — userId는 비로그인 시 null, role은 myStatus 계산에 사용
     @GetMapping("/{courseId}")
     public ResponseEntity<CourseDetailResponse> getCourseDetail(
             @PathVariable Long courseId,
-            @AuthenticationPrincipal Long userId
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication
     ) {
-        return ResponseEntity.ok(courseDetailService.getCourseDetail(courseId, userId));
+        // 로그인 상태일 때만 role 추출 (비로그인이면 authentication이 null)
+        String role = (authentication != null && userId != null)
+                ? authentication.getAuthorities().iterator().next()
+                        .getAuthority().replace("ROLE_", "")
+                : null;
+
+        return ResponseEntity.ok(courseDetailService.getCourseDetail(courseId, userId, role));
     }
 
     // 수강 신청 — 완료 시 선생님-학생 채팅방 자동 개설, 응답에 chatRoomId 포함
