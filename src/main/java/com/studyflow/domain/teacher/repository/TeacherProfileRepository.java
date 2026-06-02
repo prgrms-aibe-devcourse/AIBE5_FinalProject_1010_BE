@@ -24,10 +24,4 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "WHERE tp.id = :id AND u.isDeleted = 0 AND u.isActive = true")
     Optional<TeacherProfile> findWithUserById(@Param("id") Long id);
 
-    // 수업 수 일괄 조회 결과를 담는 타입 안전 프로젝션
-    // CourseRepository.countCoursesByTeacherProfileIds() 반환 타입으로 사용
-    interface TeacherCourseCount {
-        Long getTeacherProfileId();
-        Long getCount();
-    }
 }

@@ -12,6 +12,7 @@ import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
+import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -127,6 +128,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CourseAccessForbiddenException.class)
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    // ── 선생님 도메인 예외 처리 ──────────────────────
+
+    // 존재하지 않는 선생님 프로필 조회 (404)
+    @ExceptionHandler(TeacherProfileNotFoundException.class)
+    public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // ── AI 질문 도메인 예외 처리 ──────────────────────
