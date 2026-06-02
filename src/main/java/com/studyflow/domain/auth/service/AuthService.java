@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional
@@ -153,12 +154,12 @@ public class AuthService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         // Redis에서 저장된 refresh token 조회 후 유효성 검증
+        // 추후 동시성 문제 고려 필요
         String storedRefreshToken = redisTemplate.opsForValue().get(RedisPrefixProvider.refreshTokenKey(userId));
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
             throw new RefreshTokenNotInRedisException(ErrorCode.AUTH_INVALID_TOKEN,
                     "서버의 refresh token 정보와 일치하지 않거나 존재하지 않습니다.");
         }
-
 
         // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
         String role = authentication.getAuthorities().stream()
@@ -177,7 +178,7 @@ public class AuthService {
                 RedisPrefixProvider.refreshTokenKey(userId),
                 newRefreshToken,
                 jwtTokenProvider.getRefreshTokenExpiration(),
-                java.util.concurrent.TimeUnit.MILLISECONDS
+                TimeUnit.MILLISECONDS
         );
 
         return new ReissueResponse(newAccessToken, newRefreshToken,
