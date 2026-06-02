@@ -3,6 +3,10 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.enrollment.exception.AlreadyEnrolledException;
+import com.studyflow.domain.enrollment.exception.CourseNotRecruitingException;
+import com.studyflow.domain.enrollment.exception.EnrollmentRequestAlreadyPendingException;
+import com.studyflow.domain.enrollment.exception.SelfEnrollmentException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -156,6 +160,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TeacherProfileNotFoundException.class)
     public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    // ── 수강 신청 도메인 예외 처리 ──────────────────────
+
+    @ExceptionHandler(CourseNotRecruitingException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseNotRecruiting(CourseNotRecruitingException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_NOT_RECRUITING.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AlreadyEnrolledException.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyEnrolled(AlreadyEnrolledException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorCode.ALREADY_ENROLLED.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EnrollmentRequestAlreadyPendingException.class)
+    public ResponseEntity<Map<String, Object>> handleEnrollmentRequestAlreadyPending(EnrollmentRequestAlreadyPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorCode.ENROLLMENT_REQUEST_ALREADY_PENDING.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SelfEnrollmentException.class)
+    public ResponseEntity<Map<String, Object>> handleSelfEnrollment(SelfEnrollmentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.SELF_ENROLLMENT.toBody(ex.getMessage()));
     }
 
     // ── AI 질문 도메인 예외 처리 ──────────────────────

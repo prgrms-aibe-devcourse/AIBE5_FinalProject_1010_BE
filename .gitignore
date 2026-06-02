@@ -1,6 +1,7 @@
 ### Gradle ###
 .gradle/
 build/
+gradle.properties
 
 ### IntelliJ IDEA ###
 .idea/
@@ -32,6 +33,7 @@ src/test/resources/application.yml
 ### Docker ###
 .env
 .env.*
+!.env-example
 docker-compose.override.yml
 
 ### Logs ###

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -51,6 +52,10 @@ public class SecurityConfig {
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
+                        // 수업 상세 — 비로그인 허용, JWT 필터는 동작하여 토큰 있으면 인증 처리
+                        .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
+                        // 수강 신청 — 학생 전용
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER") // 테스트용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

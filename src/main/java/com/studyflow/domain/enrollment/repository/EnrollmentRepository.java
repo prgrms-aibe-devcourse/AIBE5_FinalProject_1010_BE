@@ -37,4 +37,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
            "GROUP BY e.course.id")
     List<CourseEnrollmentCount> countByCourseIdsAndStatus(@Param("courseIds") List<Long> courseIds,
                                                          @Param("status") EnrollmentStatus status);
+
+    // 특정 선생님의 전체 누적 수강생 수 — 상태 무관하게 전체 집계 (수업 상세 페이지 선생님 통계용)
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.teacherProfile.id = :teacherProfileId")
+    long countByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId);
 }
