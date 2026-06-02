@@ -1,7 +1,6 @@
 package com.studyflow.domain.enrollment.entity;
 
 import com.studyflow.domain.course.entity.Course;
-import com.studyflow.domain.enrollment.dto.EnrollmentRequestCreateRequest;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
@@ -62,15 +61,21 @@ public class EnrollmentRequest extends BaseTimeEntity {
     private EnrollmentRequestStatus status = EnrollmentRequestStatus.PENDING;
 
     // 수강 신청 생성 — status 기본값 PENDING, 선생님 수락 시 ACCEPTED로 변경 후 Enrollment 생성
-    public static EnrollmentRequest create(Course course, User user, EnrollmentRequestCreateRequest request) {
+    // DTO 대신 개별 값을 받아 엔티티가 DTO에 의존하지 않도록 함 (레이어 분리)
+    public static EnrollmentRequest create(
+            Course course, User user,
+            String introduction, String goal,
+            String preferredScheduleNote, String preferredStart,
+            String message
+    ) {
         EnrollmentRequest e = new EnrollmentRequest();
         e.course = course;
         e.user = user;
-        e.introduction = request.getIntroduction();
-        e.goal = request.getGoal();
-        e.preferredScheduleNote = request.getPreferredScheduleNote();
-        e.preferredStart = request.getPreferredStart();
-        e.message = request.getMessage();
+        e.introduction = introduction;
+        e.goal = goal;
+        e.preferredScheduleNote = preferredScheduleNote;
+        e.preferredStart = preferredStart;
+        e.message = message;
         return e;
     }
 }

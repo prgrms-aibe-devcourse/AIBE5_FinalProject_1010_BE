@@ -46,7 +46,7 @@ public class CourseDetailResponse {
 
     private TeacherSummary teacher;
 
-    // 비로그인: null / 로그인: OWNER·ENROLLED·PENDING·REJECTED·CANCELLED·NOT_APPLIED
+    // 비로그인: null / 로그인: OWNER·TEACHER·ENROLLED·PENDING·REJECTED·CANCELLED·NOT_APPLIED
     private String myStatus;
 
     // 수업 상세 페이지에서 보여주는 선생님 요약 카드

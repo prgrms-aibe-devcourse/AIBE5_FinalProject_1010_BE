@@ -30,9 +30,9 @@ public class CourseDetailService {
         // 현재 이 수업을 수강 중인 학생 수
         long currentStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
 
-        // 선생님의 전체 수업 누적 수강생 수 (신뢰도 지표)
+        // 선생님의 전체 누적 수강생 수 — 상태 무관 전체 집계 (신뢰도 지표)
         long totalEnrolledStudents = enrollmentRepository
-                .countByTeacherProfileIdAndStatus(course.getTeacherProfile().getId(), EnrollmentStatus.ACTIVE);
+                .countByTeacherProfileId(course.getTeacherProfile().getId());
 
         String myStatus = currentUserId == null ? null : determineMyStatus(currentUserId, role, course);
 

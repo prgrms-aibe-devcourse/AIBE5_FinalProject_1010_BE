@@ -19,7 +19,9 @@ import com.studyflow.domain.enrollment.exception.SelfEnrollmentException;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
 import com.studyflow.domain.user.entity.User;
+import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,9 +71,14 @@ public class EnrollmentRequestService {
         }
 
         User student = userRepository.findById(studentUserId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        EnrollmentRequest enrollmentRequest = EnrollmentRequest.create(course, student, request);
+        EnrollmentRequest enrollmentRequest = EnrollmentRequest.create(
+                course, student,
+                request.getIntroduction(), request.getGoal(),
+                request.getPreferredScheduleNote(), request.getPreferredStart(),
+                request.getMessage()
+        );
         enrollmentRequestRepository.save(enrollmentRequest);
 
         // 채팅방 생성 — 같은 선생님-학생 조합 방이 이미 있으면 기존 방 반환 (idempotent)
