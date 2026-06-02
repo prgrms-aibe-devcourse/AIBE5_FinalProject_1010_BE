@@ -72,10 +72,16 @@ dependencies {
     // AWS S3
     implementation 'software.amazon.awssdk:s3:2.26.31'
 
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // H2 (테스트 전용 인메모리 DB)
+    testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {

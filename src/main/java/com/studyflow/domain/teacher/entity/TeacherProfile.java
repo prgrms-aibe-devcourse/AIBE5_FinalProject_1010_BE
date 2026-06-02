@@ -32,8 +32,6 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String awards;
 
-    private Integer age;
-
     @Column(length = 200)
     private String address;
 

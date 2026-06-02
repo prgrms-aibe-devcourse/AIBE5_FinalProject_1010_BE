@@ -2,16 +2,14 @@ package com.studyflow.global.exception;
 
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
-import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
-import com.studyflow.domain.auth.exception.SignupRequestException;
-import com.studyflow.domain.auth.exception.InvalidCredentialsException;
-import com.studyflow.domain.auth.exception.SignupWithAdminException;
+import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
+import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -91,6 +89,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우
+    @ExceptionHandler(RefreshTokenNotInRedisException.class)
+    public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
     // ── 수업별 페이지 예외 처리 ──────────────────────
 
     // 존재하지 않는 수업 조회 (404)
@@ -127,6 +132,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CourseAccessForbiddenException.class)
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    // ── 선생님 도메인 예외 처리 ──────────────────────
+
+    // 존재하지 않는 선생님 프로필 조회 (404)
+    @ExceptionHandler(TeacherProfileNotFoundException.class)
+    public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // ── AI 질문 도메인 예외 처리 ──────────────────────

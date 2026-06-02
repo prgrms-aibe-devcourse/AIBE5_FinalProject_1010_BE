@@ -97,7 +97,7 @@ public class AuthController {
         }
         ReissueResponse reissueResponse;
         try {
-            reissueResponse = authService.reissue(userId, refreshToken);
+            reissueResponse = authService.reissue(refreshToken, userId);
         } catch(IllegalStateException e) {
             // 인증된 사용자의 권한 정보가 없는 이상한 경우
             // 컴파일 및 디버깅을 위함
@@ -131,8 +131,7 @@ public class AuthController {
         // refresh token의 만료시간을 0으로 설정하여 재발급
         ResponseCookie deleteCookie = createRefreshCookie("",0);
 
-        // TODO: Service 계층에서 Redis의 refreshToken을 삭제
-        authService.logout(refreshToken);
+        authService.logout(refreshToken, userId);
 
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())

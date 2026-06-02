@@ -17,7 +17,9 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.exception.ErrorCode;
+import com.studyflow.global.redis.RedisPrefixProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional
@@ -38,6 +41,7 @@ public class AuthService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StringRedisTemplate redisTemplate;
 
     public void signup(SignupRequest request) {
         boolean serviceAgreed = false;
@@ -113,7 +117,6 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        // TODO: Redis 도입 시 refresh token을 Redis에 저장
         User user = userRepository.findActiveByEmailAndSocialProvider(request.getEmail(),SocialProvider.LOCAL)
                 .orElseThrow(() -> new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다."));
 
@@ -135,14 +138,28 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), role);
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), role);
 
+        // Redis에 refresh token 저장: key = rt:{userId}, value = refreshToken, TTL = refreshToken 만료 시간
+        redisTemplate.opsForValue().set(
+                RedisPrefixProvider.refreshTokenKey(user.getId()),
+                refreshToken,
+                jwtTokenProvider.getRefreshTokenExpiration(),
+                java.util.concurrent.TimeUnit.MILLISECONDS
+        );
+
         return new LoginResponse(accessToken, refreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
     
-    public ReissueResponse reissue(Long userId, String refreshToken) {
-        // TODO: Redis 도입 시 refreshToken 블랙리스트 처리 필요
-        // refreshToken 파라미터가 현재 사용되지 않음
+    public ReissueResponse reissue(String refreshToken, Long userId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // Redis에서 저장된 refresh token 조회 후 유효성 검증
+        // 추후 동시성 문제 고려 필요
+        String storedRefreshToken = redisTemplate.opsForValue().get(RedisPrefixProvider.refreshTokenKey(userId));
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            throw new RefreshTokenNotInRedisException(ErrorCode.AUTH_INVALID_TOKEN,
+                    "서버의 refresh token 정보와 일치하지 않거나 존재하지 않습니다.");
+        }
 
         // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
         String role = authentication.getAuthorities().stream()
@@ -155,11 +172,21 @@ public class AuthService {
         }
         String newAccessToken = jwtTokenProvider.createAccessToken(userId, role);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
+
+        // 기존 refresh token을 새 refresh token으로 교체: key = rt:{userId}, TTL = refreshToken 만료 시간
+        redisTemplate.opsForValue().set(
+                RedisPrefixProvider.refreshTokenKey(userId),
+                newRefreshToken,
+                jwtTokenProvider.getRefreshTokenExpiration(),
+                TimeUnit.MILLISECONDS
+        );
+
         return new ReissueResponse(newAccessToken, newRefreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
 
-    public void logout(String refreshToken) {
-        // TODO: Redis에서 refreshToken을 삭제
+    public void logout(String refreshToken, Long userId) {
+        // Redis에서 refresh token 삭제: key = rt:{userId}
+        redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(userId));
     }
 }
