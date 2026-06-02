@@ -29,6 +29,7 @@ import reactor.core.scheduler.Schedulers;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -111,21 +112,28 @@ public class AiQuestionService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
+        // 첨부 이미지는 소유/유효성만 검증해 저장 시 연결한다.
+        // (1단계: 동기 ask()와 동일하게 OpenAI 호출에는 텍스트만 보내고, 이미지는 vision으로
+        //  전달하지 않는다. 2단계에서 images의 URL들을 vision 입력으로 확장 예정.)
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
         // 2) 답변 조각을 흘려보내면서 전체 답변을 누적한다.
+        //    Reactor는 한 구독에 대해 onNext를 직렬로(겹치지 않게) 호출하므로, 누적은 단일 스레드에서만
+        //    일어난다. 따라서 동기화 없는 StringBuilder로도 동시성 문제가 없다.(부수효과는 doOnNext에서)
         StringBuilder answer = new StringBuilder();
+        // done(정상 종료)과 doOnCancel(클라이언트 끊김)이 모두 저장을 시도할 수 있으므로,
+        // 저장이 정확히 한 번만 일어나도록 결과를 담아 가드한다.
+        AtomicReference<AiQuestion> savedRef = new AtomicReference<>();
+
         Flux<ServerSentEvent<String>> tokens = openAiClient
                 .askStream(subject.getCategory(), request.questionText())
-                .map(chunk -> {
-                    answer.append(chunk);
-                    return ServerSentEvent.builder(chunk).build();
-                });
+                .doOnNext(answer::append)                              // 전체 답변 누적(부수효과)
+                .map(chunk -> ServerSentEvent.builder(chunk).build()); // 토큰 → SSE data 이벤트
 
-        // 3) 스트림이 끝나면 누적된 전체 답변을 저장하고 done 이벤트를 1회 방출한다.
+        // 3) 스트림이 정상 종료되면 누적된 전체 답변을 저장하고 done 이벤트를 1회 방출한다.
         //    JPA 저장은 블로킹이므로 별도 스케줄러(boundedElastic)에서 수행한다.
         Mono<ServerSentEvent<String>> done = Mono.fromCallable(() -> {
-                    AiQuestion saved = persist(user, subject, request.questionText(), answer.toString(), images);
+                    AiQuestion saved = persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images);
                     return ServerSentEvent.<String>builder(toJson(AiQuestionResponse.from(saved)))
                             .event("done")
                             .build();
@@ -134,12 +142,39 @@ public class AiQuestionService {
 
         // 4) 토큰 + done 을 이어붙이고, 도중 오류는 error 이벤트로 변환한다.
         return tokens.concatWith(done)
+                // 클라이언트가 도중에 연결을 끊으면 Flux가 취소되어 done이 실행되지 않는다.
+                // 이때도 그때까지 받은 답변이 있으면 저장해 질문 유실을 막는다(중복 저장은 persistOnce가 가드).
+                .doOnCancel(() -> {
+                    if (answer.length() > 0) {
+                        Schedulers.boundedElastic().schedule(() ->
+                                persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images));
+                    }
+                })
                 .onErrorResume(e -> {
                     log.error("AI 스트리밍 실패", e);
                     return Flux.just(ServerSentEvent.<String>builder("AI 풀이 생성 중 오류가 발생했습니다.")
                             .event("error")
                             .build());
                 });
+    }
+
+    /**
+     * 누적 답변을 정확히 한 번만 저장한다.
+     *
+     * <p>정상 종료(done)와 클라이언트 연결 끊김(doOnCancel)이 경쟁적으로 호출할 수 있으므로,
+     * 요청별 {@code savedRef}를 락으로 삼아 첫 호출에서만 실제 저장하고 이후엔 저장된 결과를 재사용한다.</p>
+     */
+    private AiQuestion persistOnce(AtomicReference<AiQuestion> savedRef, User user, Subject subject,
+                                   String questionText, String answerText, List<FileAsset> images) {
+        synchronized (savedRef) {
+            AiQuestion existing = savedRef.get();
+            if (existing != null) {
+                return existing;
+            }
+            AiQuestion saved = persist(user, subject, questionText, answerText, images);
+            savedRef.set(saved);
+            return saved;
+        }
     }
 
     /**
