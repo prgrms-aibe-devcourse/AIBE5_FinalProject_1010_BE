@@ -1,28 +1,25 @@
 package com.studyflow.domain.ai.client;
 
-import com.studyflow.domain.ai.client.dto.ChatCompletionRequest;
-import com.studyflow.domain.ai.client.dto.ChatCompletionResponse;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.subject.enums.SubjectCategory;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
 
 /**
- * OpenAI(LLM)를 직접 호출하는 클라이언트 계층.
+ * OpenAI(LLM) 호출 클라이언트 계층.
  *
- * <p>이 프로젝트는 별도 Python(FastAPI) AI 서버를 두지 않고, Spring에서 OpenAI
- * Chat Completions API를 직접 호출한다. 그 HTTP 호출의 세부사항(엔드포인트, 요청/응답
- * 형식, 에러 변환)을 이 클래스 한 곳에 모아, 서비스 계층은 {@link #ask(String)} 한 줄로
- * AI 답변을 얻게 한다.</p>
+ * <p>이 프로젝트는 별도 Python(FastAPI) AI 서버를 두지 않고, Spring에서 OpenAI를 직접
+ * 호출한다. 호출은 Spring AI의 {@link ChatClient}로 통일했다(이전의 커스텀 RestClient
+ * 방식 대체). 모델·API 키 등은 {@code spring.ai.openai.*} 프로퍼티로 자동 구성된 빈을
+ * 그대로 사용하므로, 이 클래스는 "시스템 프롬프트 구성 + 호출"에만 집중한다.</p>
  *
- * <p>1단계에서는 텍스트 질문만 처리한다. 2단계(이미지)·3단계(음성)에서
- * 메시지 content를 멀티모달 형식으로 확장하면 된다.</p>
+ * <p>두 가지 호출 방식을 제공한다.</p>
+ * <ul>
+ *   <li>{@link #ask(SubjectCategory, String)} — 답변 전체를 한 번에 받는 동기 호출</li>
+ *   <li>{@link #askStream(SubjectCategory, String)} — 답변을 토큰 단위로 흘려보내는 스트리밍 호출</li>
+ * </ul>
  */
 @Slf4j
 @Component
@@ -35,23 +32,16 @@ public class OpenAiClient {
             수식은 보기 쉽게 작성하고, 한국어로 답변하세요.
             """;
 
-    private final RestClient openAiRestClient;
-    private final String model;
+    private final ChatClient chatClient;
 
-    public OpenAiClient(
-            // OpenAiConfig에서 등록한 OpenAI 전용 RestClient를 주입받는다.
-            @Qualifier("openAiRestClient") RestClient openAiRestClient,
-            @Value("${openai.model}") String model
-    ) {
-        this.openAiRestClient = openAiRestClient;
-        this.model = model;
+    public OpenAiClient(ChatClient.Builder chatClientBuilder) {
+        // Spring AI가 자동 구성한 ChatClient.Builder(OpenAiChatModel 기반)로 클라이언트를 만든다.
+        // 모델·온도 등 옵션은 application.yml의 spring.ai.openai.* 에서 적용된다.
+        this.chatClient = chatClientBuilder.build();
     }
 
     /**
-     * 질문 텍스트를 과목에 맞춰 OpenAI에 보내 답변을 받는다.
-     *
-     * <p>기본 과외 톤(공통 프롬프트)에 과목별 지침({@link SubjectCategory#getTutorGuidance()})을
-     * 덧붙여, 같은 질문이라도 선택한 과목의 특성에 맞는 풀이가 나오도록 유도한다.</p>
+     * 질문 텍스트를 과목에 맞춰 OpenAI에 보내 답변을 한 번에 받는다.(동기)
      *
      * @param category     질문 과목 대분류 (null이면 공통 프롬프트만 사용)
      * @param questionText 학생이 입력한 질문
@@ -59,32 +49,44 @@ public class OpenAiClient {
      * @throws AiServiceException 호출 실패 또는 빈 응답일 때
      */
     public String ask(SubjectCategory category, String questionText) {
-        ChatCompletionRequest request = new ChatCompletionRequest(
-                model,
-                List.of(
-                        ChatCompletionRequest.Message.system(buildSystemPrompt(category)),
-                        ChatCompletionRequest.Message.user(questionText)
-                )
-        );
-
         try {
-            ChatCompletionResponse response = openAiRestClient.post()
-                    .uri("/chat/completions")
-                    .body(request)
-                    .retrieve()
-                    .body(ChatCompletionResponse.class);
+            String answer = chatClient.prompt()
+                    .system(buildSystemPrompt(category))
+                    .user(questionText)
+                    .call()
+                    .content();
 
-            String answer = (response == null) ? null : response.firstAnswer();
             if (answer == null || answer.isBlank()) {
                 throw new AiServiceException("AI 응답이 비어 있습니다.");
             }
             return answer.trim();
 
-        } catch (RestClientException e) {
-            // 네트워크 오류, 4xx/5xx, 타임아웃 등 HTTP 호출 단계의 모든 실패를 여기서 잡는다.
+        } catch (AiServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            // 네트워크 오류, 4xx/5xx, 타임아웃 등 호출 단계의 모든 실패를 여기서 잡는다.
             log.error("OpenAI 호출 실패", e);
             throw new AiServiceException("AI 풀이 요청에 실패했습니다.", e);
         }
+    }
+
+    /**
+     * 질문 텍스트를 과목에 맞춰 OpenAI에 보내 답변을 토큰 단위로 스트리밍한다.
+     *
+     * <p>반환된 {@link Flux}는 모델이 생성하는 답변 조각(델타)을 순서대로 방출한다.
+     * 호출 측(서비스)에서 이를 SSE로 클라이언트에 흘려보내고, 스트림이 끝나면 전체 답변을
+     * 이어붙여 저장한다.</p>
+     *
+     * @param category     질문 과목 대분류 (null이면 공통 프롬프트만 사용)
+     * @param questionText 학생이 입력한 질문
+     * @return 답변 조각들의 스트림
+     */
+    public Flux<String> askStream(SubjectCategory category, String questionText) {
+        return chatClient.prompt()
+                .system(buildSystemPrompt(category))
+                .user(questionText)
+                .stream()
+                .content();
     }
 
     /**
