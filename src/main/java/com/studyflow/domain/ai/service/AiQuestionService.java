@@ -14,15 +14,22 @@ import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +41,7 @@ import java.util.stream.Collectors;
  *   <li>기록 조회: 내 질문 목록을 최신순으로 반환</li>
  * </ul>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiQuestionService {
@@ -43,6 +51,7 @@ public class AiQuestionService {
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
     private final OpenAiClient openAiClient;
+    private final ObjectMapper objectMapper;
 
     /**
      * AI에게 질문하고 답변을 저장한다. (POST /api/v1/ai/questions)
@@ -70,26 +79,126 @@ public class AiQuestionService {
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
         // 3) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
+        //    과목 대분류를 함께 넘겨, 선택한 과목 특성에 맞는 풀이가 나오도록 한다.
         //    (1단계: 텍스트만 전달. 2단계에서 images의 URL들을 vision으로 함께 넘기도록 확장)
-        String answerText = openAiClient.ask(request.questionText());
+        String answerText = openAiClient.ask(subject.getCategory(), request.questionText());
 
-        // 4) 질문 본문을 만들고, 첨부 이미지들을 순서대로 연결한다.
-        AiQuestion question = AiQuestion.create(
-                user,
-                subject,
-                request.questionText(),
-                answerText
-        );
+        // 4) 질문 + 답변 + 첨부를 저장하고 응답으로 변환한다.
+        AiQuestion saved = persist(user, subject, request.questionText(), answerText, images);
+        return AiQuestionResponse.from(saved);
+    }
+
+    /**
+     * AI 답변을 토큰 단위로 스트리밍하고, 끝나면 질문+전체답변을 저장한다.
+     * (POST /api/v1/ai/questions/stream, Server-Sent Events)
+     *
+     * <p>이벤트 규약:</p>
+     * <ul>
+     *   <li>기본(message) 이벤트: 답변 조각(델타) 텍스트를 순서대로 방출</li>
+     *   <li>{@code done} 이벤트: 스트림 종료 후 저장된 기록을 {@link AiQuestionResponse} JSON으로 1회 방출</li>
+     *   <li>{@code error} 이벤트: 생성 중 오류 발생 시 사유 메시지 방출</li>
+     * </ul>
+     *
+     * <p>검증(사용자/과목/첨부)은 스트림을 만들기 전에 동기로 수행하므로, 잘못된 요청은
+     * 스트림이 아니라 일반 HTTP 에러(404/400 등)로 즉시 응답된다.</p>
+     *
+     * @param userId  인증된 사용자 id
+     * @param request 질문 요청
+     * @return SSE 이벤트 스트림
+     */
+    public Flux<ServerSentEvent<String>> askStream(Long userId, AiQuestionCreateRequest request) {
+        // 1) 스트림 시작 전에 동기로 검증한다(여기서 던진 예외는 GlobalExceptionHandler가 처리).
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        Subject subject = subjectRepository.findById(request.subjectId())
+                .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
+        // 첨부 이미지는 소유/유효성만 검증해 저장 시 연결한다.
+        // (1단계: 동기 ask()와 동일하게 OpenAI 호출에는 텍스트만 보내고, 이미지는 vision으로
+        //  전달하지 않는다. 2단계에서 images의 URL들을 vision 입력으로 확장 예정.)
+        List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
+
+        // 2) 답변 조각을 흘려보내면서 전체 답변을 누적한다.
+        //    Reactor는 한 구독에 대해 onNext를 직렬로(겹치지 않게) 호출하므로, 누적은 단일 스레드에서만
+        //    일어난다. 따라서 동기화 없는 StringBuilder로도 동시성 문제가 없다.(부수효과는 doOnNext에서)
+        StringBuilder answer = new StringBuilder();
+        // done(정상 종료)과 doOnCancel(클라이언트 끊김)이 모두 저장을 시도할 수 있으므로,
+        // 저장이 정확히 한 번만 일어나도록 결과를 담아 가드한다.
+        AtomicReference<AiQuestion> savedRef = new AtomicReference<>();
+
+        Flux<ServerSentEvent<String>> tokens = openAiClient
+                .askStream(subject.getCategory(), request.questionText())
+                .doOnNext(answer::append)                              // 전체 답변 누적(부수효과)
+                .map(chunk -> ServerSentEvent.builder(chunk).build()); // 토큰 → SSE data 이벤트
+
+        // 3) 스트림이 정상 종료되면 누적된 전체 답변을 저장하고 done 이벤트를 1회 방출한다.
+        //    JPA 저장은 블로킹이므로 별도 스케줄러(boundedElastic)에서 수행한다.
+        Mono<ServerSentEvent<String>> done = Mono.fromCallable(() -> {
+                    AiQuestion saved = persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images);
+                    return ServerSentEvent.<String>builder(toJson(AiQuestionResponse.from(saved)))
+                            .event("done")
+                            .build();
+                })
+                .subscribeOn(Schedulers.boundedElastic());
+
+        // 4) 토큰 + done 을 이어붙이고, 도중 오류는 error 이벤트로 변환한다.
+        return tokens.concatWith(done)
+                // 클라이언트가 도중에 연결을 끊으면 Flux가 취소되어 done이 실행되지 않는다.
+                // 이때도 그때까지 받은 답변이 있으면 저장해 질문 유실을 막는다(중복 저장은 persistOnce가 가드).
+                .doOnCancel(() -> {
+                    if (answer.length() > 0) {
+                        Schedulers.boundedElastic().schedule(() ->
+                                persistOnce(savedRef, user, subject, request.questionText(), answer.toString(), images));
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("AI 스트리밍 실패", e);
+                    return Flux.just(ServerSentEvent.<String>builder("AI 풀이 생성 중 오류가 발생했습니다.")
+                            .event("error")
+                            .build());
+                });
+    }
+
+    /**
+     * 누적 답변을 정확히 한 번만 저장한다.
+     *
+     * <p>정상 종료(done)와 클라이언트 연결 끊김(doOnCancel)이 경쟁적으로 호출할 수 있으므로,
+     * 요청별 {@code savedRef}를 락으로 삼아 첫 호출에서만 실제 저장하고 이후엔 저장된 결과를 재사용한다.</p>
+     */
+    private AiQuestion persistOnce(AtomicReference<AiQuestion> savedRef, User user, Subject subject,
+                                   String questionText, String answerText, List<FileAsset> images) {
+        synchronized (savedRef) {
+            AiQuestion existing = savedRef.get();
+            if (existing != null) {
+                return existing;
+            }
+            AiQuestion saved = persist(user, subject, questionText, answerText, images);
+            savedRef.set(saved);
+            return saved;
+        }
+    }
+
+    /**
+     * 질문 본문 + 답변 + 첨부 이미지를 하나의 기록으로 저장한다.
+     * (attachments는 cascade = ALL 로 함께 insert 된다.)
+     */
+    private AiQuestion persist(User user, Subject subject, String questionText, String answerText, List<FileAsset> images) {
+        AiQuestion question = AiQuestion.create(user, subject, questionText, answerText);
         int order = 0;
         for (FileAsset image : images) {
             // create()가 내부에서 question.addAttachment를 호출 → cascade로 함께 저장됨
             AiQuestionAttachment.create(question, image, order++);
         }
+        return aiQuestionRepository.save(question);
+    }
 
-        // 5) 저장 (attachments는 cascade = ALL로 함께 insert)
-        AiQuestion saved = aiQuestionRepository.save(question);
-
-        return AiQuestionResponse.from(saved);
+    /** 객체를 JSON 문자열로 직렬화한다(SSE done 이벤트 payload 용). */
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            // 직렬화 실패는 사실상 발생하지 않지만, 스트림을 깨뜨리지 않도록 방어한다.
+            throw new IllegalStateException("응답 직렬화에 실패했습니다.", e);
+        }
     }
 
     /**

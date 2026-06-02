@@ -17,6 +17,7 @@ import java.util.List;
  * @param aiQuestionId     저장된 질문 기록 id
  * @param userId           질문자 id
  * @param subjectId        과목 id
+ * @param subjectName      과목 이름 (예: "수학"). 클라이언트가 어떤 과목으로 답변됐는지 바로 표시할 수 있게 함께 내려준다.
  * @param questionText      질문 본문
  * @param questionImageUrls 첨부 이미지 URL 목록 (없으면 빈 배열). 내부적으로는 FileAsset을 참조하지만,
  *                          클라이언트가 바로 화면에 그릴 수 있도록 응답에는 URL 목록으로 펼쳐서 내려준다.
@@ -27,6 +28,7 @@ public record AiQuestionResponse(
         Long aiQuestionId,
         Long userId,
         Long subjectId,
+        String subjectName,
         String questionText,
         List<String> questionImageUrls,
         String answerText,
@@ -44,6 +46,7 @@ public record AiQuestionResponse(
                 q.getId(),
                 q.getUser().getId(),
                 q.getSubject().getId(),
+                q.getSubject().getName(),
                 q.getQuestionText(),
                 imageUrls,
                 q.getAnswerText(),
