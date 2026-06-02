@@ -6,6 +6,7 @@ import com.studyflow.domain.ai.dto.response.AiQuestionHistoryResponse;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
 import com.studyflow.domain.ai.entity.AiQuestionAttachment;
+import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
 import com.studyflow.domain.file.entity.FileAsset;
@@ -237,6 +238,27 @@ public class AiQuestionService {
                     return image;
                 })
                 .toList();
+    }
+
+    /**
+     * AI 질문 기록 1건 상세 조회. (GET /api/v1/ai/questions/{id})
+     *
+     * <p>목록 응답에는 답변(answerText)이 빠져 있으므로, 기록을 클릭해 과거 대화(질문+답변)를
+     * 복원할 때 이 API로 전체 내용을 가져온다. 본인 소유 기록만 조회할 수 있다.</p>
+     *
+     * @param userId       인증된 사용자 id
+     * @param aiQuestionId 조회할 질문 기록 id
+     * @return 질문 + 답변 전체
+     */
+    @Transactional(readOnly = true)
+    public AiQuestionResponse getDetail(Long userId, Long aiQuestionId) {
+        AiQuestion question = aiQuestionRepository.findById(aiQuestionId)
+                .orElseThrow(() -> new AiQuestionNotFoundException(aiQuestionId));
+        // 타인의 기록은 존재 여부를 노출하지 않도록 동일하게 404로 처리한다.
+        if (!question.getUser().getId().equals(userId)) {
+            throw new AiQuestionNotFoundException(aiQuestionId);
+        }
+        return AiQuestionResponse.from(question);
     }
 
     /**

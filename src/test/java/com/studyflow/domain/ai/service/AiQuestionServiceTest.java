@@ -5,6 +5,7 @@ import com.studyflow.domain.ai.client.OpenAiClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
+import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
 import com.studyflow.domain.file.entity.FileAsset;
@@ -201,6 +202,47 @@ class AiQuestionServiceTest {
                 .isInstanceOf(SubjectNotFoundException.class);
 
         verify(openAiClient, never()).askStream(any(), any());
+    }
+
+    // ── 상세 조회 getDetail ─────────────────────────
+
+    @Test
+    @DisplayName("getDetail: 본인 기록이면 질문+답변 전체를 반환한다")
+    void getDetail_returnsFullRecordForOwner() {
+        User user = mockUser(1L);
+        // getDetail은 과목의 category를 쓰지 않으므로 필요한 stub만 둔다(불필요 stub 방지).
+        Subject subject = mock(Subject.class);
+        when(subject.getId()).thenReturn(3L);
+        when(subject.getName()).thenReturn("수학");
+        AiQuestion question = AiQuestion.create(user, subject, "2x=4?", "x=2 입니다");
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
+
+        AiQuestionResponse response = service.getDetail(1L, 5L);
+
+        assertThat(response.questionText()).isEqualTo("2x=4?");
+        assertThat(response.answerText()).isEqualTo("x=2 입니다");
+        assertThat(response.subjectName()).isEqualTo("수학");
+    }
+
+    @Test
+    @DisplayName("getDetail: 타인 기록이면 AiQuestionNotFoundException(404)")
+    void getDetail_rejectsOtherUsersRecord() {
+        User owner = mock(User.class);
+        when(owner.getId()).thenReturn(999L);  // 다른 사람의 기록
+        AiQuestion question = AiQuestion.create(owner, mock(Subject.class), "q", "a");
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
+
+        assertThatThrownBy(() -> service.getDetail(1L, 5L))
+                .isInstanceOf(AiQuestionNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("getDetail: 존재하지 않으면 AiQuestionNotFoundException(404)")
+    void getDetail_notFound() {
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getDetail(1L, 5L))
+                .isInstanceOf(AiQuestionNotFoundException.class);
     }
 
     // ── 기록 조회 getMyHistory ──────────────────────────────

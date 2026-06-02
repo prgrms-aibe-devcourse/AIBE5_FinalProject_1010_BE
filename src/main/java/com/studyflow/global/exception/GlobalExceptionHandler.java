@@ -1,5 +1,6 @@
 package com.studyflow.global.exception;
 
+import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
@@ -149,6 +150,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleSubjectNotFound(SubjectNotFoundException ex) {
         ErrorCode errorCode = ErrorCode.SUBJECT_NOT_FOUND;
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 존재하지 않거나 본인 소유가 아닌 질문 기록 조회 (404)
+    @ExceptionHandler(AiQuestionNotFoundException.class)
+    public ResponseEntity<String> handleAiQuestionNotFound(AiQuestionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // 외부 AI(OpenAI) 호출 실패 (502) — 우리 서버가 아닌 외부 의존 서비스 문제

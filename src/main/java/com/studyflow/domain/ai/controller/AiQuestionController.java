@@ -72,4 +72,15 @@ public class AiQuestionController {
     ) {
         return aiQuestionService.getMyHistory(userId, pageable);
     }
+
+    /**
+     * 내 AI 질문 기록 1건 상세 조회(질문 + 답변). 기록 클릭 시 과거 대화 복원용.
+     */
+    @GetMapping("/{aiQuestionId}")
+    public AiQuestionResponse getDetail(
+            @PathVariable Long aiQuestionId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return aiQuestionService.getDetail(userId, aiQuestionId);
+    }
 }
