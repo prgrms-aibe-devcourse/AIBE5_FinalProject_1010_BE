@@ -32,6 +32,7 @@ src/test/resources/application.yml
 ### Docker ###
 .env
 .env.*
+!.env.example
 docker-compose.override.yml
 
 ### Logs ###
