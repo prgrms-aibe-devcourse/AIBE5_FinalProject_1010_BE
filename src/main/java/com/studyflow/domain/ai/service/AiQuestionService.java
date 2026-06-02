@@ -70,8 +70,9 @@ public class AiQuestionService {
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
         // 3) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
+        //    과목 대분류를 함께 넘겨, 선택한 과목 특성에 맞는 풀이가 나오도록 한다.
         //    (1단계: 텍스트만 전달. 2단계에서 images의 URL들을 vision으로 함께 넘기도록 확장)
-        String answerText = openAiClient.ask(request.questionText());
+        String answerText = openAiClient.ask(subject.getCategory(), request.questionText());
 
         // 4) 질문 본문을 만들고, 첨부 이미지들을 순서대로 연결한다.
         AiQuestion question = AiQuestion.create(

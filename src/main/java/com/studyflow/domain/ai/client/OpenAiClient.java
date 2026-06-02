@@ -3,6 +3,7 @@ package com.studyflow.domain.ai.client;
 import com.studyflow.domain.ai.client.dto.ChatCompletionRequest;
 import com.studyflow.domain.ai.client.dto.ChatCompletionResponse;
 import com.studyflow.domain.ai.exception.AiServiceException;
+import com.studyflow.domain.subject.enums.SubjectCategory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,9 +28,9 @@ import java.util.List;
 @Component
 public class OpenAiClient {
 
-    /** 모델에게 역할을 알려주는 시스템 프롬프트(과외 도우미 톤). */
-    private static final String SYSTEM_PROMPT = """
-            당신은 한국 초·중·고 학생을 돕는 친절한 과외 선생님입니다.
+    /** 모든 과목에 공통으로 적용되는 기본 시스템 프롬프트(과외 도우미 톤). */
+    private static final String BASE_SYSTEM_PROMPT = """
+            당신은 한국 고등학생의 수능·내신 학습을 돕는 친절한 과외 선생님입니다.
             학생의 질문에 대해 정답만 알려주지 말고, 풀이 과정을 단계별로 쉽게 설명하세요.
             수식은 보기 쉽게 작성하고, 한국어로 답변하세요.
             """;
@@ -47,17 +48,21 @@ public class OpenAiClient {
     }
 
     /**
-     * 질문 텍스트를 OpenAI에 보내 답변을 받는다.
+     * 질문 텍스트를 과목에 맞춰 OpenAI에 보내 답변을 받는다.
      *
+     * <p>기본 과외 톤(공통 프롬프트)에 과목별 지침({@link SubjectCategory#getTutorGuidance()})을
+     * 덧붙여, 같은 질문이라도 선택한 과목의 특성에 맞는 풀이가 나오도록 유도한다.</p>
+     *
+     * @param category     질문 과목 대분류 (null이면 공통 프롬프트만 사용)
      * @param questionText 학생이 입력한 질문
      * @return AI가 생성한 답변 텍스트
      * @throws AiServiceException 호출 실패 또는 빈 응답일 때
      */
-    public String ask(String questionText) {
+    public String ask(SubjectCategory category, String questionText) {
         ChatCompletionRequest request = new ChatCompletionRequest(
                 model,
                 List.of(
-                        ChatCompletionRequest.Message.system(SYSTEM_PROMPT),
+                        ChatCompletionRequest.Message.system(buildSystemPrompt(category)),
                         ChatCompletionRequest.Message.user(questionText)
                 )
         );
@@ -80,5 +85,18 @@ public class OpenAiClient {
             log.error("OpenAI 호출 실패", e);
             throw new AiServiceException("AI 풀이 요청에 실패했습니다.", e);
         }
+    }
+
+    /**
+     * 공통 프롬프트에 과목별 지침을 덧붙여 최종 시스템 프롬프트를 만든다.
+     * category가 null(대분류가 지정되지 않은 과목)이면 공통 프롬프트만 사용한다.
+     */
+    private String buildSystemPrompt(SubjectCategory category) {
+        if (category == null) {
+            return BASE_SYSTEM_PROMPT;
+        }
+        return BASE_SYSTEM_PROMPT
+                + "\n[현재 과목: " + category.getDisplayName() + "]\n"
+                + category.getTutorGuidance();
     }
 }
