@@ -22,12 +22,12 @@ public class TeacherController {
 
     private final TeacherService teacherService;
 
-    // 선생님 목록 — 메인 페이지 카드 슬라이드용
-    // 기본: 최신 가입순(createdAt DESC), 한 페이지 10명
-    // 예시: GET /api/v1/teachers?page=0&size=10
+    // 선생님 목록 — 카드 슬라이드용
+    // 기본: 최신 가입순(createdAt DESC), 한 페이지 12명
+    // 예시: GET /api/v1/teachers?page=0&size=12
     @GetMapping
     public ResponseEntity<Page<TeacherCardResponse>> getTeacherList(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(teacherService.getTeacherList(pageable));
     }
 
