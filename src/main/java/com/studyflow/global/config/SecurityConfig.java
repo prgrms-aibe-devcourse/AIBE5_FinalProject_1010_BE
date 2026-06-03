@@ -52,10 +52,14 @@ public class SecurityConfig {
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
-                        // 수업 상세 — 비로그인 허용, JWT 필터는 동작하여 토큰 있으면 인증 처리
-                        .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
+                        // 수업 등록 / 수정 / 삭제 — 선생님 전용 (optional-auth permitAll보다 먼저 선언해야 가려지지 않음)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*").hasRole("TEACHER")
                         // 수강 신청 — 학생 전용
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
+                        // 수업 상세 GET — 비로그인 허용, GET만 permitAll (POST/PATCH/DELETE는 위에서 이미 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER") // 테스트용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
