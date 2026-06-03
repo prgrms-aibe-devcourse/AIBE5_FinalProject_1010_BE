@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         // 수업 상세 — 비로그인 허용, JWT 필터는 동작하여 토큰 있으면 인증 처리
                         .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
+                        // 수업 등록 — 선생님 전용
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("TEACHER")
                         // 수강 신청 — 학생 전용
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용

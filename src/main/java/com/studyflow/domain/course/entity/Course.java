@@ -84,4 +84,38 @@ public class Course extends BaseTimeEntity {
 
     @Column(nullable = false)
     private boolean isPublicAudit = false;
+
+    // 수업 생성 팩토리 메서드 — 기본값: status=RECRUITING, isListed=true
+    // DTO 대신 개별 값을 받아 엔티티가 DTO에 의존하지 않도록 함 (레이어 분리)
+    public static Course create(
+            TeacherProfile teacherProfile, Subject subject,
+            String title, String description, TargetGrade targetGrade,
+            int maxStudents, int durationMinutes, int pricePerSession,
+            String textbook, CurriculumType curriculumType, String curriculumDetail,
+            String availableSchedule, String firstClassDate, String thumbnailUrl,
+            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate
+    ) {
+        Course c = new Course();
+        c.teacherProfile = teacherProfile;
+        c.subject = subject;
+        c.title = title;
+        c.description = description;
+        c.targetGrade = targetGrade;
+        c.maxStudents = maxStudents;
+        c.durationMinutes = durationMinutes;
+        c.pricePerSession = pricePerSession;
+        c.textbook = textbook;
+        c.curriculumType = curriculumType;
+        c.curriculumDetail = curriculumDetail;
+        c.availableSchedule = availableSchedule;
+        c.firstClassDate = firstClassDate;
+        c.thumbnailUrl = thumbnailUrl;
+        c.recruitDeadline = recruitDeadline;
+        c.startDate = startDate;
+        c.endDate = endDate;
+        c.status = CourseStatus.RECRUITING;
+        c.isListed = true;
+        c.isPublicAudit = false;
+        return c;
+    }
 }
