@@ -85,6 +85,33 @@ public class Course extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isPublicAudit = false;
 
+    // 수업 수정 — 변경 가능한 필드만 업데이트, 소유권 확인은 서비스에서 처리
+    public void update(
+            Subject subject,
+            String title, String description, TargetGrade targetGrade,
+            int maxStudents, int durationMinutes, int pricePerSession,
+            String textbook, CurriculumType curriculumType, String curriculumDetail,
+            String availableSchedule, String firstClassDate, String thumbnailUrl,
+            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate
+    ) {
+        this.subject = subject;
+        this.title = title;
+        this.description = description;
+        this.targetGrade = targetGrade;
+        this.maxStudents = maxStudents;
+        this.durationMinutes = durationMinutes;
+        this.pricePerSession = pricePerSession;
+        this.textbook = textbook;
+        this.curriculumType = curriculumType;
+        this.curriculumDetail = curriculumDetail;
+        this.availableSchedule = availableSchedule;
+        this.firstClassDate = firstClassDate;
+        this.thumbnailUrl = thumbnailUrl;
+        this.recruitDeadline = recruitDeadline;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
     // 수업 생성 팩토리 메서드 — 기본값: status=RECRUITING, isListed=true
     // DTO 대신 개별 값을 받아 엔티티가 DTO에 의존하지 않도록 함 (레이어 분리)
     public static Course create(
