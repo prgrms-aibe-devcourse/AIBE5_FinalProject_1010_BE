@@ -2,6 +2,7 @@ package com.studyflow.domain.course.dto.create;
 
 import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -48,4 +49,17 @@ public class CourseCreateRequest {
     private LocalDate recruitDeadline;  // 모집 마감일
     private LocalDate startDate;        // 수업 시작일
     private LocalDate endDate;          // 수업 종료일
+
+    // 날짜 순서 검증: recruitDeadline <= startDate <= endDate
+    @AssertTrue(message = "모집 마감일은 수업 시작일보다 이전이어야 합니다.")
+    public boolean isRecruitDeadlineBeforeStartDate() {
+        if (recruitDeadline == null || startDate == null) return true;
+        return !recruitDeadline.isAfter(startDate);
+    }
+
+    @AssertTrue(message = "수업 시작일은 종료일보다 이전이어야 합니다.")
+    public boolean isStartDateBeforeEndDate() {
+        if (startDate == null || endDate == null) return true;
+        return !startDate.isAfter(endDate);
+    }
 }

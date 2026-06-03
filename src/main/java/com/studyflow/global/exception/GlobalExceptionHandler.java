@@ -1,7 +1,7 @@
 package com.studyflow.global.exception;
 
 import com.studyflow.domain.ai.exception.AiServiceException;
-import com.studyflow.domain.ai.exception.SubjectNotFoundException;
+import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.enrollment.exception.AlreadyEnrolledException;

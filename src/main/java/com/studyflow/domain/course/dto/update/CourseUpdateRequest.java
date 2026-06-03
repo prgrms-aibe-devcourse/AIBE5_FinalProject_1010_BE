@@ -2,6 +2,7 @@ package com.studyflow.domain.course.dto.update;
 
 import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,8 +11,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-// 수업 수정 요청 DTO — 생성 요청과 동일한 필드 구성
-// 수정 시 전체 필드를 다시 보내는 방식 (PUT)
+// 수업 수정 요청 DTO
+// maxStudents만 null 허용(기존 값 유지)이므로 PATCH 의미에 가까움
 @Getter
 @NoArgsConstructor
 public class CourseUpdateRequest {
@@ -48,4 +49,17 @@ public class CourseUpdateRequest {
     private LocalDate recruitDeadline;
     private LocalDate startDate;
     private LocalDate endDate;
+
+    // 날짜 순서 검증: recruitDeadline <= startDate <= endDate
+    @AssertTrue(message = "모집 마감일은 수업 시작일보다 이전이어야 합니다.")
+    public boolean isRecruitDeadlineBeforeStartDate() {
+        if (recruitDeadline == null || startDate == null) return true;
+        return !recruitDeadline.isAfter(startDate);
+    }
+
+    @AssertTrue(message = "수업 시작일은 종료일보다 이전이어야 합니다.")
+    public boolean isStartDateBeforeEndDate() {
+        if (startDate == null || endDate == null) return true;
+        return !startDate.isAfter(endDate);
+    }
 }

@@ -1,6 +1,6 @@
 package com.studyflow.domain.course.service;
 
-import com.studyflow.domain.ai.exception.SubjectNotFoundException;
+import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.course.dto.create.CourseCreateResponse;
 import com.studyflow.domain.course.dto.update.CourseUpdateRequest;
 import com.studyflow.domain.course.entity.Course;
@@ -44,6 +44,13 @@ public class CourseUpdateService {
         // maxStudents 미입력 시 기존 값 유지
         int maxStudents = request.getMaxStudents() != null ? request.getMaxStudents() : course.getMaxStudents();
 
+        // 현재 수강 중인 학생 수보다 정원을 작게 설정하는 것 방지
+        long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
+        if (maxStudents < activeStudents) {
+            throw new IllegalArgumentException(
+                    "현재 수강 중인 학생(" + activeStudents + "명)보다 정원을 작게 설정할 수 없습니다.");
+        }
+
         course.update(
                 subject,
                 request.getTitle(), request.getDescription(), request.getTargetGrade(),
@@ -74,6 +81,7 @@ public class CourseUpdateService {
             throw new CourseHasActiveStudentsException();
         }
 
-        courseRepository.delete(course);
+        // hard delete 대신 soft delete — Enrollment, ChatRoom 등 FK 참조로 인한 오류 방지
+        course.close();
     }
 }

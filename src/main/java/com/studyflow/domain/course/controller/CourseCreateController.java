@@ -36,9 +36,9 @@ public class CourseCreateController {
                 .body(courseCreateService.createCourse(userId, request));
     }
 
-    // 수업 수정 — 본인 수업만 가능, 전체 필드 교체(PUT)
+    // 수업 수정 — 본인 수업만 가능, maxStudents 외 전체 필드 전송 (PATCH)
     @Operation(summary = "수업 수정", description = "선생님 전용. 본인 수업만 수정 가능합니다.")
-    @PutMapping("/{courseId}")
+    @PatchMapping("/{courseId}")
     public ResponseEntity<CourseCreateResponse> updateCourse(
             @PathVariable Long courseId,
             @Parameter(hidden = true) @AuthenticationPrincipal Long userId,

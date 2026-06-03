@@ -85,6 +85,13 @@ public class Course extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isPublicAudit = false;
 
+    // 수업 비공개 처리 (soft delete) — hard delete 대신 사용
+    // 관련 Enrollment, ChatRoom, 게시글 등 FK 참조가 많아 hard delete 시 오류 위험
+    public void close() {
+        this.status = CourseStatus.CLOSED;
+        this.isListed = false;
+    }
+
     // 수업 수정 — 변경 가능한 필드만 업데이트, 소유권 확인은 서비스에서 처리
     public void update(
             Subject subject,

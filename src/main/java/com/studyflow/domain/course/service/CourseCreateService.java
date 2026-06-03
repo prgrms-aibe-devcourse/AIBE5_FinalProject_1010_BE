@@ -7,7 +7,7 @@ import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
-import com.studyflow.domain.ai.exception.SubjectNotFoundException;
+import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import lombok.RequiredArgsConstructor;
