@@ -31,12 +31,13 @@ public class TeacherService {
     private static final List<CourseStatus> VISIBLE_STATUSES =
             List.of(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS);
 
-    // 선생님 목록 조회 — 메인 페이지 카드 슬라이드용
-    // 최신 가입 선생님 순(createdAt DESC)은 Pageable에서 정렬 설정
-    public Page<TeacherCardResponse> getTeacherList(Pageable pageable) {
+    // 선생님 목록 조회 — keyword/minNaegong 필터 지원
+    // keyword, minNaegong이 null이면 해당 조건을 무시합니다
+    public Page<TeacherCardResponse> getTeacherList(String keyword, Integer minNaegong, Pageable pageable) {
 
-        // 1단계: 선생님 목록 + user JOIN FETCH
-        Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUser(pageable);
+        // 1단계: 선생님 목록 + user JOIN FETCH (필터 적용)
+        String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUserFiltered(kw, minNaegong, pageable);
 
         List<Long> teacherProfileIds = profiles.getContent().stream()
                 .map(TeacherProfile::getId)

@@ -18,6 +18,25 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "WHERE u.isDeleted = 0 AND u.isActive = true")
     Page<TeacherProfile> findAllWithUser(Pageable pageable);
 
+    // 선생님 목록 검색/필터 — keyword(이름 포함), minNaegong(내공 점수 하한)
+    // null 파라미터는 조건에서 제외됩니다 (IS NULL OR ...)
+    @Query(value =
+           "SELECT tp FROM TeacherProfile tp " +
+           "JOIN FETCH tp.user u " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)",
+           countQuery =
+           "SELECT COUNT(tp) FROM TeacherProfile tp " +
+           "JOIN tp.user u " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)")
+    Page<TeacherProfile> findAllWithUserFiltered(
+            @Param("keyword") String keyword,
+            @Param("minNaegong") Integer minNaegong,
+            Pageable pageable);
+
     // 선생님 상세 조회 — user JOIN FETCH
     @Query("SELECT tp FROM TeacherProfile tp " +
            "JOIN FETCH tp.user u " +
