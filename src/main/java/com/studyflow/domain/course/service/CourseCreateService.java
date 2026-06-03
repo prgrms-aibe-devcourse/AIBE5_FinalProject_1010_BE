@@ -7,6 +7,7 @@ import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
+import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +27,11 @@ public class CourseCreateService {
     public CourseCreateResponse createCourse(Long teacherUserId, CourseCreateRequest request) {
         // 로그인한 선생님의 프로필 조회 — 수업에 teacher_profile_id 연결 필요
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(teacherUserId)
-                .orElseThrow(() -> new TeacherProfileNotFoundException(teacherUserId));
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacherUserId));
 
         // 요청한 과목 조회
         Subject subject = subjectRepository.findById(request.getSubjectId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 과목입니다."));
+                .orElseThrow(() -> new SubjectNotFoundException(request.getSubjectId()));
 
         // maxStudents 미입력 시 기본값 1 (MVP는 1:1 수업 기준)
         int maxStudents = request.getMaxStudents() != null ? request.getMaxStudents() : 1;

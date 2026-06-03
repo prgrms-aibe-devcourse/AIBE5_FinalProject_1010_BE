@@ -1,9 +1,11 @@
 package com.studyflow.domain.course.service;
 
+import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.course.dto.create.CourseCreateResponse;
 import com.studyflow.domain.course.dto.update.CourseUpdateRequest;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
+import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
@@ -37,7 +39,7 @@ public class CourseUpdateService {
 
         // 과목 변경 시 새 Subject 조회
         Subject subject = subjectRepository.findById(request.getSubjectId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 과목입니다."));
+                .orElseThrow(() -> new SubjectNotFoundException(request.getSubjectId()));
 
         // maxStudents 미입력 시 기존 값 유지
         int maxStudents = request.getMaxStudents() != null ? request.getMaxStudents() : course.getMaxStudents();
@@ -69,7 +71,7 @@ public class CourseUpdateService {
         // 수강 중인 학생이 있으면 삭제 불가
         long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
         if (activeStudents > 0) {
-            throw new IllegalArgumentException("수강 중인 학생이 있어 수업을 삭제할 수 없습니다.");
+            throw new CourseHasActiveStudentsException();
         }
 
         courseRepository.delete(course);

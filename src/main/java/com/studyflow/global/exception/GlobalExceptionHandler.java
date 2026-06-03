@@ -3,6 +3,7 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.enrollment.exception.AlreadyEnrolledException;
 import com.studyflow.domain.enrollment.exception.CourseNotRecruitingException;
 import com.studyflow.domain.enrollment.exception.EnrollmentRequestAlreadyPendingException;
@@ -160,6 +161,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TeacherProfileNotFoundException.class)
     public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    // 수강 중인 학생이 있는 수업 삭제 시도 (400)
+    @ExceptionHandler(CourseHasActiveStudentsException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
     }
 
     // ── 수강 신청 도메인 예외 처리 ──────────────────────

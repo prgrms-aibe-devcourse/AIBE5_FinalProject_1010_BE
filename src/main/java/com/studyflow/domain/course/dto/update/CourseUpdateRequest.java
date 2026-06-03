@@ -28,7 +28,7 @@ public class CourseUpdateRequest {
     private TargetGrade targetGrade;
 
     @Min(value = 1, message = "정원은 1명 이상이어야 합니다.")
-    private Integer maxStudents;        // 선택 — 미입력 시 기본값 1
+    private Integer maxStudents;        // 선택 — 미입력 시 기존 값 유지
 
     @Min(value = 1, message = "수업 시간은 1분 이상이어야 합니다.")
     private int durationMinutes;
