@@ -10,6 +10,9 @@ public class PublicUrlProvider {
         return new String[] {
                 "/api/v1/auth/signup",
                 "/api/v1/auth/login",
+                "/api/v1/auth/social-pending",  // 소셜 로그인 폼 pre-fill 데이터 조회 (POST)
+                "/api/v1/auth/social-signup",   // 소셜 로그인 추가 정보 입력 후 가입 완료
+                "/api/v1/auth/oauth2/token",    // 소셜 로그인 one-time code → 토큰 교환
 
                 // 수업 검색 — 비로그인 사용자도 수업 목록 조회 가능
                 "/api/v1/courses",
