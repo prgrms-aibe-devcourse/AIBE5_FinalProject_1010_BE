@@ -1,6 +1,7 @@
 package com.studyflow.domain.ai.service;
 
 import com.studyflow.domain.ai.client.OpenAiClient;
+import com.studyflow.domain.ai.client.OpenAiImageClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionHistoryResponse;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
@@ -16,6 +17,7 @@ import com.studyflow.domain.ai.repository.AiQuestionRepository;
 import com.studyflow.domain.ai.repository.ConversationRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
+import com.studyflow.domain.file.service.FileService;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
@@ -58,7 +60,22 @@ public class AiQuestionService {
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
     private final OpenAiClient openAiClient;
+    private final OpenAiImageClient openAiImageClient;
+    private final FileService fileService;
     private final ObjectMapper objectMapper;
+
+    /**
+     * "그림/이미지로 답변해줘"류 요청을 감지하는 키워드.
+     *
+     * <p>여기에 걸리고 <b>첨부 이미지가 없으면</b> 텍스트 답변 대신 이미지 생성으로 라우팅한다.
+     * (첨부가 있으면 그 이미지에 대한 vision 질문이므로 생성하지 않는다.)</p>
+     */
+    private static final List<String> IMAGE_REQUEST_KEYWORDS = List.of(
+            "그려줘", "그려 줘", "그려주세요", "그려 주세요", "그려줄래", "그려 줄래", "그려달", "그려 달",
+            "그림으로", "사진으로", "이미지로", "그림 그려", "그림그려", "그림을 그", "그림 만들", "그림만들",
+            "이미지 만들", "이미지만들", "이미지 생성", "이미지생성", "그림 생성", "그래프 그려", "도표로 그려",
+            "일러스트", "draw "
+    );
 
     /**
      * AI에게 질문하고 답변을 저장한다. (POST /api/v1/ai/questions)
@@ -88,10 +105,9 @@ public class AiQuestionService {
         // 3) 대화 결정: conversationId가 있으면 이어쓰기, 없으면 새 대화 생성.
         Conversation conversation = resolveConversation(user, subject, request.conversationId(), request.questionText());
 
-        // 4) OpenAI 호출로 답변 생성 — 트랜잭션 밖에서 수행(커넥션 점유 방지)
-        //    과목 대분류를 함께 넘겨, 선택한 과목 특성에 맞는 풀이가 나오도록 한다.
-        //    (1단계: 텍스트만 전달. 2단계에서 images의 URL들을 vision으로 함께 넘기도록 확장)
-        String answerText = openAiClient.ask(subject.getCategory(), request.questionText());
+        // 4) 답변 생성 — 트랜잭션 밖에서 수행(외부 I/O로 인한 커넥션 점유 방지).
+        //    요청 성격에 따라 셋 중 하나로 라우팅한다.
+        String answerText = generateAnswer(userId, subject, request.questionText(), images);
 
         // 5) 질문 + 답변 + 첨부를 대화에 저장하고 응답으로 변환한다.
         AiQuestion saved = persist(user, subject, conversation, request.questionText(), answerText, images);
@@ -129,16 +145,48 @@ public class AiQuestionService {
         // 대화 결정(이어쓰기/새 대화)도 스트림 시작 전에 동기로 끝낸다.
         Conversation conversation = resolveConversation(user, subject, request.conversationId(), request.questionText());
 
-        // 2) 답변 조각을 흘려보내면서 전체 답변을 누적한다.
-        //    Reactor는 한 구독에 대해 onNext를 직렬로(겹치지 않게) 호출하므로, 누적은 단일 스레드에서만
-        //    일어난다. 따라서 동기화 없는 StringBuilder로도 동시성 문제가 없다.(부수효과는 doOnNext에서)
-        StringBuilder answer = new StringBuilder();
         // done(정상 종료)과 doOnCancel(클라이언트 끊김)이 모두 저장을 시도할 수 있으므로,
         // 저장이 정확히 한 번만 일어나도록 결과를 담아 가드한다.
         AtomicReference<AiQuestion> savedRef = new AtomicReference<>();
 
-        Flux<ServerSentEvent<String>> tokens = openAiClient
-                .askStream(subject.getCategory(), request.questionText())
+        // 1-1) "그림으로 그려줘"류 + 첨부 없음 → 이미지 생성으로 라우팅한다.
+        //      이미지 생성은 토큰 스트리밍이 아니므로, 생성/저장 후 답변(마크다운 이미지)을
+        //      한 번에 흘려보내고 done 이벤트로 마무리한다.
+        if (images.isEmpty() && isImageGenerationRequest(request.questionText())) {
+            return Mono.fromCallable(() -> {
+                        byte[] png = openAiImageClient.generatePng(request.questionText());
+                        FileAsset generated = fileService.saveGeneratedImage(userId, png);
+                        String answerText = buildImageAnswerText(generated.getFileUrl());
+                        return persistOnce(savedRef, user, subject, conversation, request.questionText(), answerText, images);
+                    })
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .flatMapMany(saved -> Flux.just(
+                            // 답변(마크다운 이미지) 전체를 한 토큰으로 보내 말풍선을 만들고,
+                            ServerSentEvent.<String>builder(saved.getAnswerText()).build(),
+                            // 저장된 기록을 done으로 1회 방출한다.
+                            ServerSentEvent.<String>builder(toJson(AiQuestionResponse.from(saved)))
+                                    .event("done")
+                                    .build()
+                    ))
+                    .onErrorResume(e -> {
+                        log.error("AI 이미지 생성 스트리밍 실패", e);
+                        return Flux.just(ServerSentEvent.<String>builder("이미지 생성 중 오류가 발생했습니다.")
+                                .event("error")
+                                .build());
+                    });
+        }
+
+        // 2) (텍스트/vision) 답변 조각을 흘려보내면서 전체 답변을 누적한다.
+        //    Reactor는 한 구독에 대해 onNext를 직렬로(겹치지 않게) 호출하므로, 누적은 단일 스레드에서만
+        //    일어난다. 따라서 동기화 없는 StringBuilder로도 동시성 문제가 없다.(부수효과는 doOnNext에서)
+        StringBuilder answer = new StringBuilder();
+
+        // 첨부가 없으면 기존처럼 텍스트 전용 스트림, 있으면 이미지를 vision으로 함께 넘긴다.
+        Flux<String> rawTokens = images.isEmpty()
+                ? openAiClient.askStream(subject.getCategory(), request.questionText())
+                : openAiClient.askStream(subject.getCategory(), request.questionText(), toImageInputs(images));
+
+        Flux<ServerSentEvent<String>> tokens = rawTokens
                 .doOnNext(answer::append)                              // 전체 답변 누적(부수효과)
                 .map(chunk -> ServerSentEvent.builder(chunk).build()); // 토큰 → SSE data 이벤트
 
@@ -270,6 +318,49 @@ public class AiQuestionService {
                     return image;
                 })
                 .toList();
+    }
+
+    /**
+     * 요청 성격에 맞춰 답변(answerText)을 만든다.
+     * <ol>
+     *   <li>첨부 없음 + 그림 요청 → 이미지 생성 후 마크다운 이미지 답변</li>
+     *   <li>첨부 있음 → 첨부 이미지를 vision으로 함께 넘긴 텍스트 답변</li>
+     *   <li>그 외 → 텍스트 전용 답변</li>
+     * </ol>
+     */
+    private String generateAnswer(Long userId, Subject subject, String questionText, List<FileAsset> images) {
+        if (images.isEmpty() && isImageGenerationRequest(questionText)) {
+            byte[] png = openAiImageClient.generatePng(questionText);
+            FileAsset generated = fileService.saveGeneratedImage(userId, png);
+            return buildImageAnswerText(generated.getFileUrl());
+        }
+        if (!images.isEmpty()) {
+            return openAiClient.ask(subject.getCategory(), questionText, toImageInputs(images));
+        }
+        return openAiClient.ask(subject.getCategory(), questionText);
+    }
+
+    /** 첨부 이미지(FileAsset)들을 OpenAI vision 입력(바이트 + MIME)으로 변환한다. */
+    private List<OpenAiClient.ImageInput> toImageInputs(List<FileAsset> images) {
+        return images.stream()
+                .map(image -> new OpenAiClient.ImageInput(
+                        fileService.readImageBytes(image),
+                        image.getContentType()))
+                .toList();
+    }
+
+    /** 질문 본문에 "그림/이미지로 답변" 의도가 있는지 키워드로 판별한다. */
+    private boolean isImageGenerationRequest(String questionText) {
+        if (questionText == null || questionText.isBlank()) {
+            return false;
+        }
+        String text = questionText.toLowerCase();
+        return IMAGE_REQUEST_KEYWORDS.stream().anyMatch(text::contains);
+    }
+
+    /** 생성된 이미지를 답변으로 보여줄 마크다운 본문을 만든다. (프론트가 이미지로 렌더링) */
+    private String buildImageAnswerText(String imageUrl) {
+        return "요청하신 이미지를 생성했어요. 🎨\n\n![생성된 이미지](" + imageUrl + ")";
     }
 
     /**

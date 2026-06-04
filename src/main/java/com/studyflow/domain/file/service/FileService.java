@@ -147,6 +147,76 @@ public class FileService {
         }
     }
 
+    /**
+     * 저장된 이미지의 원본 바이트를 읽는다. (현재 LOCAL 저장소 전용)
+     *
+     * <p>AI vision 입력으로 넘기기 위해 사용한다. OpenAI가 로컬/비공개 파일 URL에 직접
+     * 접근할 수 없으므로, 파일 내용을 읽어 base64로 전달하기 위함이다.</p>
+     */
+    public byte[] readImageBytes(FileAsset asset) {
+        if (asset.getStorageProvider() != FileStorageProvider.LOCAL) {
+            throw new IllegalStateException("로컬 저장 파일만 읽을 수 있습니다.");
+        }
+        String url = asset.getFileUrl(); // 예: "/uploads/chat/2026/06/04/uuid.png"
+        Path path = Paths.get(url.startsWith("/") ? url.substring(1) : url);
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            throw new IllegalStateException("이미지 파일을 읽을 수 없습니다.", e);
+        }
+    }
+
+    /**
+     * AI가 생성한 이미지(PNG 바이트)를 저장하고 {@link FileAsset}을 반환한다.
+     *
+     * <p>업로드 이미지와 동일한 위치/규칙으로 저장하되, 사용자 업로드가 아니라 우리가 만든
+     * PNG이므로 형식 검증은 생략한다. 반환된 FileAsset의 fileUrl을 AI 답변(마크다운 이미지)에 넣는다.</p>
+     *
+     * @param ownerId 이미지를 소유할(요청한) 사용자 id
+     * @param bytes   생성된 PNG 바이트
+     * @return 저장된 FileAsset
+     */
+    @Transactional
+    public FileAsset saveGeneratedImage(Long ownerId, byte[] bytes) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        String storedFileName = UUID.randomUUID() + ".png";
+        try {
+            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
+
+            Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR, datePath);
+            Files.createDirectories(uploadPath);
+
+            Path storedPath = uploadPath.resolve(storedFileName);
+            Files.copy(new ByteArrayInputStream(bytes), storedPath, StandardCopyOption.REPLACE_EXISTING);
+
+            ImageSize imageSize = readImageSize(bytes);
+
+            String objectKey = "chat/" + datePath + "/" + storedFileName;
+            String fileUrl = "/uploads/chat/" + datePath + "/" + storedFileName;
+
+            FileAsset fileAsset = FileAsset.createImage(
+                    owner,
+                    storedFileName,
+                    storedFileName,
+                    FileStorageProvider.LOCAL,
+                    null,
+                    objectKey,
+                    fileUrl,
+                    null,
+                    "image/png",
+                    (long) bytes.length,
+                    imageSize.width(),
+                    imageSize.height()
+            );
+
+            return fileAssetRepository.save(fileAsset);
+        } catch (IOException e) {
+            throw new IllegalStateException("생성 이미지 저장에 실패했습니다.", e);
+        }
+    }
+
     private void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("업로드할 이미지가 없습니다.");

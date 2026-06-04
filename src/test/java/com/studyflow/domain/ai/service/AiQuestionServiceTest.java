@@ -2,6 +2,7 @@ package com.studyflow.domain.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.ai.client.OpenAiClient;
+import com.studyflow.domain.ai.client.OpenAiImageClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
@@ -12,6 +13,7 @@ import com.studyflow.domain.ai.repository.AiQuestionRepository;
 import com.studyflow.domain.ai.repository.ConversationRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
+import com.studyflow.domain.file.service.FileService;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.enums.SubjectCategory;
 import com.studyflow.domain.subject.repository.SubjectRepository;
@@ -60,6 +62,10 @@ class AiQuestionServiceTest {
     FileAssetRepository fileAssetRepository;
     @Mock
     OpenAiClient openAiClient;
+    @Mock
+    OpenAiImageClient openAiImageClient;
+    @Mock
+    FileService fileService;
 
     AiQuestionService service;
 
@@ -68,7 +74,7 @@ class AiQuestionServiceTest {
         // ObjectMapper는 done 이벤트 직렬화에 실제로 쓰이므로 진짜 인스턴스를 주입한다.
         service = new AiQuestionService(
                 aiQuestionRepository, conversationRepository, subjectRepository, userRepository,
-                fileAssetRepository, openAiClient, new ObjectMapper()
+                fileAssetRepository, openAiClient, openAiImageClient, fileService, new ObjectMapper()
         );
     }
 
