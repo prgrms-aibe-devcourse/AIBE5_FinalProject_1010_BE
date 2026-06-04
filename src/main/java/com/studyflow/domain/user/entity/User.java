@@ -93,6 +93,31 @@ public class User extends BaseTimeEntity {
         return user;
     }
 
+    /**
+     * 소셜 로그인 최초 가입용 팩토리 메서드.
+     * 추가 정보 입력 폼에서 수집한 gender, birthDate, role, marketingAgreed를 함께 받습니다.
+     */
+    public static User createSocialUser(String email, String name, String profileImageUrl,
+                                        String socialId, SocialProvider provider,
+                                        String genderStr, String birthDateStr, String phone,
+                                        UserRole userRole, boolean marketingAgreed) {
+        User user = new User();
+        user.email = email;
+        user.name = (name != null) ? name : "소셜유저";
+        user.profileImageUrl = profileImageUrl;
+        user.socialId = socialId;
+        user.socialProvider = provider;
+        user.role = userRole;
+        user.phone = phone;
+        user.gender = Gender.valueOf(genderStr);       // 이미 검증된 값
+        user.birthDate = LocalDate.parse(birthDateStr); // 이미 검증된 값
+        user.isVerified = false;
+        user.isActive = true;
+        user.isDeleted = 0L;
+        user.marketingAgreed = marketingAgreed;
+        return user;
+    }
+
     public void deleteUser() {
         this.isDeleted = this.id;
         this.deletedAt = LocalDateTime.now();

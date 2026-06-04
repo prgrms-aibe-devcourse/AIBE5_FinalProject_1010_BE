@@ -1,9 +1,11 @@
 package com.studyflow.global.config;
 
+import com.studyflow.domain.auth.handler.OAuth2FailureHandler;
+import com.studyflow.domain.auth.handler.OAuth2SuccessHandler;
+import com.studyflow.domain.auth.service.OAuth2UserService;
 import com.studyflow.global.auth.JwtAccessDeniedHandler;
 import com.studyflow.global.auth.JwtAuthenticationEntryPoint;
 import com.studyflow.global.auth.JwtAuthenticationFilter;
-import com.studyflow.global.auth.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +17,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -30,7 +33,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final com.studyflow.global.config.PublicUrlProvider publicUrlProvider;
+    private final PublicUrlProvider publicUrlProvider;
+    private final OAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
     // Read allowed origins as a single comma-separated property (fallback to empty)
     @Value("${cors.allowed-origins:}")
@@ -62,7 +68,14 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 처리
-                        .accessDeniedHandler(jwtAccessDeniedHandler)); // 403 처리
+                        .accessDeniedHandler(jwtAccessDeniedHandler)) // 403 처리
+                .oauth2Login(oauth2 -> oauth2
+                        // Stateless 환경에서도 OAuth2 인가 요청 정보를 세션에 임시 저장
+                        .authorizationEndpoint(auth -> auth
+                                .authorizationRequestRepository(new HttpSessionOAuth2AuthorizationRequestRepository()))
+                        .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler));
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

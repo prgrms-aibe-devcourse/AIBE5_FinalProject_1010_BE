@@ -75,6 +75,9 @@ dependencies {
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    // OAuth2 (소셜 로그인)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
