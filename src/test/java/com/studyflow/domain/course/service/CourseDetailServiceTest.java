@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -28,6 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT) // @BeforeEach stub이 일부 테스트에서 미사용되는 경우를 허용
 @DisplayName("CourseDetailService 단위 테스트")
 class CourseDetailServiceTest {
 
@@ -106,10 +109,12 @@ class CourseDetailServiceTest {
     @Test
     @DisplayName("수강 신청 PENDING이면 myStatus=PENDING")
     void getCourseDetail_myStatus_PENDING() {
+        // when() 인자 평가 중 내부 when()이 호출되는 중첩 stubbing을 방지하기 위해 먼저 생성
+        EnrollmentRequest pendingReq = mockEnrollmentRequest(EnrollmentRequestStatus.PENDING);
         when(enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 STUDENT_USER_ID, COURSE_ID, EnrollmentStatus.ACTIVE)).thenReturn(false);
         when(enrollmentRequestRepository.findFirstByUserIdAndCourseIdOrderByCreatedAtDesc(
-                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(mockEnrollmentRequest(EnrollmentRequestStatus.PENDING)));
+                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(pendingReq));
 
         CourseDetailResponse response = service.getCourseDetail(COURSE_ID, STUDENT_USER_ID, "STUDENT");
 
@@ -119,10 +124,11 @@ class CourseDetailServiceTest {
     @Test
     @DisplayName("수강 신청 REJECTED이면 myStatus=REJECTED")
     void getCourseDetail_myStatus_REJECTED() {
+        EnrollmentRequest rejectedReq = mockEnrollmentRequest(EnrollmentRequestStatus.REJECTED);
         when(enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 STUDENT_USER_ID, COURSE_ID, EnrollmentStatus.ACTIVE)).thenReturn(false);
         when(enrollmentRequestRepository.findFirstByUserIdAndCourseIdOrderByCreatedAtDesc(
-                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(mockEnrollmentRequest(EnrollmentRequestStatus.REJECTED)));
+                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(rejectedReq));
 
         CourseDetailResponse response = service.getCourseDetail(COURSE_ID, STUDENT_USER_ID, "STUDENT");
 
@@ -132,10 +138,11 @@ class CourseDetailServiceTest {
     @Test
     @DisplayName("수강 신청 CANCELLED이면 myStatus=CANCELLED")
     void getCourseDetail_myStatus_CANCELLED() {
+        EnrollmentRequest cancelledReq = mockEnrollmentRequest(EnrollmentRequestStatus.CANCELLED);
         when(enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 STUDENT_USER_ID, COURSE_ID, EnrollmentStatus.ACTIVE)).thenReturn(false);
         when(enrollmentRequestRepository.findFirstByUserIdAndCourseIdOrderByCreatedAtDesc(
-                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(mockEnrollmentRequest(EnrollmentRequestStatus.CANCELLED)));
+                STUDENT_USER_ID, COURSE_ID)).thenReturn(Optional.of(cancelledReq));
 
         CourseDetailResponse response = service.getCourseDetail(COURSE_ID, STUDENT_USER_ID, "STUDENT");
 
