@@ -15,7 +15,6 @@ public class UserUpdateRequest {
     @NotBlank(message = "이름은 필수입니다.")
     private String name;
 
-    @NotBlank(message = "전화번호는 필수입니다.")
     @Pattern(regexp = "^\\d{10,11}$", message = "전화번호는 '-' 없이 10자리 또는 11자리 숫자여야 합니다.")
     private String phone;
 

@@ -4,6 +4,7 @@ import com.studyflow.domain.user.dto.PasswordChangeRequest;
 import com.studyflow.domain.user.dto.UserUpdateRequest;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.Gender;
+import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
@@ -63,9 +64,19 @@ public class UserService {
         User user = userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
+        // 소셜 로그인 사용자는 비밀번호 없음 → 변경 불가
+        if (user.getSocialProvider() != SocialProvider.LOCAL) {
+            throw new InvalidUserUpdateException(ErrorCode.VALIDATION_ERROR, "소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다.");
+        }
+
         // 기존 비밀번호 일치 확인
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             throw new InvalidUserUpdateException(ErrorCode.VALIDATION_ERROR, "기존 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 새 비밀번호가 기존 비밀번호와 동일한 경우 차단
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new InvalidUserUpdateException(ErrorCode.VALIDATION_ERROR, "새 비밀번호는 기존 비밀번호와 달라야 합니다.");
         }
 
         // 새 비밀번호와 새 비밀번호 확인 일치 확인
