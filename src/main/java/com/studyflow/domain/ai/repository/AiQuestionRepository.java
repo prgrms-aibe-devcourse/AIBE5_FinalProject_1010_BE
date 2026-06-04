@@ -4,6 +4,7 @@ import com.studyflow.domain.ai.entity.AiQuestion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -47,6 +48,29 @@ public interface AiQuestionRepository extends JpaRepository<AiQuestion, Long> {
             """)
     List<AiQuestion> findWithAttachmentsByConversationId(@Param("conversationId") Long conversationId);
 
-    /** 아직 대화에 편입되지 않은 질문들. (기존 데이터 backfill용) */
-    List<AiQuestion> findByConversationIsNull();
+    /**
+     * 아직 대화에 편입되지 않은 질문들을 한 페이지씩 가져온다. (기존 데이터 backfill용)
+     *
+     * <p>전체를 한 번에 로드하면 기존 질문이 많을 때 OOM 위험이 있어 배치로 처리한다.
+     * 처리된 행은 조건(conversation IS NULL)에서 빠지므로 항상 첫 페이지만 반복 조회하면 된다.</p>
+     */
+    Page<AiQuestion> findByConversationIsNull(Pageable pageable);
+
+    /**
+     * 한 대화의 첨부 연결을 일괄 삭제한다. (대화 삭제용 1/2단계)
+     *
+     * <p>질문을 엔티티 단위로 N건 지우면 SELECT N + DELETE 2N 쿼리가 나가므로,
+     * 첨부 → 질문 순서의 벌크 DELETE 2방으로 줄인다. (원본 file_asset은 보존)</p>
+     */
+    @Modifying
+    @Query("""
+            DELETE FROM AiQuestionAttachment a
+            WHERE a.aiQuestion IN (SELECT q FROM AiQuestion q WHERE q.conversation.id = :conversationId)
+            """)
+    void deleteAttachmentsByConversationId(@Param("conversationId") Long conversationId);
+
+    /** 한 대화의 질문들을 일괄 삭제한다. (대화 삭제용 2/2단계 — 첨부 삭제 후 호출) */
+    @Modifying
+    @Query("DELETE FROM AiQuestion q WHERE q.conversation.id = :conversationId")
+    void deleteByConversationId(@Param("conversationId") Long conversationId);
 }

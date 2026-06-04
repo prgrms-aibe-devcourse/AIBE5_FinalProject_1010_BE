@@ -225,14 +225,16 @@ public class GlobalExceptionHandler {
 
     // 존재하지 않거나 본인 소유가 아닌 질문 기록 조회 (404)
     @ExceptionHandler(AiQuestionNotFoundException.class)
-    public ResponseEntity<String> handleAiQuestionNotFound(AiQuestionNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleAiQuestionNotFound(AiQuestionNotFoundException ex) {
+        ErrorCode errorCode = ErrorCode.AI_QUESTION_NOT_FOUND;
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
-    // 존재하지 않거나 본인 소유가 아닌 대화 조회/이어쓰기 (404)
+    // 존재하지 않거나 본인 소유가 아닌 대화 조회/이어쓰기/삭제 (404)
     @ExceptionHandler(ConversationNotFoundException.class)
-    public ResponseEntity<String> handleConversationNotFound(ConversationNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleConversationNotFound(ConversationNotFoundException ex) {
+        ErrorCode errorCode = ErrorCode.CONVERSATION_NOT_FOUND;
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 외부 AI(OpenAI) 호출 실패 (502) — 우리 서버가 아닌 외부 의존 서비스 문제

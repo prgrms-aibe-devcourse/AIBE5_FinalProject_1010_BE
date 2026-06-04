@@ -48,12 +48,15 @@ public class FileService {
     );
 
     /**
-     * 개발용 로컬 저장 경로.
+     * 로컬 저장 루트의 절대경로. 기동 시 한 번 고정해 저장/읽기가 항상 같은 기준점을 쓰게 한다.
+     * (개발용 로컬 저장 — 운영에서는 S3로 교체 추천. file_asset 구조는 양쪽 모두 그대로 사용 가능)
+     * (상대경로를 그때그때 해석하면 실행 위치(working directory)에 따라 경로가 달라질 수 있다)
      *
-     * 실제 운영에서는 S3로 교체하는 것을 추천한다.
-     * file_asset 구조는 LOCAL이든 S3든 그대로 사용할 수 있다.
+     * <p>경로 규약: {@code objectKey}(예: "chat/2026/06/04/uuid.png")는 S3 전환 시 버킷 내 키가
+     * 되고, LOCAL에서는 이 루트("uploads/") 아래 상대경로다. 즉 로컬 루트 디렉터리가 버킷에
+     * 해당하며, {@code fileUrl}("/uploads/" + objectKey)은 정적 서빙 경로일 뿐 저장 키가 아니다.</p>
      */
-    private static final String LOCAL_UPLOAD_DIR = "uploads/chat";
+    private static final Path LOCAL_UPLOAD_ROOT = Paths.get("uploads").toAbsolutePath().normalize();
 
     /**
      * 업로드 파일을 chat/년/월/일 하위 폴더로 분산 저장하기 위한 날짜 경로 포맷.
@@ -103,7 +106,8 @@ public class FileService {
             // chat/년/월/일 하위 폴더에 저장 (예: uploads/chat/2026/05/29/{uuid}.png)
             String datePath = LocalDate.now().format(DATE_PATH_FORMAT);   // "2026/05/29"
 
-            Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR, datePath);
+            // 절대 루트 기준으로 저장(읽기와 동일 기준점). objectKey와 같은 "chat/날짜" 구조.
+            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve("chat").resolve(datePath);
             Files.createDirectories(uploadPath);
 
             Path storedPath = uploadPath.resolve(storedFileName);
@@ -157,8 +161,13 @@ public class FileService {
         if (asset.getStorageProvider() != FileStorageProvider.LOCAL) {
             throw new IllegalStateException("로컬 저장 파일만 읽을 수 있습니다.");
         }
-        String url = asset.getFileUrl(); // 예: "/uploads/chat/2026/06/04/uuid.png"
-        Path path = Paths.get(url.startsWith("/") ? url.substring(1) : url);
+        // 저장 키(objectKey)를 절대 루트에 붙여 해석한다.
+        // (fileUrl 문자열 파싱·작업 디렉터리 의존 제거 — 저장과 동일한 기준점 사용)
+        Path path = LOCAL_UPLOAD_ROOT.resolve(asset.getObjectKey()).normalize();
+        if (!path.startsWith(LOCAL_UPLOAD_ROOT)) {
+            // "../" 등으로 루트를 벗어나는 키 방어 (DB가 오염됐더라도 임의 파일 읽기 차단)
+            throw new IllegalStateException("잘못된 파일 경로입니다.");
+        }
         try {
             return Files.readAllBytes(path);
         } catch (IOException e) {
@@ -185,7 +194,8 @@ public class FileService {
         try {
             String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
 
-            Path uploadPath = Paths.get(LOCAL_UPLOAD_DIR, datePath);
+            // 절대 루트 기준으로 저장(읽기와 동일 기준점). objectKey와 같은 "chat/날짜" 구조.
+            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve("chat").resolve(datePath);
             Files.createDirectories(uploadPath);
 
             Path storedPath = uploadPath.resolve(storedFileName);

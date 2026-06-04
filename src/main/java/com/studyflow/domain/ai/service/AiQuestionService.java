@@ -77,7 +77,7 @@ public class AiQuestionService {
             "그려줘", "그려 줘", "그려주세요", "그려 주세요", "그려줄래", "그려 줄래", "그려달", "그려 달",
             "그림으로", "사진으로", "이미지로", "그림 그려", "그림그려", "그림을 그", "그림 만들", "그림만들",
             "이미지 만들", "이미지만들", "이미지 생성", "이미지생성", "그림 생성", "그래프 그려", "도표로 그려",
-            "일러스트", "draw "
+            "일러스트", "draw"
     );
 
     /**
@@ -266,7 +266,8 @@ public class AiQuestionService {
      * 질문이 속할 대화를 결정한다.
      *
      * <ul>
-     *   <li>conversationId가 있으면: 본인 소유 대화인지 확인하고 그 대화에 이어쓴다(없거나 타인 것이면 404).</li>
+     *   <li>conversationId가 있으면: 본인 소유이고 요청 과목과 같은 대화인지 확인하고 이어쓴다
+     *       (없거나, 타인 것이거나, 다른 과목 대화면 404).</li>
      *   <li>conversationId가 없으면: 첫 질문으로 새 대화를 만든다(제목 = 첫 질문 요약).</li>
      * </ul>
      */
@@ -275,6 +276,11 @@ public class AiQuestionService {
             Conversation conversation = conversationRepository.findById(conversationId)
                     .orElseThrow(() -> new ConversationNotFoundException(conversationId));
             if (!conversation.getUser().getId().equals(user.getId())) {
+                throw new ConversationNotFoundException(conversationId);
+            }
+            // 대화는 과목에 소속된다 — 다른 과목 대화에 임의로 이어쓰는 것을 막는다.
+            // (소유권 검증과 동일하게, 불일치도 존재를 노출하지 않는 404로 처리)
+            if (!conversation.getSubject().getId().equals(subject.getId())) {
                 throw new ConversationNotFoundException(conversationId);
             }
             return conversation;
@@ -493,9 +499,10 @@ public class AiQuestionService {
         if (!conversation.getUser().getId().equals(userId)) {
             throw new ConversationNotFoundException(conversationId);
         }
-        // 질문들을 엔티티로 삭제해야 attachments(cascade=ALL, orphanRemoval)가 함께 정리된다.
-        List<AiQuestion> questions = aiQuestionRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
-        aiQuestionRepository.deleteAll(questions);
+        // 엔티티 단위 deleteAll(SELECT N + DELETE 2N) 대신 벌크 DELETE 2방으로 정리한다.
+        // FK 제약 순서: 첨부 연결 → 질문 → 대화.
+        aiQuestionRepository.deleteAttachmentsByConversationId(conversationId);
+        aiQuestionRepository.deleteByConversationId(conversationId);
         conversationRepository.delete(conversation);
     }
 
