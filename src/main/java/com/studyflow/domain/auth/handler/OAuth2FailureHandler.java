@@ -9,11 +9,10 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 /**
- * 소셜 로그인 인증 실패 시 에러 메시지와 함께 프론트엔드로 리다이렉트합니다.
+ * 소셜 로그인 인증 실패 시 FE 로그인 페이지로 리다이렉트합니다.
+ * 내부 예외 메시지는 서버 로그에만 남기고 URL에는 노출하지 않습니다.
  */
 @Slf4j
 @Component
@@ -26,11 +25,11 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException {
+        // 내부 예외 메시지는 서버 로그에만 기록
         log.error("소셜 로그인 실패: {}", exception.getMessage());
 
-        String errorMessage = URLEncoder.encode(exception.getMessage(), StandardCharsets.UTF_8);
-        String redirectUrl = frontendUrl + "/oauth2/callback?error=" + errorMessage;
-
-        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+        // URL에는 구체적인 원인 대신 일반 오류 코드만 포함
+        getRedirectStrategy().sendRedirect(request, response,
+                frontendUrl + "/oauth2/callback?error=social_login_failed");
     }
 }

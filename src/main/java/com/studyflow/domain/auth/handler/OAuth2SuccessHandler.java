@@ -1,5 +1,6 @@
 package com.studyflow.domain.auth.handler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,23 +15,30 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 소셜 로그인 인증 성공 시 처리 핸들러.
  *
- * <p>기존 회원: JWT 발급 후 프론트엔드 /oauth2/callback 으로 리다이렉트
- * <p>신규 회원: gender/birthDate 등 필수 정보가 부족할 수 있으므로
- *              Redis에 임시 저장된 pendingSocialToken을 이용해
- *              추가 정보 입력 폼(/oauth2/additional-info)으로 리다이렉트
+ * <p>기존 회원: JWT를 Redis에 저장하고 one-time code만 URL에 담아 FE로 리다이렉트.
+ *   FE는 POST /api/v1/auth/oauth2/token 으로 code를 교환해 토큰을 받습니다.
+ *   → accessToken·refreshToken이 브라우저 히스토리/로그에 남지 않습니다.
+ *
+ * <p>신규 회원: pendingSocialToken(Redis 키)을 URL에 담아 추가 정보 입력 폼으로 리다이렉트.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
+    /** one-time code TTL: 30초 */
+    private static final long CODE_TTL_SECONDS = 30L;
+
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${cors.allowed-origins}")
     private String frontendUrl;
@@ -41,22 +49,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
-        // 신규 회원: pendingSocialToken이 있으면 추가 정보 입력 페이지로 리다이렉트
+        // 신규 회원: 추가 정보 입력 폼으로 리다이렉트
         String pendingSocialToken = (String) oAuth2User.getAttributes().get("pendingSocialToken");
         if (pendingSocialToken != null) {
-            String redirectUrl = frontendUrl + "/oauth2/additional-info?token=" + pendingSocialToken;
-            log.info("신규 소셜 유저 감지 → 추가 정보 입력 페이지로 리다이렉트");
-            getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+            log.info("신규 소셜 유저 → 추가 정보 입력 페이지로 리다이렉트");
+            getRedirectStrategy().sendRedirect(request, response,
+                    frontendUrl + "/oauth2/additional-info?token=" + pendingSocialToken);
             return;
         }
 
-        // 기존 회원: JWT 발급 후 콜백 페이지로 리다이렉트
+        // 기존 회원: JWT 발급 후 one-time code를 Redis에 저장하고 code만 URL에 포함
         Long userId = (Long) oAuth2User.getAttributes().get("userId");
         String role  = (String) oAuth2User.getAttributes().get("role");
 
         String accessToken  = jwtTokenProvider.createAccessToken(userId, role);
         String refreshToken = jwtTokenProvider.createRefreshToken(userId, role);
 
+        // refresh token → Redis (rt:{userId})
         redisTemplate.opsForValue().set(
                 RedisPrefixProvider.refreshTokenKey(userId),
                 refreshToken,
@@ -64,10 +73,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 TimeUnit.MILLISECONDS
         );
 
-        String redirectUrl = frontendUrl + "/oauth2/callback"
-                + "?accessToken=" + accessToken
-                + "&refreshToken=" + refreshToken;
+        // one-time code → Redis (oauth2:code:{uuid}, TTL 30초)
+        String code = UUID.randomUUID().toString();
+        Map<String, Object> codeData = Map.of(
+                "accessToken",    accessToken,
+                "refreshToken",   refreshToken,
+                "accessExpiresIn",  jwtTokenProvider.getAccessTokenExpiration(),
+                "refreshExpiresIn", jwtTokenProvider.getRefreshTokenExpiration()
+        );
+        redisTemplate.opsForValue().set(
+                RedisPrefixProvider.oauth2CodeKey(code),
+                objectMapper.writeValueAsString(codeData),
+                CODE_TTL_SECONDS,
+                TimeUnit.SECONDS
+        );
 
-        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+        // URL에는 code만 포함 (토큰 직접 노출 없음)
+        getRedirectStrategy().sendRedirect(request, response,
+                frontendUrl + "/oauth2/callback?code=" + code);
     }
 }

@@ -20,4 +20,11 @@ public class RedisPrefixProvider {
     public static String socialPendingKey(String tempToken) {
         return SOCIAL_PENDING_PREFIX + tempToken;
     }
+
+    private static final String OAUTH2_CODE_PREFIX = "oauth2:code:";
+
+    /** 소셜 로그인 성공 후 one-time code로 토큰을 교환할 때 사용하는 키 (TTL 30초) */
+    public static String oauth2CodeKey(String code) {
+        return OAUTH2_CODE_PREFIX + code;
+    }
 }

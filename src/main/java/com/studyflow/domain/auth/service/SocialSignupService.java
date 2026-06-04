@@ -74,7 +74,21 @@ public class SocialSignupService {
 
     public LoginResponse completeSocialSignup(SocialSignupRequest request) {
 
-        // 1. Redis에서 임시 소셜 데이터 조회
+        // 1. 필수 필드 null 검증 — Redis 조회 전에 먼저 수행
+        if (request.getToken() == null || request.getToken().isBlank()) {
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "토큰이 누락되었습니다.");
+        }
+        if (request.getGender() == null || request.getGender().isBlank()) {
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "성별은 필수입니다.");
+        }
+        if (request.getBirthDate() == null || request.getBirthDate().isBlank()) {
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "생년월일은 필수입니다.");
+        }
+        if (request.getRole() == null || request.getRole().isBlank()) {
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "역할은 필수입니다.");
+        }
+
+        // 2. Redis에서 임시 소셜 데이터 조회
         String key = RedisPrefixProvider.socialPendingKey(request.getToken());
         String json = redisTemplate.opsForValue().get(key);
         if (json == null) {
@@ -88,20 +102,6 @@ public class SocialSignupService {
         } catch (Exception e) {
             log.error("소셜 임시 데이터 파싱 오류: {}", e.getMessage());
             throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "임시 데이터 처리 중 오류가 발생했습니다.");
-        }
-
-        // 2. 필수 필드 null 명시 검증
-        if (request.getToken() == null || request.getToken().isBlank()) {
-            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "토큰이 누락되었습니다.");
-        }
-        if (request.getGender() == null || request.getGender().isBlank()) {
-            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "성별은 필수입니다.");
-        }
-        if (request.getBirthDate() == null || request.getBirthDate().isBlank()) {
-            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "생년월일은 필수입니다.");
-        }
-        if (request.getRole() == null || request.getRole().isBlank()) {
-            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "역할은 필수입니다.");
         }
 
         // 3. 약관 동의 검증
@@ -156,8 +156,8 @@ public class SocialSignupService {
                 pendingData.getProfileImageUrl(),
                 pendingData.getSocialId(),
                 provider,
-                gender.name(),
-                birthDate.toString(),
+                gender,      // Gender enum 직접 전달
+                birthDate,   // LocalDate 직접 전달
                 phone,
                 userRole,
                 marketingAgreed

@@ -17,7 +17,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -37,6 +36,7 @@ public class SecurityConfig {
     private final OAuth2UserService oAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
 
     // Read allowed origins as a single comma-separated property (fallback to empty)
     @Value("${cors.allowed-origins:}")
@@ -74,9 +74,9 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 처리
                         .accessDeniedHandler(jwtAccessDeniedHandler)) // 403 처리
                 .oauth2Login(oauth2 -> oauth2
-                        // Stateless 환경에서도 OAuth2 인가 요청 정보를 세션에 임시 저장
+                        // 세션 대신 쿠키에 저장 → 다중 서버 배포 시에도 stateless 유지
                         .authorizationEndpoint(auth -> auth
-                                .authorizationRequestRepository(new HttpSessionOAuth2AuthorizationRequestRepository()))
+                                .authorizationRequestRepository(cookieAuthorizationRequestRepository))
                         .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler));
