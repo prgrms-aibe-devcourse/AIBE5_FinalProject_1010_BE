@@ -49,20 +49,24 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
-                        .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
-                        .requestMatchers("/error").permitAll()
-                        // 수업 등록 / 수정 / 삭제 — 선생님 전용 (optional-auth permitAll보다 먼저 선언해야 가려지지 않음)
+                        // ── 역할 기반 규칙: permitAll보다 반드시 먼저 선언 ──
+                        // Spring Security는 첫 번째 매칭 규칙을 적용하므로,
+                        // publicUrls의 permitAll이 앞에 오면 같은 경로의 역할 규칙이 가려집니다.
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*").hasRole("TEACHER")
-                        // 수강 신청 — 학생 전용
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
-                        // 수업 상세 GET — 비로그인 허용, GET만 permitAll (POST/PATCH/DELETE는 위에서 이미 처리)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
-                        .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용
-                        .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER") // 테스트용
+                        .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
+                        .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // ── 공개 규칙: 역할 규칙 이후에 선언 ──
+                        .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
+                        .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
+                        .requestMatchers("/error").permitAll()
+                        // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
+                        // /api/v1/courses를 PublicUrls에서 제거했으므로 여기서 명시적으로 GET만 허용
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 처리
