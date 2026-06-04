@@ -11,26 +11,22 @@ import java.util.Optional;
 
 public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, Long> {
 
-    // 선생님 목록 페이지네이션 — user JOIN FETCH로 N+1 방지
-    // 탈퇴하지 않은 활성 선생님만 조회 (isDeleted=0, isActive=true)
-    @Query("SELECT tp FROM TeacherProfile tp " +
-           "JOIN FETCH tp.user u " +
-           "WHERE u.isDeleted = 0 AND u.isActive = true")
-    Page<TeacherProfile> findAllWithUser(Pageable pageable);
-
     // 선생님 목록 검색/필터 — keyword(이름 포함), minNaegong(내공 점수 하한)
-    // null 파라미터는 조건에서 제외됩니다 (IS NULL OR ...)
+    // null 파라미터는 조건에서 제외됩니다 (:param IS NULL OR ...)
+    // 주의: Hibernate + MySQL 환경에서 :param IS NULL 패턴은 실제 동작 검증 필요
+    // 향후 검색 대상 확장 시(소개글 등) LIKE 절 추가 필요
+    // keyword는 서비스에서 !, %, _ escape 처리 후 전달됩니다 (ESCAPE '!')
     @Query(value =
            "SELECT tp FROM TeacherProfile tp " +
            "JOIN FETCH tp.user u " +
            "WHERE u.isDeleted = 0 AND u.isActive = true " +
-           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)",
            countQuery =
            "SELECT COUNT(tp) FROM TeacherProfile tp " +
            "JOIN tp.user u " +
            "WHERE u.isDeleted = 0 AND u.isActive = true " +
-           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)")
     Page<TeacherProfile> findAllWithUserFiltered(
             @Param("keyword") String keyword,

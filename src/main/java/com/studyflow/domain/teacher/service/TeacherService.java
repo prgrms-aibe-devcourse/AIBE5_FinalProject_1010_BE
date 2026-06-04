@@ -36,7 +36,8 @@ public class TeacherService {
     public Page<TeacherCardResponse> getTeacherList(String keyword, Integer minNaegong, Pageable pageable) {
 
         // 1단계: 선생님 목록 + user JOIN FETCH (필터 적용)
-        String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        // LIKE wildcard(%, _, !)를 escape 처리해 문자 그대로 검색
+        String kw = (keyword != null && !keyword.isBlank()) ? escapeKeyword(keyword.trim()) : null;
         Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUserFiltered(kw, minNaegong, pageable);
 
         List<Long> teacherProfileIds = profiles.getContent().stream()
@@ -60,6 +61,11 @@ public class TeacherService {
         return profiles.map(profile ->
                 TeacherCardResponse.of(profile, courseCounts.getOrDefault(profile.getId(), 0L))
         );
+    }
+
+    // LIKE escape 문자('!')를 먼저 escape한 뒤 %, _ 순으로 처리
+    private String escapeKeyword(String raw) {
+        return raw.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     // 선생님 상세 조회 — /teachers/:id 페이지용
