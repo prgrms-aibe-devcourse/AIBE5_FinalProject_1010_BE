@@ -31,6 +31,22 @@ public interface AiQuestionRepository extends JpaRepository<AiQuestion, Long> {
     /** 한 대화의 질문들을 시간순(오래된 것 → 최신)으로 조회한다. (대화 상세/복원용) */
     List<AiQuestion> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
 
+    /**
+     * 한 대화의 질문들을 첨부(이미지 파일 메타)까지 fetch join으로 한 번에 조회한다.
+     *
+     * <p>AI 호출 맥락(history) 구성용. ask/askStream은 의도적으로 트랜잭션 밖에서 동작하므로
+     * LAZY인 attachments/fileAsset에 나중에 접근하면 LazyInitializationException이 난다.
+     * 여기서 미리 함께 로딩한다. (컬렉션 fetch join이라 distinct로 부모 중복 제거)</p>
+     */
+    @Query("""
+            SELECT DISTINCT q FROM AiQuestion q
+            LEFT JOIN FETCH q.attachments a
+            LEFT JOIN FETCH a.fileAsset
+            WHERE q.conversation.id = :conversationId
+            ORDER BY q.createdAt ASC
+            """)
+    List<AiQuestion> findWithAttachmentsByConversationId(@Param("conversationId") Long conversationId);
+
     /** 아직 대화에 편입되지 않은 질문들. (기존 데이터 backfill용) */
     List<AiQuestion> findByConversationIsNull();
 }

@@ -34,7 +34,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -351,25 +354,60 @@ public class AiQuestionService {
     /** 한 번의 호출에 맥락으로 보낼 최대 이전 턴 수(질문+답변 쌍 기준). 토큰 비용 폭증 방지. */
     private static final int MAX_HISTORY_TURNS = 10;
 
+    /** 맥락에 다시 실어 보낼 이전 첨부 이미지의 최대 장수(최신 턴 우선). vision 비용 가드. */
+    private static final int MAX_HISTORY_IMAGES = 4;
+
     /**
      * 이어지는 대화의 이전 질문·답변들을 모델에 보낼 맥락으로 변환한다.
      *
      * <p>conversationId가 없으면(새 대화) 빈 목록. 있으면 그 대화의 기록을 오래된 순으로
-     * 가져와 최근 {@value #MAX_HISTORY_TURNS}턴만 남긴다. (소유권은 이 메서드 호출 전에
+     * 가져와 최근 {@value #MAX_HISTORY_TURNS}턴만 남긴다. 이전 턴에 첨부됐던 이미지는
+     * "아까 그 사진에서 …" 같은 후속 질문을 위해 <b>최신 턴부터</b> 최대
+     * {@value #MAX_HISTORY_IMAGES}장까지 다시 실어 보낸다. (소유권은 이 메서드 호출 전에
      * {@link #resolveConversation}에서 이미 검증된다.)</p>
      */
     private List<OpenAiClient.Turn> loadHistory(Long conversationId) {
         if (conversationId == null) {
             return List.of();
         }
-        List<OpenAiClient.Turn> turns = aiQuestionRepository
-                .findByConversationIdOrderByCreatedAtAsc(conversationId)
-                .stream()
-                .map(q -> new OpenAiClient.Turn(q.getQuestionText(), q.getAnswerText()))
+        List<AiQuestion> previous = aiQuestionRepository.findWithAttachmentsByConversationId(conversationId);
+        if (previous.size() > MAX_HISTORY_TURNS) {
+            previous = previous.subList(previous.size() - MAX_HISTORY_TURNS, previous.size());
+        }
+
+        // 이전 첨부 이미지는 최신 턴부터 예산 안에서만 다시 보낸다(오래된 이미지일수록 생략).
+        Map<Long, List<OpenAiClient.ImageInput>> imagesByQuestionId = new HashMap<>();
+        int budget = MAX_HISTORY_IMAGES;
+        for (int i = previous.size() - 1; i >= 0 && budget > 0; i--) {
+            AiQuestion question = previous.get(i);
+            List<OpenAiClient.ImageInput> inputs = new ArrayList<>();
+            List<AiQuestionAttachment> attachments = question.getAttachments().stream()
+                    .sorted(Comparator.comparingInt(AiQuestionAttachment::getSortOrder))
+                    .toList();
+            for (AiQuestionAttachment attachment : attachments) {
+                if (budget <= 0) {
+                    break;
+                }
+                try {
+                    FileAsset asset = attachment.getFileAsset();
+                    inputs.add(new OpenAiClient.ImageInput(fileService.readImageBytes(asset), asset.getContentType()));
+                    budget--;
+                } catch (Exception e) {
+                    // 파일 유실 등 — 해당 이미지는 빼고 텍스트 맥락만 유지한다.
+                    log.warn("맥락 이미지 로드 실패 (aiQuestionId: {})", question.getId(), e);
+                }
+            }
+            if (!inputs.isEmpty()) {
+                imagesByQuestionId.put(question.getId(), inputs);
+            }
+        }
+
+        return previous.stream()
+                .map(q -> new OpenAiClient.Turn(
+                        q.getQuestionText(),
+                        q.getAnswerText(),
+                        imagesByQuestionId.getOrDefault(q.getId(), List.of())))
                 .toList();
-        return turns.size() <= MAX_HISTORY_TURNS
-                ? turns
-                : turns.subList(turns.size() - MAX_HISTORY_TURNS, turns.size());
     }
 
     /** 첨부 이미지(FileAsset)들을 OpenAI vision 입력(바이트 + MIME)으로 변환한다. */

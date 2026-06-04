@@ -154,26 +154,31 @@ public class OpenAiClient {
      * 이전 턴들(user/assistant 쌍) + 현재 질문(텍스트, 선택적으로 이미지 동반)으로
      * 모델에 보낼 메시지 목록을 만든다.
      *
-     * <p>이전 턴의 첨부 이미지는 다시 보내지 않는다(비용·전송량 절감). 과거 답변 텍스트에
-     * 이미지 분석 내용이 들어 있으므로 후속 질문 맥락으로는 대체로 충분하다.</p>
+     * <p>이전 턴에 첨부 이미지가 있으면(서비스가 예산 내에서 골라 담아줌) 그 턴의 user
+     * 메시지에 원래 위치 그대로 함께 싣는다. "아까 그 사진에서 3번 문제는?"처럼 이미지를
+     * 다시 봐야 하는 후속 질문을 모델이 처리할 수 있게 하기 위함이다.</p>
      */
     private List<Message> buildMessages(List<Turn> history, String questionText, List<ImageInput> images) {
         List<Message> messages = new ArrayList<>();
         if (history != null) {
             for (Turn turn : history) {
-                messages.add(new UserMessage(turn.question()));
+                messages.add(toUserMessage(turn.question(), turn.images()));
                 messages.add(new AssistantMessage(turn.answer()));
             }
         }
-        if (images == null || images.isEmpty()) {
-            messages.add(new UserMessage(questionText));
-        } else {
-            List<Media> media = images.stream()
-                    .map(image -> new Media(parseMime(image.mimeType()), new ByteArrayResource(image.data())))
-                    .toList();
-            messages.add(UserMessage.builder().text(questionText).media(media).build());
-        }
+        messages.add(toUserMessage(questionText, images));
         return messages;
+    }
+
+    /** 텍스트(+선택적 이미지들)로 user 메시지를 만든다. */
+    private UserMessage toUserMessage(String text, List<ImageInput> images) {
+        if (images == null || images.isEmpty()) {
+            return new UserMessage(text);
+        }
+        List<Media> media = images.stream()
+                .map(image -> new Media(parseMime(image.mimeType()), new ByteArrayResource(image.data())))
+                .toList();
+        return UserMessage.builder().text(text).media(media).build();
     }
 
     /**
@@ -181,8 +186,14 @@ public class OpenAiClient {
      *
      * @param question 학생 질문 텍스트
      * @param answer   AI 답변 텍스트
+     * @param images   그 턴에 첨부됐던 이미지들(맥락에 다시 보낼 것만; 없으면 빈 목록)
      */
-    public record Turn(String question, String answer) {
+    public record Turn(String question, String answer, List<ImageInput> images) {
+
+        /** 텍스트 전용 턴. */
+        public static Turn of(String question, String answer) {
+            return new Turn(question, answer, List.of());
+        }
     }
 
     /** content-type 문자열을 MimeType으로 변환한다(없거나 깨졌으면 image/png로 가정). */
