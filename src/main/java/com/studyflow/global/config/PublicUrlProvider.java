@@ -14,10 +14,12 @@ public class PublicUrlProvider {
                 "/api/v1/auth/social-signup",   // 소셜 로그인 추가 정보 입력 후 가입 완료
                 "/api/v1/auth/oauth2/token",    // 소셜 로그인 one-time code → 토큰 교환
 
-                // 수업 검색 — 비로그인 사용자도 수업 목록 조회 가능
-                "/api/v1/courses",
+                // 과목 목록 — 수업 등록/검색 폼에서 비로그인 사용자도 조회 가능
+                "/api/v1/subjects",
 
                 // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
+                // 주의: /api/v1/courses는 POST(TEACHER 전용)가 있어 여기서 제외하고
+                //       SecurityConfig에서 HttpMethod.GET 한정으로 허용합니다.
                 "/api/v1/teachers",
                 "/api/v1/teachers/**",
 
