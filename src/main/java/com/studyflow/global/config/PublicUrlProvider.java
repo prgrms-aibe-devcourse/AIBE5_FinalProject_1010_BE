@@ -10,6 +10,9 @@ public class PublicUrlProvider {
         return new String[] {
                 "/api/v1/auth/signup",
                 "/api/v1/auth/login",
+                "/api/v1/auth/social-pending",  // 소셜 로그인 폼 pre-fill 데이터 조회 (POST)
+                "/api/v1/auth/social-signup",   // 소셜 로그인 추가 정보 입력 후 가입 완료
+                "/api/v1/auth/oauth2/token",    // 소셜 로그인 one-time code → 토큰 교환
 
                 // 수업 검색 — 비로그인 사용자도 수업 목록 조회 가능
                 "/api/v1/courses",
@@ -31,6 +34,12 @@ public class PublicUrlProvider {
                 "/v3/api-docs/**",
                 "/swagger-ui.html"
         };
+    }
+
+    // SecurityConfig에서 직접 HttpMethod.GET으로 제한하므로 이 메서드는 현재 미사용
+    // (이전에는 GET/POST/PUT/DELETE 모두 permitAll돼서 TEACHER 규칙이 가려지는 문제가 있었음)
+    public String[] getOptionalAuthUrls() {
+        return new String[] {};
     }
 
     // access token 기반 인증이 아닌 url 목록

@@ -3,8 +3,13 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
-import com.studyflow.domain.ai.exception.SubjectNotFoundException;
+import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
+import com.studyflow.domain.enrollment.exception.AlreadyEnrolledException;
+import com.studyflow.domain.enrollment.exception.CourseNotRecruitingException;
+import com.studyflow.domain.enrollment.exception.EnrollmentRequestAlreadyPendingException;
+import com.studyflow.domain.enrollment.exception.SelfEnrollmentException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -12,6 +17,10 @@ import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.user.exception.DeleteAdminException;
+import com.studyflow.domain.user.exception.UserNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -32,6 +41,20 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
+        }
+        Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(null);
+        body.put("errors", errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // @Validated + @RequestParam 검증 실패 (400) — ConstraintViolationException
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> v : ex.getConstraintViolations()) {
+            String path = v.getPropertyPath().toString();
+            String field = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+            errors.put(field, v.getMessage());
         }
         Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(null);
         body.put("errors", errors);
@@ -91,11 +114,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
-    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우
+    // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우 (401)
     @ExceptionHandler(RefreshTokenNotInRedisException.class)
     public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    // 사용자를 찾을 수 없는 경우 (404)
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFoundException(UserNotFoundException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    // 관리자 회원탈퇴를 시도하는 경우 (403)
+    @ExceptionHandler(DeleteAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleDeleteAdminException(DeleteAdminException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────
@@ -142,6 +179,39 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TeacherProfileNotFoundException.class)
     public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    // 수강 중인 학생이 있는 수업 삭제 시도 (400)
+    @ExceptionHandler(CourseHasActiveStudentsException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
+    }
+
+    // ── 수강 신청 도메인 예외 처리 ──────────────────────
+
+    @ExceptionHandler(CourseNotRecruitingException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseNotRecruiting(CourseNotRecruitingException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_NOT_RECRUITING.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AlreadyEnrolledException.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyEnrolled(AlreadyEnrolledException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorCode.ALREADY_ENROLLED.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EnrollmentRequestAlreadyPendingException.class)
+    public ResponseEntity<Map<String, Object>> handleEnrollmentRequestAlreadyPending(EnrollmentRequestAlreadyPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorCode.ENROLLMENT_REQUEST_ALREADY_PENDING.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SelfEnrollmentException.class)
+    public ResponseEntity<Map<String, Object>> handleSelfEnrollment(SelfEnrollmentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.SELF_ENROLLMENT.toBody(ex.getMessage()));
     }
 
     // ── AI 질문 도메인 예외 처리 ──────────────────────

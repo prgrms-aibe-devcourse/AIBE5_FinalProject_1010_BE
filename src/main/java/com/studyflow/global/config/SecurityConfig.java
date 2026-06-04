@@ -1,13 +1,16 @@
 package com.studyflow.global.config;
 
+import com.studyflow.domain.auth.handler.OAuth2FailureHandler;
+import com.studyflow.domain.auth.handler.OAuth2SuccessHandler;
+import com.studyflow.domain.auth.service.OAuth2UserService;
 import com.studyflow.global.auth.JwtAccessDeniedHandler;
 import com.studyflow.global.auth.JwtAuthenticationEntryPoint;
 import com.studyflow.global.auth.JwtAuthenticationFilter;
-import com.studyflow.global.auth.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -29,7 +32,11 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final com.studyflow.global.config.PublicUrlProvider publicUrlProvider;
+    private final PublicUrlProvider publicUrlProvider;
+    private final OAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
 
     // Read allowed origins as a single comma-separated property (fallback to empty)
     @Value("${cors.allowed-origins:}")
@@ -51,13 +58,28 @@ public class SecurityConfig {
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
+                        // 수업 등록 / 수정 / 삭제 — 선생님 전용 (optional-auth permitAll보다 먼저 선언해야 가려지지 않음)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*").hasRole("TEACHER")
+                        // 수강 신청 — 학생 전용
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
+                        // 수업 상세 GET — 비로그인 허용, GET만 permitAll (POST/PATCH/DELETE는 위에서 이미 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT") // 테스트용
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER") // 테스트용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 처리
-                        .accessDeniedHandler(jwtAccessDeniedHandler)); // 403 처리
+                        .accessDeniedHandler(jwtAccessDeniedHandler)) // 403 처리
+                .oauth2Login(oauth2 -> oauth2
+                        // 세션 대신 쿠키에 저장 → 다중 서버 배포 시에도 stateless 유지
+                        .authorizationEndpoint(auth -> auth
+                                .authorizationRequestRepository(cookieAuthorizationRequestRepository))
+                        .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler));
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
