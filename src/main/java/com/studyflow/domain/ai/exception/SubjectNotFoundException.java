@@ -1,10 +1,8 @@
 package com.studyflow.domain.ai.exception;
 
-/**
- * 존재하지 않는 과목 id로 질문을 시도할 때 발생 → 404.
- */
-public class SubjectNotFoundException extends RuntimeException {
+// AI 도메인에서는 subject 도메인 예외를 재사용 — 도메인 경계 통일
+public class SubjectNotFoundException extends com.studyflow.domain.subject.exception.SubjectNotFoundException {
     public SubjectNotFoundException(Long subjectId) {
-        super("존재하지 않는 과목입니다. (id: " + subjectId + ")");
+        super(subjectId);
     }
 }

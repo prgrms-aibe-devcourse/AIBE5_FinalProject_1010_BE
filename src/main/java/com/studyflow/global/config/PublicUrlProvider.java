@@ -35,14 +35,10 @@ public class PublicUrlProvider {
         };
     }
 
-    // JWT 필터가 동작하되 인증 없이도 접근 허용하는 URL — 토큰이 있으면 인증 처리, 없으면 통과
-    // 수업 상세: 비로그인도 조회 가능하되 로그인 시 myStatus 등 추가 정보 제공
-    // /* 패턴 유지 이유: /** 로 변경하면 SecurityConfig의 POST .../enrollment-requests hasRole("STUDENT") 규칙보다
-    //                    앞에서 매칭되어 학생 전용 엔드포인트가 비인증 접근을 허용하게 됨
+    // SecurityConfig에서 직접 HttpMethod.GET으로 제한하므로 이 메서드는 현재 미사용
+    // (이전에는 GET/POST/PUT/DELETE 모두 permitAll돼서 TEACHER 규칙이 가려지는 문제가 있었음)
     public String[] getOptionalAuthUrls() {
-        return new String[] {
-                "/api/v1/courses/*"
-        };
+        return new String[] {};
     }
 
     // access token 기반 인증이 아닌 url 목록

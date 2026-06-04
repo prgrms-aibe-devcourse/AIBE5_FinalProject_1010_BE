@@ -24,4 +24,6 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "WHERE tp.id = :id AND u.isDeleted = 0 AND u.isActive = true")
     Optional<TeacherProfile> findWithUserById(@Param("id") Long id);
 
+    // 로그인한 선생님의 프로필 조회 — 수업 생성 시 teacherProfile 참조용
+    Optional<TeacherProfile> findByUserId(Long userId);
 }
