@@ -47,6 +47,7 @@ public class SignupRequest {
 	@NotBlank
 	private String name;
 
+	@Pattern(regexp = "^\\d{10,11}$", message = "전화번호는 '-' 없이 10자리 또는 11자리 숫자여야 합니다.")
 	private String phone;
 
 	/** role은 문자열로 전달받아 서비스 레이어에서 변환 처리합니다 (예: STUDENT, TEACHER, ADMIN) */
