@@ -52,9 +52,11 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // ── 역할 기반 규칙: permitAll보다 반드시 먼저 선언 ──
+                        // Spring Security는 첫 번째 매칭 규칙을 적용하므로,
+                        // publicUrls의 permitAll이 앞에 오면 같은 경로의 역할 규칙이 가려집니다.
                         // ── 역할 기반 규칙: permitAll보다 반드시 먼저 선언 ──
                         // Spring Security는 첫 번째 매칭 규칙을 적용하므로,
                         // publicUrls의 permitAll이 앞에 오면 같은 경로의 역할 규칙이 가려집니다.
@@ -62,6 +64,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
+                        .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
+                        .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // ── 공개 규칙: 역할 규칙 이후에 선언 ──
+                        .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
+                        .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
+                        .requestMatchers("/error").permitAll()
+                        // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
+                        // /api/v1/courses를 PublicUrls에서 제거했으므로 여기서 명시적으로 GET만 허용
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -102,8 +114,9 @@ public class SecurityConfig {
      * - allowCredentials: true (쿠키/인증정보 전송 허용)
      *
      * 보안상 주의사항:
-     * - allowCredentials(true)와 함께 allowedOrigins에 "*"(와일드카드)를 사용하는 것은 브라우저에서 허용되지 않습니다.
-     *   즉, 자격증명 허용 시 특정 출처만 허용하도록 명시해야 합니다.
+     * - allowCredentials(true)와 함께 allowedOrigins에 "*"(와일드카드)를 사용하는 것은 브라우저에서 허용되지
+     * 않습니다.
+     * 즉, 자격증명 허용 시 특정 출처만 허용하도록 명시해야 합니다.
      * - production에서는 정확한 도메인 혹은 도메인 목록만 허용하세요. 개발 전용 출처는 배포 시 제거 또는 환경변수로 관리하세요.
      * - allowedHeaders를 "*"로 설정하면 편리하지만, 필요한 경우 최소한의 헤더만 허용하도록 제한하면 보안이 향상됩니다.
      */
