@@ -4,17 +4,19 @@ import com.studyflow.domain.ai.dto.response.ConversationDetailResponse;
 import com.studyflow.domain.ai.dto.response.ConversationSummaryResponse;
 import com.studyflow.domain.ai.service.AiQuestionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * AI 대화(Conversation) 조회 API.
+ * AI 대화(Conversation) 조회/삭제 API.
  *
  * <ul>
  *   <li>GET /api/v1/ai/conversations?subjectId= — 내 대화 목록(사이드바 타이틀)</li>
  *   <li>GET /api/v1/ai/conversations/{id} — 대화 상세(질문+답변 전체)</li>
+ *   <li>DELETE /api/v1/ai/conversations/{id} — 대화 삭제(질문·답변 포함)</li>
  * </ul>
  *
  * <p>대화 생성/이어쓰기는 질문 API(POST /ai/questions, /stream)에서 conversationId로 처리한다.</p>
@@ -42,5 +44,15 @@ public class ConversationController {
             @AuthenticationPrincipal Long userId
     ) {
         return aiQuestionService.getConversationDetail(userId, conversationId);
+    }
+
+    /** 대화 삭제(그 대화의 질문·답변·첨부 연결까지 함께). 본인 소유만 가능, 성공 시 204. */
+    @DeleteMapping("/{conversationId}")
+    public ResponseEntity<Void> deleteConversation(
+            @PathVariable Long conversationId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        aiQuestionService.deleteConversation(userId, conversationId);
+        return ResponseEntity.noContent().build();
     }
 }

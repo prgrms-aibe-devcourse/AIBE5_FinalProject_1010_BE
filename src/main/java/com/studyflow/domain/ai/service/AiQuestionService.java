@@ -480,6 +480,26 @@ public class AiQuestionService {
     }
 
     /**
+     * 대화를 삭제한다. (DELETE /api/v1/ai/conversations/{id})
+     *
+     * <p>본인 소유 대화만 삭제할 수 있으며(타인 것은 존재 노출 없이 동일하게 404),
+     * 그 대화의 질문·답변 기록과 첨부 연결({@code ai_question_attachment})까지 함께 지운다.
+     * 첨부의 원본 파일({@code file_asset}/실제 파일)은 다른 곳에서 참조될 수 있어 남겨둔다.</p>
+     */
+    @Transactional
+    public void deleteConversation(Long userId, Long conversationId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ConversationNotFoundException(conversationId));
+        if (!conversation.getUser().getId().equals(userId)) {
+            throw new ConversationNotFoundException(conversationId);
+        }
+        // 질문들을 엔티티로 삭제해야 attachments(cascade=ALL, orphanRemoval)가 함께 정리된다.
+        List<AiQuestion> questions = aiQuestionRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        aiQuestionRepository.deleteAll(questions);
+        conversationRepository.delete(conversation);
+    }
+
+    /**
      * 대화 상세(질문+답변 전체)를 조회한다. (GET /api/v1/ai/conversations/{id})
      * 본인 소유 대화만 조회할 수 있다.
      */
