@@ -105,11 +105,15 @@ public class AiQuestionService {
         // 3) 대화 결정: conversationId가 있으면 이어쓰기, 없으면 새 대화 생성.
         Conversation conversation = resolveConversation(user, subject, request.conversationId(), request.questionText());
 
-        // 4) 답변 생성 — 트랜잭션 밖에서 수행(외부 I/O로 인한 커넥션 점유 방지).
-        //    요청 성격에 따라 셋 중 하나로 라우팅한다.
-        String answerText = generateAnswer(userId, subject, request.questionText(), images);
+        // 4) 이어지는 대화면 이전 질문·답변들을 맥락(history)으로 함께 보낸다.
+        //    (이게 없으면 모델은 매번 첫 질문으로 받아 "방금 그 문제"류 후속 질문을 이해 못 한다)
+        List<OpenAiClient.Turn> history = loadHistory(request.conversationId());
 
-        // 5) 질문 + 답변 + 첨부를 대화에 저장하고 응답으로 변환한다.
+        // 5) 답변 생성 — 트랜잭션 밖에서 수행(외부 I/O로 인한 커넥션 점유 방지).
+        //    요청 성격에 따라 셋 중 하나로 라우팅한다.
+        String answerText = generateAnswer(userId, subject, request.questionText(), images, history);
+
+        // 6) 질문 + 답변 + 첨부를 대화에 저장하고 응답으로 변환한다.
         AiQuestion saved = persist(user, subject, conversation, request.questionText(), answerText, images);
         return AiQuestionResponse.from(saved);
     }
@@ -181,10 +185,13 @@ public class AiQuestionService {
         //    일어난다. 따라서 동기화 없는 StringBuilder로도 동시성 문제가 없다.(부수효과는 doOnNext에서)
         StringBuilder answer = new StringBuilder();
 
-        // 첨부가 없으면 기존처럼 텍스트 전용 스트림, 있으면 이미지를 vision으로 함께 넘긴다.
-        Flux<String> rawTokens = images.isEmpty()
+        // 이어지는 대화면 이전 질문·답변들을 맥락으로 함께 보낸다(후속 질문 이해).
+        List<OpenAiClient.Turn> history = loadHistory(request.conversationId());
+
+        // 첫 질문(맥락·첨부 없음)은 기존 텍스트 전용 스트림, 그 외엔 맥락/이미지를 함께 넘긴다.
+        Flux<String> rawTokens = (images.isEmpty() && history.isEmpty())
                 ? openAiClient.askStream(subject.getCategory(), request.questionText())
-                : openAiClient.askStream(subject.getCategory(), request.questionText(), toImageInputs(images));
+                : openAiClient.askStream(subject.getCategory(), history, request.questionText(), toImageInputs(images));
 
         Flux<ServerSentEvent<String>> tokens = rawTokens
                 .doOnNext(answer::append)                              // 전체 답변 누적(부수효과)
@@ -324,20 +331,45 @@ public class AiQuestionService {
      * 요청 성격에 맞춰 답변(answerText)을 만든다.
      * <ol>
      *   <li>첨부 없음 + 그림 요청 → 이미지 생성 후 마크다운 이미지 답변</li>
-     *   <li>첨부 있음 → 첨부 이미지를 vision으로 함께 넘긴 텍스트 답변</li>
-     *   <li>그 외 → 텍스트 전용 답변</li>
+     *   <li>첫 질문(맥락·첨부 없음) → 텍스트 전용 답변</li>
+     *   <li>그 외 → 이전 맥락(history)·첨부 이미지(vision)를 함께 넘긴 답변</li>
      * </ol>
      */
-    private String generateAnswer(Long userId, Subject subject, String questionText, List<FileAsset> images) {
+    private String generateAnswer(Long userId, Subject subject, String questionText,
+                                  List<FileAsset> images, List<OpenAiClient.Turn> history) {
         if (images.isEmpty() && isImageGenerationRequest(questionText)) {
             byte[] png = openAiImageClient.generatePng(questionText);
             FileAsset generated = fileService.saveGeneratedImage(userId, png);
             return buildImageAnswerText(generated.getFileUrl());
         }
-        if (!images.isEmpty()) {
-            return openAiClient.ask(subject.getCategory(), questionText, toImageInputs(images));
+        if (images.isEmpty() && history.isEmpty()) {
+            return openAiClient.ask(subject.getCategory(), questionText);
         }
-        return openAiClient.ask(subject.getCategory(), questionText);
+        return openAiClient.ask(subject.getCategory(), history, questionText, toImageInputs(images));
+    }
+
+    /** 한 번의 호출에 맥락으로 보낼 최대 이전 턴 수(질문+답변 쌍 기준). 토큰 비용 폭증 방지. */
+    private static final int MAX_HISTORY_TURNS = 10;
+
+    /**
+     * 이어지는 대화의 이전 질문·답변들을 모델에 보낼 맥락으로 변환한다.
+     *
+     * <p>conversationId가 없으면(새 대화) 빈 목록. 있으면 그 대화의 기록을 오래된 순으로
+     * 가져와 최근 {@value #MAX_HISTORY_TURNS}턴만 남긴다. (소유권은 이 메서드 호출 전에
+     * {@link #resolveConversation}에서 이미 검증된다.)</p>
+     */
+    private List<OpenAiClient.Turn> loadHistory(Long conversationId) {
+        if (conversationId == null) {
+            return List.of();
+        }
+        List<OpenAiClient.Turn> turns = aiQuestionRepository
+                .findByConversationIdOrderByCreatedAtAsc(conversationId)
+                .stream()
+                .map(q -> new OpenAiClient.Turn(q.getQuestionText(), q.getAnswerText()))
+                .toList();
+        return turns.size() <= MAX_HISTORY_TURNS
+                ? turns
+                : turns.subList(turns.size() - MAX_HISTORY_TURNS, turns.size());
     }
 
     /** 첨부 이미지(FileAsset)들을 OpenAI vision 입력(바이트 + MIME)으로 변환한다. */

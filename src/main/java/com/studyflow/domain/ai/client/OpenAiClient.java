@@ -4,12 +4,17 @@ import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.subject.enums.SubjectCategory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -95,24 +100,25 @@ public class OpenAiClient {
     }
 
     /**
-     * 첨부 이미지(들)와 함께 질문을 보내 답변을 한 번에 받는다.(동기, vision)
+     * 이전 대화 맥락(history)과 첨부 이미지(들)를 함께 보내 답변을 한 번에 받는다.(동기)
+     *
+     * <p>대화에 이어서 질문하면 이전 질문·답변들을 user/assistant 메시지로 함께 전달해,
+     * "방금 풀어준 문제에서 …"같은 후속 질문을 모델이 이해할 수 있게 한다.</p>
      *
      * <p>이미지는 모델이 외부에서 fetch할 수 있는 공개 URL이 아니라 <b>바이트(base64)</b>로
      * 직접 전달한다. 업로드 파일이 로컬/비공개 저장소에 있어 OpenAI가 URL로 접근할 수 없기
      * 때문이다. Spring AI가 {@code ByteArrayResource}를 data URL로 인코딩해 모델에 넘긴다.</p>
      *
      * @param category     질문 과목 대분류 (null이면 공통 프롬프트만 사용)
-     * @param questionText 학생이 입력한 질문
-     * @param images       첨부 이미지(바이트 + MIME). 비어 있으면 텍스트 전용 호출과 동일.
+     * @param history      이전 질문·답변 쌍들(오래된 순). 비어 있으면 첫 질문과 동일.
+     * @param questionText 학생이 입력한 현재 질문
+     * @param images       첨부 이미지(바이트 + MIME). 비어 있으면 텍스트 전용.
      */
-    public String ask(SubjectCategory category, String questionText, List<ImageInput> images) {
-        if (images == null || images.isEmpty()) {
-            return ask(category, questionText);
-        }
+    public String ask(SubjectCategory category, List<Turn> history, String questionText, List<ImageInput> images) {
         try {
             String answer = chatClient.prompt()
                     .system(buildSystemPrompt(category))
-                    .user(u -> attachUserContent(u, questionText, images))
+                    .messages(buildMessages(history, questionText, images))
                     .call()
                     .content();
 
@@ -123,36 +129,60 @@ public class OpenAiClient {
         } catch (AiServiceException e) {
             throw e;
         } catch (Exception e) {
-            log.error("OpenAI(vision) 호출 실패", e);
+            log.error("OpenAI(대화 맥락) 호출 실패", e);
             throw new AiServiceException("AI 풀이 요청에 실패했습니다.", e);
         }
     }
 
     /**
-     * 첨부 이미지(들)와 함께 질문을 보내 답변을 토큰 단위로 스트리밍한다.(vision)
+     * 이전 대화 맥락(history)과 첨부 이미지(들)를 함께 보내 답변을 토큰 단위로 스트리밍한다.
      *
      * @param category     질문 과목 대분류 (null이면 공통 프롬프트만 사용)
-     * @param questionText 학생이 입력한 질문
-     * @param images       첨부 이미지(바이트 + MIME). 비어 있으면 텍스트 전용 스트림과 동일.
+     * @param history      이전 질문·답변 쌍들(오래된 순). 비어 있으면 첫 질문과 동일.
+     * @param questionText 학생이 입력한 현재 질문
+     * @param images       첨부 이미지(바이트 + MIME). 비어 있으면 텍스트 전용.
      */
-    public Flux<String> askStream(SubjectCategory category, String questionText, List<ImageInput> images) {
-        if (images == null || images.isEmpty()) {
-            return askStream(category, questionText);
-        }
+    public Flux<String> askStream(SubjectCategory category, List<Turn> history, String questionText, List<ImageInput> images) {
         return chatClient.prompt()
                 .system(buildSystemPrompt(category))
-                .user(u -> attachUserContent(u, questionText, images))
+                .messages(buildMessages(history, questionText, images))
                 .stream()
                 .content();
     }
 
-    /** 사용자 메시지에 질문 텍스트와 첨부 이미지(들)를 붙인다. */
-    private void attachUserContent(ChatClient.PromptUserSpec user, String questionText, List<ImageInput> images) {
-        user.text(questionText);
-        for (ImageInput image : images) {
-            MimeType mimeType = parseMime(image.mimeType());
-            user.media(mimeType, new ByteArrayResource(image.data()));
+    /**
+     * 이전 턴들(user/assistant 쌍) + 현재 질문(텍스트, 선택적으로 이미지 동반)으로
+     * 모델에 보낼 메시지 목록을 만든다.
+     *
+     * <p>이전 턴의 첨부 이미지는 다시 보내지 않는다(비용·전송량 절감). 과거 답변 텍스트에
+     * 이미지 분석 내용이 들어 있으므로 후속 질문 맥락으로는 대체로 충분하다.</p>
+     */
+    private List<Message> buildMessages(List<Turn> history, String questionText, List<ImageInput> images) {
+        List<Message> messages = new ArrayList<>();
+        if (history != null) {
+            for (Turn turn : history) {
+                messages.add(new UserMessage(turn.question()));
+                messages.add(new AssistantMessage(turn.answer()));
+            }
         }
+        if (images == null || images.isEmpty()) {
+            messages.add(new UserMessage(questionText));
+        } else {
+            List<Media> media = images.stream()
+                    .map(image -> new Media(parseMime(image.mimeType()), new ByteArrayResource(image.data())))
+                    .toList();
+            messages.add(UserMessage.builder().text(questionText).media(media).build());
+        }
+        return messages;
+    }
+
+    /**
+     * 대화의 한 턴(질문 + 답변). 모델에 이전 맥락으로 전달할 때 쓴다.
+     *
+     * @param question 학생 질문 텍스트
+     * @param answer   AI 답변 텍스트
+     */
+    public record Turn(String question, String answer) {
     }
 
     /** content-type 문자열을 MimeType으로 변환한다(없거나 깨졌으면 image/png로 가정). */
