@@ -73,6 +73,9 @@ public class SecurityConfig {
                         // /api/v1/courses를 PublicUrls에서 제거했으므로 여기서 명시적으로 GET만 허용
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
+                        // 선생님 목록 · 상세 GET — 비로그인 허용 (Spring Security 6 경로 매칭 엄격화 대응)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/teachers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/teachers/*").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 처리
