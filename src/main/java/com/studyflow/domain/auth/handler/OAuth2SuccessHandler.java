@@ -40,7 +40,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${cors.allowed-origins}")
+    @Value("${oauth2.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     @Override

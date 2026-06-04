@@ -18,7 +18,7 @@ import java.io.IOException;
 @Component
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-    @Value("${cors.allowed-origins}")
+    @Value("${oauth2.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     @Override
