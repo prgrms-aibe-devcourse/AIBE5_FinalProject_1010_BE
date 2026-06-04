@@ -124,18 +124,25 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 개발 환경 예시: 프론트엔드(예: Vite)의 로컬 호스트 허용
+        // 개발 환경 예시: 로컬 및 같은 LAN에서 띄운 Vite 프론트엔드 허용
         List<String> origins;
         if (allowedOriginsProp == null || allowedOriginsProp.isBlank()) {
-            origins = List.of("http://localhost:5173");
+            origins = List.of(
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                    "http://192.168.*.*:5173",
+                    "http://10.*.*.*:5173",
+                    "http://172.*.*.*:5173"
+            );
+            configuration.setAllowedOriginPatterns(origins);
         } else {
             // support comma-separated or single value
             origins = java.util.Arrays.stream(allowedOriginsProp.split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .toList();
+            configuration.setAllowedOrigins(origins);
         }
-        configuration.setAllowedOrigins(origins);
         // 허용할 HTTP 메서드 (preflight를 위해 OPTIONS, HEAD 포함)
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         // 허용할 헤더 (필요 시 구체적으로 제한 권장)

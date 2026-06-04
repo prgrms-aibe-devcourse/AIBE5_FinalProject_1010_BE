@@ -1,10 +1,13 @@
 package com.studyflow.domain.chat.controller;
 
 import com.studyflow.domain.chat.dto.request.ChatMessageSendRequest;
+import com.studyflow.domain.chat.dto.request.ChatCallSignalRequest;
 import com.studyflow.domain.chat.dto.request.ChatReadRequest;
+import com.studyflow.domain.chat.dto.response.ChatCallSignalResponse;
 import com.studyflow.domain.chat.dto.response.ChatErrorResponse;
 import com.studyflow.domain.chat.dto.response.ChatMessageResponse;
 import com.studyflow.domain.chat.dto.response.ChatReadResponse;
+import com.studyflow.domain.chat.service.ChatCallSignalService;
 import com.studyflow.domain.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +27,7 @@ import java.security.Principal;
 public class ChatWebSocketController {
 
     private final ChatService chatService;
+    private final ChatCallSignalService chatCallSignalService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -85,6 +89,35 @@ public class ChatWebSocketController {
 
         messagingTemplate.convertAndSend(
                 "/sub/chat-rooms/" + roomId + "/read",
+                response
+        );
+    }
+
+    /**
+     * 보이스톡 WebRTC 신호 중계.
+     *
+     * 클라이언트 발행 경로:
+     * /pub/chat-rooms/{roomId}/calls
+     *
+     * 클라이언트 구독 경로:
+     * /sub/chat-rooms/{roomId}/calls
+     */
+    @MessageMapping("/chat-rooms/{roomId}/calls")
+    public void relayCallSignal(
+            @DestinationVariable Long roomId,
+            ChatCallSignalRequest request,
+            Principal principal
+    ) {
+        Long currentUserId = extractUserId(principal);
+
+        ChatCallSignalResponse response = chatCallSignalService.createSignal(
+                roomId,
+                currentUserId,
+                request
+        );
+
+        messagingTemplate.convertAndSend(
+                "/sub/chat-rooms/" + roomId + "/calls",
                 response
         );
     }

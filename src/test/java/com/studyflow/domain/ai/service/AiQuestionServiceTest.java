@@ -2,13 +2,18 @@ package com.studyflow.domain.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.ai.client.OpenAiClient;
+import com.studyflow.domain.ai.client.OpenAiImageClient;
 import com.studyflow.domain.ai.dto.request.AiQuestionCreateRequest;
 import com.studyflow.domain.ai.dto.response.AiQuestionResponse;
 import com.studyflow.domain.ai.entity.AiQuestion;
+import com.studyflow.domain.ai.entity.Conversation;
+import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
+import com.studyflow.domain.ai.repository.ConversationRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
+import com.studyflow.domain.file.service.FileService;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.enums.SubjectCategory;
 import com.studyflow.domain.subject.repository.SubjectRepository;
@@ -48,6 +53,8 @@ class AiQuestionServiceTest {
     @Mock
     AiQuestionRepository aiQuestionRepository;
     @Mock
+    ConversationRepository conversationRepository;
+    @Mock
     SubjectRepository subjectRepository;
     @Mock
     UserRepository userRepository;
@@ -55,6 +62,10 @@ class AiQuestionServiceTest {
     FileAssetRepository fileAssetRepository;
     @Mock
     OpenAiClient openAiClient;
+    @Mock
+    OpenAiImageClient openAiImageClient;
+    @Mock
+    FileService fileService;
 
     AiQuestionService service;
 
@@ -62,8 +73,8 @@ class AiQuestionServiceTest {
     void setUp() {
         // ObjectMapper는 done 이벤트 직렬화에 실제로 쓰이므로 진짜 인스턴스를 주입한다.
         service = new AiQuestionService(
-                aiQuestionRepository, subjectRepository, userRepository,
-                fileAssetRepository, openAiClient, new ObjectMapper()
+                aiQuestionRepository, conversationRepository, subjectRepository, userRepository,
+                fileAssetRepository, openAiClient, openAiImageClient, fileService, new ObjectMapper()
         );
     }
 
@@ -91,9 +102,11 @@ class AiQuestionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(subjectRepository.findById(3L)).thenReturn(Optional.of(subject));
         when(openAiClient.ask(SubjectCategory.MATH, "2x=4")).thenReturn("x=2 입니다");
+        when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(aiQuestionRepository.save(any(AiQuestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AiQuestionResponse response = service.ask(1L, new AiQuestionCreateRequest(3L, "2x=4", null));
+        // conversationId=null → 새 대화 생성
+        AiQuestionResponse response = service.ask(1L, new AiQuestionCreateRequest(3L, "2x=4", null, null));
 
         // OpenAI는 과목 category와 함께 호출되었다
         verify(openAiClient).ask(SubjectCategory.MATH, "2x=4");
@@ -115,7 +128,7 @@ class AiQuestionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(mock(User.class)));
         when(subjectRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(99L, "q", null)))
+        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(99L, "q", null, null)))
                 .isInstanceOf(SubjectNotFoundException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -127,7 +140,7 @@ class AiQuestionServiceTest {
     void ask_userNotFound() {
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(3L, "q", null)))
+        assertThatThrownBy(() -> service.ask(1L, new AiQuestionCreateRequest(3L, "q", null, null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -147,7 +160,7 @@ class AiQuestionServiceTest {
         when(fileAssetRepository.findByIdInWithUploader(List.of(12L))).thenReturn(List.of(foreign));
 
         assertThatThrownBy(() ->
-                service.ask(1L, new AiQuestionCreateRequest(3L, "q", List.of(12L))))
+                service.ask(1L, new AiQuestionCreateRequest(3L, "q", List.of(12L), null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(openAiClient, never()).ask(any(), any());
@@ -165,10 +178,11 @@ class AiQuestionServiceTest {
         when(subjectRepository.findById(1L)).thenReturn(Optional.of(subject));
         when(openAiClient.askStream(SubjectCategory.KOREAN, "정서?"))
                 .thenReturn(Flux.just("고독", "과 그리움"));
+        when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(aiQuestionRepository.save(any(AiQuestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
         List<ServerSentEvent<String>> events =
-                service.askStream(1L, new AiQuestionCreateRequest(1L, "정서?", null))
+                service.askStream(1L, new AiQuestionCreateRequest(1L, "정서?", null, null))
                         .collectList()
                         .block();
 
@@ -197,10 +211,51 @@ class AiQuestionServiceTest {
         when(subjectRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                service.askStream(1L, new AiQuestionCreateRequest(99L, "q", null)))
+                service.askStream(1L, new AiQuestionCreateRequest(99L, "q", null, null)))
                 .isInstanceOf(SubjectNotFoundException.class);
 
         verify(openAiClient, never()).askStream(any(), any());
+    }
+
+    // ── 상세 조회 getDetail ─────────────────────────
+
+    @Test
+    @DisplayName("getDetail: 본인 기록이면 질문+답변 전체를 반환한다")
+    void getDetail_returnsFullRecordForOwner() {
+        User user = mockUser(1L);
+        // getDetail은 과목의 category를 쓰지 않으므로 필요한 stub만 둔다(불필요 stub 방지).
+        Subject subject = mock(Subject.class);
+        when(subject.getId()).thenReturn(3L);
+        when(subject.getName()).thenReturn("수학");
+        AiQuestion question = AiQuestion.create(user, subject, null, "2x=4?", "x=2 입니다");
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
+
+        AiQuestionResponse response = service.getDetail(1L, 5L);
+
+        assertThat(response.questionText()).isEqualTo("2x=4?");
+        assertThat(response.answerText()).isEqualTo("x=2 입니다");
+        assertThat(response.subjectName()).isEqualTo("수학");
+    }
+
+    @Test
+    @DisplayName("getDetail: 타인 기록이면 AiQuestionNotFoundException(404)")
+    void getDetail_rejectsOtherUsersRecord() {
+        User owner = mock(User.class);
+        when(owner.getId()).thenReturn(999L);  // 다른 사람의 기록
+        AiQuestion question = AiQuestion.create(owner, mock(Subject.class), null, "q", "a");
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.of(question));
+
+        assertThatThrownBy(() -> service.getDetail(1L, 5L))
+                .isInstanceOf(AiQuestionNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("getDetail: 존재하지 않으면 AiQuestionNotFoundException(404)")
+    void getDetail_notFound() {
+        when(aiQuestionRepository.findById(5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getDetail(1L, 5L))
+                .isInstanceOf(AiQuestionNotFoundException.class);
     }
 
     // ── 기록 조회 getMyHistory ──────────────────────────────

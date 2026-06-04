@@ -46,6 +46,8 @@ public enum ErrorCode {
 
     // AI 질문
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),
+    AI_QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "질문 기록을 찾을 수 없습니다."),
+    CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "대화를 찾을 수 없습니다."),
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다.");
 
     private final HttpStatus status;
