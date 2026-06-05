@@ -57,14 +57,43 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # compose/Caddyfile 변경도 함께 배포되도록 매번 동기화
+      # .env를 GitHub Secrets/Variables로부터 러너에서 생성 (시크릿의 단일 출처 = GitHub)
+      - name: Render .env from Secrets/Variables
+        run: |
+          cat > .env << 'ENVEOF'
+          DOCKER_IMAGE=${{ env.IMAGE }}:latest
+          BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
+          BACKEND_URL=${{ vars.BACKEND_URL }}
+          FRONTEND_DOMAIN=${{ vars.FRONTEND_DOMAIN }}
+          FRONTEND_CDN=${{ vars.FRONTEND_CDN }}
+          FRONTEND_URL=${{ vars.FRONTEND_URL }}
+          DB_USERNAME=${{ vars.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+          KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
+          S3_BUCKET=${{ vars.S3_BUCKET }}
+          AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}
+          LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
+          LIVEKIT_URL=${{ vars.LIVEKIT_URL }}
+          ENVEOF
+
+      # compose/Caddyfile/.env 변경도 함께 배포되도록 매번 동기화
       - name: Copy compose files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.prod.yml,Caddyfile"
+          source: "docker-compose.prod.yml,Caddyfile,.env"
           target: /home/ec2-user/studyflow   # Amazon Linux 2023 (EC2_USER=ec2-user)
 
       - name: Deploy on EC2
@@ -76,32 +105,6 @@ jobs:
           script_stop: true
           script: |
             cd ~/studyflow
-            # .env를 GitHub Secrets/Variables로부터 재생성 (시크릿의 단일 출처 = GitHub)
-            cat > .env << 'ENVEOF'
-            DOCKER_IMAGE=${{ env.IMAGE }}:latest
-            BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
-            BACKEND_URL=${{ vars.BACKEND_URL }}
-            FRONTEND_DOMAIN=${{ vars.FRONTEND_DOMAIN }}
-            FRONTEND_CDN=${{ vars.FRONTEND_CDN }}
-            FRONTEND_URL=${{ vars.FRONTEND_URL }}
-            DB_USERNAME=${{ vars.DB_USERNAME }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
-            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
-            NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
-            S3_BUCKET=${{ vars.S3_BUCKET }}
-            AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}
-            AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}
-            LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
-            LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
-            LIVEKIT_URL=${{ vars.LIVEKIT_URL }}
-            ENVEOF
             chmod 600 .env
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.prod.yml pull app
