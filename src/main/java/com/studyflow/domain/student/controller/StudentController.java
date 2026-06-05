@@ -1,5 +1,7 @@
 package com.studyflow.domain.student.controller;
 
+import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
+import com.studyflow.domain.student.dto.StudentEnrolledCourseResponse;
 import com.studyflow.domain.student.dto.StudentProfileResponse;
 import com.studyflow.domain.student.dto.StudentProfileUpdateRequest;
 import com.studyflow.domain.student.service.StudentService;
@@ -7,15 +9,19 @@ import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.auth.controllerutil.CheckAuthInController;
 import jakarta.validation.Valid;
-import org.springframework.validation.annotation.Validated;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -47,5 +53,19 @@ public class StudentController {
 
         StudentProfileResponse response = studentService.updateMyProfile(userId, request);
         return ResponseEntity.ok(response);
+    }
+
+    // 학생 본인 수강 수업 목록 조회
+    // 예시: GET /api/v1/students/me/courses?status=ACTIVE&page=0&size=12
+    @GetMapping("/me/courses")
+    public ResponseEntity<Page<StudentEnrolledCourseResponse>> getMyCourses(
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication,
+            @RequestParam(required = false) EnrollmentStatus status,
+            @PageableDefault(size = 12) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.STUDENT,
+                ProfileAuthInfoException::new);
+
+        return ResponseEntity.ok(studentService.getMyCourses(userId, status, pageable));
     }
 }

@@ -1,6 +1,7 @@
 package com.studyflow.domain.teacher.service;
 
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.repository.CourseRepository.TeacherCourseCount;
 import com.studyflow.domain.teacher.dto.TeacherCardResponse;
@@ -12,7 +13,6 @@ import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
-import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -98,6 +98,19 @@ public class TeacherService {
                 request.getEducation(), request.getIntroduction(), request.getTeachingStyle());
 
         return new TeacherProfileResponse(profile);
+    }
+
+    // 로그인한 선생님 본인의 수업 목록 조회 — status가 null이면 전체 반환, 페이지네이션 지원
+    public Page<TeacherCourseCardResponse> getMyCourses(Long userId, CourseStatus status, Pageable pageable) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        return courseRepository
+                .findWithSubjectByTeacherProfileIdAndStatus(profile.getId(), status, pageable)
+                .map(TeacherCourseCardResponse::from);
     }
 
     // 선생님 상세 조회 — /teachers/:id 페이지용
