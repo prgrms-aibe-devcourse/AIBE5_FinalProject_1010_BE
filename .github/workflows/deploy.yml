@@ -3,7 +3,7 @@
 #
 # 필요한 GitHub Secrets (repo Settings > Secrets and variables > Actions):
 #   EC2_HOST     : EC2 Elastic IP (예: 3.x.x.x)
-#   EC2_USER     : SSH 사용자 (Ubuntu AMI면 ubuntu)
+#   EC2_USER     : SSH 사용자 (Amazon Linux는 ec2-user, Ubuntu는 ubuntu)
 #   EC2_SSH_KEY  : EC2 접속용 pem 키 전체 내용 (-----BEGIN ... 포함)
 #
 # 앱 시크릿(DB/JWT/API키 등)은 GitHub에 두지 않고 EC2의 ~/studyflow/.env에만 둔다.
@@ -62,7 +62,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "docker-compose.prod.yml,Caddyfile"
-          target: /home/ubuntu/studyflow   # EC2_USER=ubuntu 전제
+          target: /home/ec2-user/studyflow   # Amazon Linux 2023 (EC2_USER=ec2-user)
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.2.0

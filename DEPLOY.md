@@ -10,19 +10,31 @@
 ## 1. 사전 준비 (1회)
 
 ### 1-1. EC2
-- Ubuntu 24.04, **t3.medium**, EBS gp3 20GB, **Elastic IP** 연결
-- 보안그룹 인바운드: `22(내 IP만)`, `80`, `443` — **8080/3306/6379는 열지 않는다**
+- 현재 운영 중: **Amazon Linux 2023, t3.micro** (관리자 제공, 키 페어 Team10_1010) + **Elastic IP**
+- 보안그룹 인바운드: `22`, `80`, `443` — **8080/3306/6379는 열지 않는다**
+  (22는 GitHub Actions가 SSH 배포에 사용하므로 0.0.0.0/0 필요)
+- ⚠️ t3.micro는 RAM 1GB라 **swap 2GB 필수** (아래 1-3에 포함)
 
 ### 1-2. DuckDNS (백엔드 도메인)
 1. https://www.duckdns.org 로그인(GitHub 계정 가능) → 서브도메인 생성 (예: `studyflow-api`)
 2. current ip에 **Elastic IP** 입력 → update ip
 3. `studyflow-api.duckdns.org` → Elastic IP 확인: `nslookup studyflow-api.duckdns.org`
 
-### 1-3. EC2 초기 세팅
+### 1-3. EC2 초기 세팅 (Amazon Linux 2023 기준)
 ```bash
-# Docker 설치
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker ubuntu   # 적용하려면 재로그인
+# swap 2GB (t3.micro 메모리 보강, 재부팅에도 유지)
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Docker + Compose 플러그인 설치
+sudo dnf install -y docker
+sudo systemctl enable --now docker
+sudo usermod -aG docker ec2-user   # 적용하려면 재로그인
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # 배포 디렉토리
 mkdir -p ~/studyflow && cd ~/studyflow
@@ -38,7 +50,7 @@ chmod 600 .env
 | Secret | 값 |
 |---|---|
 | `EC2_HOST` | Elastic IP |
-| `EC2_USER` | `ubuntu` |
+| `EC2_USER` | `ec2-user` (Amazon Linux) |
 | `EC2_SSH_KEY` | pem 키 파일 전체 내용 |
 
 ### 1-5. 소셜 로그인 콘솔 (카카오/구글/네이버)
