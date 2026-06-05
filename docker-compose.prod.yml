@@ -62,6 +62,9 @@ services:
     image: mysql:8.0
     container_name: studyflow-mysql
     restart: unless-stopped
+    ports:
+      # 호스트 루프백 전용 — 인터넷 비노출. SSH 터널(Workbench 등)로만 접근 가능
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_DATABASE: studyflow
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
