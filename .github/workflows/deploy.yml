@@ -13,8 +13,9 @@ name: Deploy Backend to EC2
 
 on:
   push:
-    branches: [develop]
-  workflow_dispatch: {}   # 수동 실행 버튼
+    # TODO: develop 머지 후 chore/deploy-setup은 제거
+    branches: [develop, chore/deploy-setup]
+  workflow_dispatch: {}   # 수동 실행 버튼 (develop에 머지된 후부터 버튼 표시됨)
 
 env:
   # GHCR 이미지 이름은 소문자만 허용
@@ -61,7 +62,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "docker-compose.prod.yml,Caddyfile"
-          target: ~/studyflow
+          target: /home/ubuntu/studyflow   # EC2_USER=ubuntu 전제
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.2.0
