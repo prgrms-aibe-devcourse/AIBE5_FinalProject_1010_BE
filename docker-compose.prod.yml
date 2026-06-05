@@ -1,26 +1,60 @@
-# 배포용 - Spring Boot + MySQL 함께 실행
-# EC2에서 사용
+# =====================================================================
+# 배포용 — EC2에서 사용 (Caddy + Spring Boot + MySQL + Redis)
+# - 환경변수는 같은 디렉토리의 .env 파일에서 주입 (.env.prod.example 참고)
+# - 외부에는 80/443(Caddy)만 노출. 8080/3306/6379는 내부 네트워크 전용.
+# - 배포 절차는 DEPLOY.md 참고
+# =====================================================================
 
 services:
-  app:
-    image: ${DOCKER_IMAGE}   # GitHub Actions에서 빌드한 이미지
-    container_name: studyflow-app
+  caddy:
+    image: caddy:2-alpine
+    container_name: studyflow-caddy
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    environment:
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN}   # 예: studyflow-api.duckdns.org
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # Let's Encrypt 인증서 보존 (지우면 재발급 → rate limit 주의)
+      - caddy-config:/config
+    depends_on:
+      - app
+
+  app:
+    image: ${DOCKER_IMAGE}   # GitHub Actions에서 빌드한 이미지 (ghcr.io/...)
+    container_name: studyflow-app
+    restart: unless-stopped
+    # ports 미개방 — Caddy가 내부 네트워크로 프록시 (app:8080)
     environment:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}       # 예: https://dxxxx.cloudfront.net
+      BACKEND_URL: ${BACKEND_URL}         # 예: https://studyflow-api.duckdns.org
       S3_BUCKET: ${S3_BUCKET}
       AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
       AWS_SECRET_KEY: ${AWS_SECRET_KEY}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       LIVEKIT_URL: ${LIVEKIT_URL}
+    volumes:
+      # FileService가 로컬 디스크(작업 디렉토리 기준 uploads/)에 저장 — 컨테이너 재생성에도 보존
+      - uploads-data:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
+      redis-server:
+        condition: service_started
 
   mysql:
     image: mysql:8.0
@@ -38,5 +72,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis-server:
+    image: redis:alpine
+    container_name: studyflow-redis
+    restart: unless-stopped
+    # AOF를 켜고, 파일 크기가 이전보다 100% 커지거나 64mb를 넘으면 Rewrite 최적화
+    command: >
+      redis-server  --requirepass ${REDIS_PASSWORD}  --appendonly yes  --auto-aof-rewrite-percentage 100  --auto-aof-rewrite-min-size 64mb
+    volumes:
+      - redis-data:/data
+
 volumes:
   mysql-data:
+  redis-data:
+  caddy-data:
+  caddy-config:
+  uploads-data:

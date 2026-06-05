@@ -23,6 +23,8 @@ src/main/resources/application.yml
 src/main/resources/application-*.yml
 src/main/resources/application-secret.yml   # OpenAI 키 등 비밀값 (절대 커밋 금지)
 !src/main/resources/application.yml.example
+# prod 설정은 시크릿이 전부 환경변수 참조라 커밋 허용 (비밀값 직접 기입 금지!)
+!src/main/resources/application-prod.yml
 src/test/resources/application.yml
 
 ### AWS ###
@@ -34,6 +36,7 @@ src/test/resources/application.yml
 .env
 .env.*
 !.env-example
+!.env.prod.example
 docker-compose.override.yml
 
 ### Logs ###

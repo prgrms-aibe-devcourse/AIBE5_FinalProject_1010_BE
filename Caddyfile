@@ -1,0 +1,6 @@
+# 백엔드 HTTPS 종단 — BACKEND_DOMAIN(예: studyflow-api.duckdns.org)으로
+# Let's Encrypt 인증서를 자동 발급/갱신하고 Spring Boot로 프록시한다.
+# WebSocket(STOMP)과 SSE 스트리밍은 Caddy가 자동으로 처리한다.
+{$BACKEND_DOMAIN} {
+	reverse_proxy app:8080
+}

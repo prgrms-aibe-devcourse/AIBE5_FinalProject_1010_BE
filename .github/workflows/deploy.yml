@@ -1,0 +1,78 @@
+# =====================================================================
+# develop push → Docker 이미지 빌드(GHCR) → EC2에 SSH 배포
+#
+# 필요한 GitHub Secrets (repo Settings > Secrets and variables > Actions):
+#   EC2_HOST     : EC2 Elastic IP (예: 3.x.x.x)
+#   EC2_USER     : SSH 사용자 (Ubuntu AMI면 ubuntu)
+#   EC2_SSH_KEY  : EC2 접속용 pem 키 전체 내용 (-----BEGIN ... 포함)
+#
+# 앱 시크릿(DB/JWT/API키 등)은 GitHub에 두지 않고 EC2의 ~/studyflow/.env에만 둔다.
+# (.env.prod.example 참고)
+# =====================================================================
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+env:
+  # GHCR 이미지 이름은 소문자만 허용
+  IMAGE: ghcr.io/prgrms-aibe-devcourse/aibe5_finalproject_1010_be
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # GHCR push 권한
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          # Gradle 의존성 레이어 캐시 — 두 번째 빌드부터 크게 빨라짐
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # compose/Caddyfile 변경도 함께 배포되도록 매번 동기화
+      - name: Copy compose files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.prod.yml,Caddyfile"
+          target: ~/studyflow
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ~/studyflow
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
