@@ -66,6 +66,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
+                        // getOptionalAuthUrls() 경로: GET만 JwtFilter에서 optional 처리 (JwtAuthenticationFilter 참고).
+                        // POST/PATCH/DELETE 보호는 위 역할 기반 규칙이 담당하므로 이 permitAll()은 GET에만 유효.
                         .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용 - getOptionalAuthUrls()에 반영
