@@ -1,13 +1,16 @@
 # =====================================================================
 # develop push → Docker 이미지 빌드(GHCR) → EC2에 SSH 배포
 #
-# 필요한 GitHub Secrets (repo Settings > Secrets and variables > Actions):
-#   EC2_HOST     : EC2 Elastic IP (예: 3.x.x.x)
-#   EC2_USER     : SSH 사용자 (Amazon Linux는 ec2-user, Ubuntu는 ubuntu)
-#   EC2_SSH_KEY  : EC2 접속용 pem 키 전체 내용 (-----BEGIN ... 포함)
+# 설정 관리 (repo Settings > Secrets and variables > Actions):
+# - Secrets(비밀값): EC2_HOST/EC2_USER/EC2_SSH_KEY(배포용),
+#   DB_PASSWORD/REDIS_PASSWORD/JWT_SECRET/OPENAI_API_KEY,
+#   KAKAO·GOOGLE·NAVER_CLIENT_ID/SECRET, AWS_ACCESS_KEY/AWS_SECRET_KEY,
+#   LIVEKIT_API_KEY/LIVEKIT_API_SECRET
+# - Variables(공개 가능한 설정): BACKEND_DOMAIN/BACKEND_URL,
+#   FRONTEND_DOMAIN/FRONTEND_CDN/FRONTEND_URL, DB_USERNAME, S3_BUCKET, LIVEKIT_URL
 #
-# 앱 시크릿(DB/JWT/API키 등)은 GitHub에 두지 않고 EC2의 ~/studyflow/.env에만 둔다.
-# (.env.prod.example 참고)
+# 서버의 ~/studyflow/.env는 배포할 때마다 위 값들로 자동 생성된다.
+# → 키를 바꾸려면: GitHub에서 Secret/Variable 수정 → Actions 재실행(또는 push)
 # =====================================================================
 name: Deploy Backend to EC2
 
@@ -73,6 +76,33 @@ jobs:
           script_stop: true
           script: |
             cd ~/studyflow
+            # .env를 GitHub Secrets/Variables로부터 재생성 (시크릿의 단일 출처 = GitHub)
+            cat > .env << 'ENVEOF'
+            DOCKER_IMAGE=${{ env.IMAGE }}:latest
+            BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
+            BACKEND_URL=${{ vars.BACKEND_URL }}
+            FRONTEND_DOMAIN=${{ vars.FRONTEND_DOMAIN }}
+            FRONTEND_CDN=${{ vars.FRONTEND_CDN }}
+            FRONTEND_URL=${{ vars.FRONTEND_URL }}
+            DB_USERNAME=${{ vars.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
+            NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
+            S3_BUCKET=${{ vars.S3_BUCKET }}
+            AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}
+            AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}
+            LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
+            LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
+            LIVEKIT_URL=${{ vars.LIVEKIT_URL }}
+            ENVEOF
+            chmod 600 .env
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.prod.yml pull app
             docker compose -f docker-compose.prod.yml up -d

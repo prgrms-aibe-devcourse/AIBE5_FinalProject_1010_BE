@@ -37,21 +37,26 @@ sudo curl -sSL https://github.com/docker/compose/releases/latest/download/docker
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # 배포 디렉토리
-mkdir -p ~/studyflow && cd ~/studyflow
-
-# .env 작성 (repo의 .env.prod.example 내용 복사 후 실제 값 채우기)
-nano .env
-chmod 600 .env
+mkdir -p ~/studyflow
 ```
-- `JWT_SECRET`은 새로 생성: `openssl rand -base64 32`
-- `docker-compose.prod.yml`, `Caddyfile`은 첫 배포 워크플로우가 자동 복사함 (scp 단계)
+- `~/studyflow/.env`는 **배포 워크플로우가 GitHub Secrets/Variables로부터 매번 자동 생성**한다 — 서버에서 직접 만들 필요 없음 (`.env.prod.example`은 항목 참고용)
+- `docker-compose.prod.yml`, `Caddyfile`도 배포 때마다 자동 복사됨 (scp 단계)
 
-### 1-4. GitHub Secrets (BE repo → Settings > Secrets and variables > Actions)
-| Secret | 값 |
+### 1-4. GitHub Secrets / Variables (BE repo → Settings > Secrets and variables > Actions)
+
+**시크릿/설정의 단일 출처는 GitHub.** 값을 바꾸려면 여기서 수정 후 Actions 재실행(또는 push).
+
+| Secrets (비밀값) | Variables (공개 가능 설정) |
 |---|---|
-| `EC2_HOST` | Elastic IP |
-| `EC2_USER` | `ec2-user` (Amazon Linux) |
-| `EC2_SSH_KEY` | pem 키 파일 전체 내용 |
+| `EC2_HOST` / `EC2_USER` / `EC2_SSH_KEY` (배포용) | `BACKEND_DOMAIN` / `BACKEND_URL` |
+| `DB_PASSWORD` / `REDIS_PASSWORD` / `JWT_SECRET` | `FRONTEND_DOMAIN` / `FRONTEND_CDN` / `FRONTEND_URL` |
+| `OPENAI_API_KEY` | `DB_USERNAME` |
+| `KAKAO·GOOGLE·NAVER_CLIENT_ID/SECRET` (6개) | `S3_BUCKET` |
+| `AWS_ACCESS_KEY` / `AWS_SECRET_KEY` | `LIVEKIT_URL` |
+| `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | |
+
+- ⚠️ `EC2_SSH_KEY` 등록 시 PowerShell 파이프 금지(키 손상됨) — **bash에서** `tr -d '\r' < key.pem | gh secret set EC2_SSH_KEY -R <repo>`
+- `JWT_SECRET` 새로 생성: `openssl rand -base64 32`
 
 ### 1-5. 소셜 로그인 콘솔 (카카오/구글/네이버)
 - redirect URI 추가: `https://<백엔드도메인>/login/oauth2/code/{kakao|google|naver}`
