@@ -102,9 +102,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // optional auth URL — 토큰이 있으면 인증 정보 세팅, 없거나 이상하면 그냥 통과
+        // optional auth URL — GET 요청일 때만 적용: 토큰이 있으면 인증 정보 세팅, 없거나 이상하면 그냥 통과
+        // GET 이외의 메서드는 아래 일반 access token 인증 로직으로 처리
         for (String optionalUrl : publicUrlProvider.getOptionalAuthUrls()) {
-            if (PATH_MATCHER.match(optionalUrl, servletPath)) {
+            if (PATH_MATCHER.match(optionalUrl, servletPath) && "GET".equalsIgnoreCase(request.getMethod())) {
                 if (StringUtils.hasText(token)) {
                     try {
                         Claims claims = jwtTokenProvider.validateAndGetClaims(token);

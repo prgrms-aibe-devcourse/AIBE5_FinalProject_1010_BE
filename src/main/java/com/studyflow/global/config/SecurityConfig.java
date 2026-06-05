@@ -68,13 +68,7 @@ public class SecurityConfig {
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
-                        // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
-                        // /api/v1/courses는 POST(TEACHER 전용)가 있어 PublicUrls에서 제외하고 GET만 명시적 허용
-                        .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/*").permitAll()
-                        // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
-                        .requestMatchers(HttpMethod.GET, "/api/v1/teachers").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/teachers/*").permitAll()
+                        // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용 - getOptionalAuthUrls()에 반영
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

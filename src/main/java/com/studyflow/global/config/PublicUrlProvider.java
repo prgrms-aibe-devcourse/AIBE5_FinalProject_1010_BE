@@ -1,5 +1,6 @@
 package com.studyflow.global.config;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
 //애플리케이션에서 공개(permitAll) URL 목록을 중앙에서 관리합니다.
@@ -32,12 +33,20 @@ public class PublicUrlProvider {
         };
     }
 
-    // access token이 있으면 읽어들이고, 없으면 스킵
+    // GET 요청에 한하여, access token이 있으면 읽어들이고, 없으면 스킵
     // SecurityConfig에서는 permitAll(), jwtAuthenticationFilter는 건너뛰지 않음
-    // 해당 url의 모든 HTTP 메서드 요청에 대해 적용됨
+    // GET 요청이 아니면 일반 access token 검증 로직을 거침
     // 메서드별로 다르게 적용되는 경우 SecurityConfig에 직접 작성 필요
     public String[] getOptionalAuthUrls() {
-        return new String[] { };
+        return new String[] {
+                // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
+                // /api/v1/courses는 POST(TEACHER 전용)가 있어 PublicUrls에서 제외하고 GET만 명시적 허용
+                "/api/v1/courses",
+                "/api/v1/courses/*",
+                // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
+                "/api/v1/teachers",
+                "/api/v1/teachers/*"
+        };
     }
 
     // access token 기반 인증이 아닌 url 목록
