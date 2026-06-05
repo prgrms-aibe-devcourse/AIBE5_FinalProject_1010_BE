@@ -1,5 +1,6 @@
 package com.studyflow.domain.course.dto.notice;
 
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import com.studyflow.domain.course.entity.CourseNotice;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,7 +19,7 @@ public class CourseNoticeResponse {
     private boolean important;
     private Long authorId;
     private String authorName;
-    private List<NoticeAttachmentInfo> attachments;
+    private List<CourseAttachmentInfo> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

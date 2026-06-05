@@ -1,7 +1,7 @@
 package com.studyflow.domain.course.dto.post;
 
 import com.studyflow.domain.course.dto.comment.CoursePostCommentResponse;
-import com.studyflow.domain.course.dto.notice.NoticeAttachmentInfo;
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import com.studyflow.domain.course.entity.CoursePost;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,7 +21,7 @@ public class CoursePostDetailResponse {
     private int viewCount;
     private Long authorId;
     private String authorName;
-    private List<NoticeAttachmentInfo> attachments;
+    private List<CourseAttachmentInfo> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<CoursePostCommentResponse> comments;

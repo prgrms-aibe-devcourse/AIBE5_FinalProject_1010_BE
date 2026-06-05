@@ -1,7 +1,7 @@
 package com.studyflow.domain.course.entity;
 
 import com.studyflow.domain.course.converter.NoticeAttachmentListConverter;
-import com.studyflow.domain.course.dto.notice.NoticeAttachmentInfo;
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -58,7 +58,7 @@ public class CourseNotice extends BaseTimeEntity {
     // 첨부파일 목록 — JSON으로 직렬화해 TEXT 컬럼에 저장
     @Convert(converter = NoticeAttachmentListConverter.class)
     @Column(name = "attachments", columnDefinition = "TEXT")
-    private List<NoticeAttachmentInfo> attachments = new ArrayList<>();
+    private List<CourseAttachmentInfo> attachments = new ArrayList<>();
 
     // null이면 정상 상태, 값이 있으면 소프트 딜리트된 공지
     @Column
@@ -67,7 +67,7 @@ public class CourseNotice extends BaseTimeEntity {
     public static CourseNotice create(
             User user, Course course,
             String title, String content, boolean important,
-            List<NoticeAttachmentInfo> attachments) {
+            List<CourseAttachmentInfo> attachments) {
         CourseNotice notice = new CourseNotice();
         notice.user = user;
         notice.course = course;
@@ -79,7 +79,7 @@ public class CourseNotice extends BaseTimeEntity {
     }
 
     public void update(String title, String content, boolean important,
-                       List<NoticeAttachmentInfo> attachments) {
+                       List<CourseAttachmentInfo> attachments) {
         this.title = title;
         this.content = content;
         this.important = important;

@@ -1,6 +1,6 @@
 package com.studyflow.domain.course.dto.post;
 
-import com.studyflow.domain.course.dto.notice.NoticeAttachmentInfo;
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -20,5 +20,5 @@ public class CoursePostCreateRequest {
     private String content;
 
     @Size(max = 10, message = "첨부파일은 최대 10개까지 등록할 수 있습니다.")
-    private List<NoticeAttachmentInfo> attachments = new ArrayList<>();
+    private List<CourseAttachmentInfo> attachments = new ArrayList<>();
 }

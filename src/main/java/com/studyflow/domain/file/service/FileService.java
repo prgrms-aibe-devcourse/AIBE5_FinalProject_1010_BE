@@ -37,7 +37,7 @@ public class FileService {
     );
 
     /**
-     * 허용 확장자 화이트리스트. (소문자로 비교)
+     * 허용 이미지 확장자 화이트리스트. (소문자로 비교)
      *
      * Content-Type(클라이언트가 보낸 헤더, 위조 가능) 외에 확장자도 한 겹 더 검사한다.
      */
@@ -47,6 +47,9 @@ public class FileService {
             ".png",
             ".webp"
     );
+
+    /** 허용 PDF 확장자 화이트리스트. 이미지와 동일한 패턴으로 관리한다. */
+    private static final Set<String> ALLOWED_PDF_EXTENSIONS = Set.of(".pdf");
 
     /**
      * 로컬 저장 루트의 절대경로. 기동 시 한 번 고정해 저장/읽기가 항상 같은 기준점을 쓰게 한다.
@@ -312,9 +315,16 @@ public class FileService {
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
 
-        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
-        boolean isImage = ALLOWED_IMAGE_TYPES.contains(contentType);
-        boolean isPdf   = "application/pdf".equals(contentType);
+        // TODO: 공지/게시글 수정 시 이전 첨부파일(FileAsset + 실제 파일)이 삭제되지 않아 고아 파일이 누적됨.
+        //       updateNotice/updatePost 호출 측에서 제거된 objectKey를 추적해 파일 삭제 로직을 추가해야 함.
+
+        // 1단계: 확장자 화이트리스트 — Content-Type은 위조 가능하므로 확장자로 타입을 먼저 결정
+        String originalFileName = file.getOriginalFilename();
+        String extension = extractExtension(originalFileName).toLowerCase();
+        String contentType = file.getContentType();
+        long fileSize = file.getSize();
+        boolean isImage = ALLOWED_EXTENSIONS.contains(extension);   // .jpg/.jpeg/.png/.webp
+        boolean isPdf   = ALLOWED_PDF_EXTENSIONS.contains(extension);
 
         if (!isImage && !isPdf) {
             throw new IllegalArgumentException("이미지(jpg/png/webp) 또는 PDF 파일만 업로드할 수 있습니다.");
@@ -328,14 +338,11 @@ public class FileService {
         User uploader = userRepository.findById(uploaderId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        String originalFileName = file.getOriginalFilename();
-        String extension = extractExtension(originalFileName).toLowerCase();
-
         try {
             byte[] bytes = file.getBytes();
 
+            // 2단계: 매직바이트 — 실제 파일 내용이 확장자와 일치하는지 확인
             if (isImage) {
-                validateExtension(extension);
                 validateMagicBytes(bytes);
             } else {
                 // PDF 매직바이트 검사: %PDF → 25 50 44 46
@@ -359,10 +366,10 @@ public class FileService {
             FileAsset asset = isPdf
                     ? FileAsset.createFile(uploader, originalFileName, sf.storedFileName(),
                             FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(),
-                            file.getContentType(), file.getSize(), category)
+                            contentType, fileSize, category)
                     : FileAsset.createImage(uploader, originalFileName, sf.storedFileName(),
                             FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(), null,
-                            file.getContentType(), file.getSize(), width, height);
+                            contentType, fileSize, width, height);
 
             FileAsset saved = fileAssetRepository.save(asset);
 

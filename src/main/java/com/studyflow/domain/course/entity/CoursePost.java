@@ -1,7 +1,7 @@
 package com.studyflow.domain.course.entity;
 
 import com.studyflow.domain.course.converter.NoticeAttachmentListConverter;
-import com.studyflow.domain.course.dto.notice.NoticeAttachmentInfo;
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -56,14 +56,14 @@ public class CoursePost extends BaseTimeEntity {
     // 첨부파일 목록 — JSON으로 직렬화해 TEXT 컬럼에 저장
     @Convert(converter = NoticeAttachmentListConverter.class)
     @Column(name = "attachments", columnDefinition = "TEXT")
-    private List<NoticeAttachmentInfo> attachments = new ArrayList<>();
+    private List<CourseAttachmentInfo> attachments = new ArrayList<>();
 
     // null이면 정상 상태, 값이 있으면 소프트 딜리트된 게시글
     @Column
     private LocalDateTime deletedAt;
 
     public static CoursePost create(User user, Course course, String title, String content,
-                                    List<NoticeAttachmentInfo> attachments) {
+                                    List<CourseAttachmentInfo> attachments) {
         CoursePost post = new CoursePost();
         post.user = user;
         post.course = course;
@@ -73,7 +73,7 @@ public class CoursePost extends BaseTimeEntity {
         return post;
     }
 
-    public void update(String title, String content, List<NoticeAttachmentInfo> attachments) {
+    public void update(String title, String content, List<CourseAttachmentInfo> attachments) {
         this.title = title;
         this.content = content;
         this.attachments = attachments != null ? attachments : new ArrayList<>();
