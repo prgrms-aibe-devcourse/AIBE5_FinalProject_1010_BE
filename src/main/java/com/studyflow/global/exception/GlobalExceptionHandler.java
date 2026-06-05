@@ -18,6 +18,7 @@ import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
+import com.studyflow.domain.user.exception.InvalidUserUpdateException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -133,6 +134,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDeleteAdminException(DeleteAdminException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    // ── 회원정보 관련 예외 처리 ──────────────────────
+
+    // 회원정보 수정 request가 유효하지 않은 경우
+    @ExceptionHandler(InvalidUserUpdateException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidUserUpdateException(InvalidUserUpdateException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────
