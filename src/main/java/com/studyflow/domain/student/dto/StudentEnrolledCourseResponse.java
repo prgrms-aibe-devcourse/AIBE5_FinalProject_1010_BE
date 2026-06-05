@@ -21,6 +21,8 @@ public class StudentEnrolledCourseResponse {
     private String thumbnailUrl;
     private CourseStatus courseStatus;
     private EnrollmentStatus enrollmentStatus;
+    private Long teacherProfileId;
+    private String teacherName;
 
     public static StudentEnrolledCourseResponse from(Enrollment enrollment) {
         return StudentEnrolledCourseResponse.builder()
@@ -34,6 +36,8 @@ public class StudentEnrolledCourseResponse {
                 .thumbnailUrl(enrollment.getCourse().getThumbnailUrl())
                 .courseStatus(enrollment.getCourse().getStatus())
                 .enrollmentStatus(enrollment.getStatus())
+                .teacherProfileId(enrollment.getCourse().getTeacherProfile().getId())
+                .teacherName(enrollment.getCourse().getTeacherProfile().getUser().getName())
                 .build();
     }
 }

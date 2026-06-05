@@ -44,6 +44,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     @Query(value = "SELECT e FROM Enrollment e " +
                    "JOIN FETCH e.course c " +
                    "JOIN FETCH c.subject " +
+                   "JOIN FETCH c.teacherProfile tp " +
+                   "JOIN FETCH tp.user " +
                    "WHERE e.user.id = :userId " +
                    "AND (:status IS NULL OR e.status = :status)",
            countQuery = "SELECT COUNT(e) FROM Enrollment e " +

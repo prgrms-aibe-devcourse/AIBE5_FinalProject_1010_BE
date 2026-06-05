@@ -1,9 +1,6 @@
 package com.studyflow.domain.teacher.controller;
 
-import com.studyflow.domain.teacher.dto.TeacherCardResponse;
-import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
-import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
-import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.domain.teacher.dto.*;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.service.TeacherService;
@@ -77,10 +74,10 @@ public class TeacherController {
     // 로그인한 선생님 본인의 수업 목록 조회
     // 예시: GET /api/v1/teachers/me/courses?status=RECRUITING&page=0&size=12
     @GetMapping("/me/courses")
-    public ResponseEntity<?> getMyCourses(@AuthenticationPrincipal Long userId,
-                                          Authentication authentication,
-                                          @RequestParam(required = false) CourseStatus status,
-                                          @PageableDefault(size = 12) Pageable pageable) {
+    public ResponseEntity<Page<TeacherCourseCardResponse>> getMyCourses(@AuthenticationPrincipal Long userId,
+                                                                        Authentication authentication,
+                                                                        @RequestParam(required = false) CourseStatus status,
+                                                                        @PageableDefault(size = 12) Pageable pageable) {
         CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
                 ProfileAuthInfoException::new);
 
