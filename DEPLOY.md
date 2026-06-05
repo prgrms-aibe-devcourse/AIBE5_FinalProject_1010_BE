@@ -99,7 +99,40 @@ mkdir -p ~/studyflow
 | 재개 | EC2 Start → (IP 바뀌었으면 Elastic IP 재연결 + DuckDNS ip 갱신) → 컨테이너는 `restart: unless-stopped`라 자동 기동 |
 | S3/CloudFront | 트래픽 과금이라 그대로 둬도 사실상 $0 |
 
-## 5. 트러블슈팅
+## 5. 리소스 인벤토리 (2026-06-05 기준)
+
+> ⚠️ **공유 계정 주의**: 이 AWS 계정은 데브코스 전체 팀이 공유한다. **`Team10_1010` / `studyflow-*` 이름이 붙은 리소스만** 만질 것. (특히 `i-05c54a0b9f977b6c8`는 3팀 서버 — 절대 건드리지 말 것)
+
+| 리소스 | 식별자 | 비고 |
+|---|---|---|
+| EC2 | `i-0347e57c3d9e685ab` (Team10_1010, t3.micro, AL2023) | 관리자 생성. Caddy+App+MySQL+Redis 도커 4컨테이너, swap 2GB |
+| Elastic IP | `43.201.117.205` | DuckDNS 2개가 가리킴 |
+| S3 | `studyflow-frontend-team10` | FE 정적 파일 (비공개+OAC) |
+| CloudFront | `EID9Z97EIJMCN` (d355xfn1ixngze.cloudfront.net) | OAC: `E3TFMTM47OPJN4` |
+| DuckDNS | `studyflow1010`(사이트), `studyflow-api`(API) | 무료, duckdns.org 계정에서 관리 |
+| GHCR | `ghcr.io/prgrms-aibe-devcourse/aibe5_finalproject_1010_be` | 백엔드 이미지 |
+| 미사용 | RDS / EB / ACM / ELB / Route53 | 대체: EC2내 Docker MySQL / Actions / Caddy·Let's Encrypt / Caddy / DuckDNS |
+
+## 6. 전체 철거 절차 (예정: 시연 후 전부 삭제 → t3.medium으로 재구축)
+
+1. (선택) DB 백업: `docker exec studyflow-mysql mysqldump -uroot -p1234 studyflow > backup.sql`
+2. EC2 **Terminate** (`i-0347e57c3d9e685ab`) — EBS 루트 볼륨 자동 삭제, **DB 데이터 소멸**
+3. Elastic IP **release** (43.201.117.205)
+4. S3 비우고 삭제: `aws s3 rb s3://studyflow-frontend-team10 --force`
+5. CloudFront: 배포 **비활성화 → (배포 완료 대기) → 삭제**, OAC 삭제
+6. 남겨도 되는 것(무료): GitHub Secrets/Variables/워크플로우, DuckDNS 도메인, GHCR 이미지 — 재구축 때 재사용
+
+## 7. 재구축 절차 (t3.medium 기준)
+
+1. EC2 생성: **t3.medium**, AL2023(또는 Ubuntu — DEPLOY 1-3 명령 분기 주의), gp3 20GB, 보안그룹 22/80/443, 새 키페어 pem 보관
+2. Elastic IP 할당·연결 → **DuckDNS 2개 도메인 IP 갱신** (duckdns.org)
+3. GitHub Secret 갱신: `EC2_HOST`(새 IP), `EC2_SSH_KEY`(새 pem — bash에서 `tr -d '\r' < pem | gh secret set ...`)
+4. 서버 초기화: 1-3 절차 (Docker/compose 설치, ~/studyflow 디렉토리. **medium이면 swap 생략 가능**)
+5. S3/CloudFront 재생성(삭제했다면) → FE Secrets(`S3_FRONTEND_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`) + BE Variable(`FRONTEND_CDN`) 갱신
+6. BE/FE Actions **Re-run** → 사이트·API 복구 확인
+7. (백업 떴다면) DB 복원: `docker exec -i studyflow-mysql mysql -uroot -p1234 studyflow < backup.sql`
+
+## 8. 트러블슈팅
 
 - **HTTPS 인증서 발급 실패**: DuckDNS가 Elastic IP를 정확히 가리키는지, 80/443이 열려 있는지 확인. `docker compose -f docker-compose.prod.yml logs caddy`
 - **CORS 에러**: `.env`의 `FRONTEND_URL`이 CloudFront 주소와 정확히 일치하는지 (끝 슬래시 없이)
