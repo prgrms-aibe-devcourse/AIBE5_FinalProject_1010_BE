@@ -14,7 +14,9 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      BACKEND_DOMAIN: ${BACKEND_DOMAIN}   # 예: studyflow-api.duckdns.org
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN}    # 예: studyflow-api.duckdns.org
+      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}  # 예: studyflow1010.duckdns.org
+      FRONTEND_CDN: ${FRONTEND_CDN}        # 예: dxxxx.cloudfront.net (프록시 대상)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data        # Let's Encrypt 인증서 보존 (지우면 재발급 → rate limit 주의)
