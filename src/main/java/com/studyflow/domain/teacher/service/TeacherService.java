@@ -7,6 +7,7 @@ import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherCourseCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
+import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.global.exception.ErrorCode;
@@ -80,6 +81,21 @@ public class TeacherService {
 
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        return new TeacherProfileResponse(profile);
+    }
+
+    // 로그인한 선생님 본인의 프로필 수정
+    @Transactional
+    public TeacherProfileResponse updateMyProfile(Long userId, TeacherProfileUpdateRequest request) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        profile.update(request.getAddress(), request.getAwards(), request.getCareer(),
+                request.getEducation(), request.getIntroduction(), request.getTeachingStyle());
 
         return new TeacherProfileResponse(profile);
     }

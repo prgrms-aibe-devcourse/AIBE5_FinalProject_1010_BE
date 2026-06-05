@@ -39,5 +39,13 @@ public class StudentProfile extends BaseTimeEntity {
         p.user = user;
         return p;
     }
+
+    // 프로필 수정 — 빈 문자열 포함 전달된 값 그대로 반영
+    public void update(String goal, String grade, String interestSubjects, String region) {
+        this.goal             = goal;
+        this.grade            = grade;
+        this.interestSubjects = interestSubjects;
+        this.region           = region;
+    }
 }
 

@@ -17,6 +17,7 @@ import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
+import com.studyflow.domain.teacher.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
@@ -144,6 +145,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidUserUpdateException(InvalidUserUpdateException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // 프로필 조회 및 수정 관련 인증 및 권한 이슈
+    @ExceptionHandler(ProfileAuthInfoException.class)
+    public ResponseEntity<Map<String, Object>> handleProfileAuthInfoException(ProfileAuthInfoException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
     }
 
     // ── 수업별 페이지 예외 처리 ──────────────────────
