@@ -2,7 +2,13 @@ package com.studyflow.domain.teacher.controller;
 
 import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
+import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
+import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.service.TeacherService;
+import com.studyflow.domain.user.enums.UserRole;
+import com.studyflow.global.auth.controllerutil.CheckAuthInController;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -10,12 +16,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 선생님 목록 및 상세 API — 비로그인 포함 전체 공개
 @RestController
@@ -25,6 +29,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class TeacherController {
 
     private final TeacherService teacherService;
+
+    // 로그인한 선생님 본인의 프로필 조회
+    @GetMapping("/me/profile")
+    public ResponseEntity<?> getMyProfile(@AuthenticationPrincipal Long userId,
+                                          Authentication authentication) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        TeacherProfileResponse response = teacherService.getMyProfile(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    // 로그인한 선생님 본인의 프로필 수정
+    @PatchMapping("/me/profile")
+    public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal Long userId,
+                                             Authentication authentication,
+                                             @Valid @RequestBody TeacherProfileUpdateRequest request) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        TeacherProfileResponse response = teacherService.updateMyProfile(userId, request);
+        return ResponseEntity.ok(response);
+    }
 
     // 선생님 목록 — 검색/필터 지원
     // 예시: GET /api/v1/teachers?keyword=홍길동&minNaegong=500&page=0&size=12

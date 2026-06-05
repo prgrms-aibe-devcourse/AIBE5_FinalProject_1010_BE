@@ -3,6 +3,7 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
+import com.studyflow.domain.student.exception.StudentProfileNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
@@ -145,6 +146,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    // 프로필 조회 및 수정 관련 인증 및 권한 이슈
+    @ExceptionHandler(ProfileAuthInfoException.class)
+    public ResponseEntity<Map<String, Object>> handleProfileAuthInfoException(ProfileAuthInfoException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
     // ── 수업별 페이지 예외 처리 ──────────────────────
 
     // 존재하지 않는 수업 조회 (404)
@@ -181,6 +190,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CourseAccessForbiddenException.class)
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    // ── 학생 도메인 예외 처리 ──────────────────────
+
+    // 존재하지 않는 학생 프로필 조회 (404)
+    @ExceptionHandler(StudentProfileNotFoundException.class)
+    public ResponseEntity<String> handleStudentProfileNotFound(StudentProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // ── 선생님 도메인 예외 처리 ──────────────────────

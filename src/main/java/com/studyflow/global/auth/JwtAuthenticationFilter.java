@@ -102,6 +102,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        // optional auth URL — 토큰이 있으면 인증 정보 세팅, 없거나 이상하면 그냥 통과
+        for (String optionalUrl : publicUrlProvider.getOptionalAuthUrls()) {
+            if (PATH_MATCHER.match(optionalUrl, servletPath)) {
+                if (StringUtils.hasText(token)) {
+                    try {
+                        Claims claims = jwtTokenProvider.validateAndGetClaims(token);
+                        String type = jwtTokenProvider.getTypeFromClaims(claims);
+                        if ("access".equals(type)) {
+                            Long userId = Long.parseLong(claims.getSubject());
+                            String role = claims.get("role", String.class);
+                            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
+                    } catch (Exception ignored) {
+                        // 이상한 토큰이어도 그냥 통과 — 판단은 컨트롤러에서
+                        SecurityContextHolder.clearContext();
+                    }
+                }
+                filterChain.doFilter(request, response);
+                return;
+            }
+        }
+
         // Authorization 헤더에 토큰이 없을 경우 조기 리턴
         if (!StringUtils.hasText(token)) {
             filterChain.doFilter(request, response);
