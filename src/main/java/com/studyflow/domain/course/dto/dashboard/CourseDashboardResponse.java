@@ -22,6 +22,7 @@ public class CourseDashboardResponse {
 
     // 담당 선생님 요약
     private Long teacherUserId;
+    private Long teacherProfileId;
     private String teacherName;
     private String teacherProfileImageUrl;
     private String teacherEducation;
@@ -40,6 +41,7 @@ public class CourseDashboardResponse {
                 .maxStudents(course.getMaxStudents())
                 .enrolledCount(enrolledCount)
                 .teacherUserId(teacher.getId())
+                .teacherProfileId(tp.getId())
                 .teacherName(teacher.getName())
                 .teacherProfileImageUrl(teacher.getProfileImageUrl())
                 .teacherEducation(tp.getEducation())
