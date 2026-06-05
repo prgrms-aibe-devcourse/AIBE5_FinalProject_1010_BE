@@ -4,6 +4,7 @@ import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.service.TeacherService;
 import com.studyflow.domain.user.enums.UserRole;
@@ -30,6 +31,26 @@ public class TeacherController {
 
     private final TeacherService teacherService;
 
+    // 선생님 목록 — 검색/필터 지원
+    // 예시: GET /api/v1/teachers?keyword=홍길동&minNaegong=500&page=0&size=12
+    @GetMapping
+    public ResponseEntity<Page<TeacherCardResponse>> getTeacherList(
+            @RequestParam(required = false) String keyword,
+            @PositiveOrZero(message = "내공 점수 하한은 0 이상이어야 합니다.")
+            @RequestParam(required = false) Integer minNaegong,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(teacherService.getTeacherList(keyword, minNaegong, pageable));
+    }
+
+    // 선생님 상세 페이지
+    // 예시: GET /api/v1/teachers/1
+    @GetMapping("/{teacherProfileId}")
+    public ResponseEntity<TeacherDetailResponse> getTeacherDetail(@PathVariable Long teacherProfileId) {
+        return ResponseEntity.ok(teacherService.getTeacherDetail(teacherProfileId));
+    }
+
+    // 선생님 마이페이지 관련 api
+
     // 로그인한 선생님 본인의 프로필 조회
     @GetMapping("/me/profile")
     public ResponseEntity<?> getMyProfile(@AuthenticationPrincipal Long userId,
@@ -53,21 +74,16 @@ public class TeacherController {
         return ResponseEntity.ok(response);
     }
 
-    // 선생님 목록 — 검색/필터 지원
-    // 예시: GET /api/v1/teachers?keyword=홍길동&minNaegong=500&page=0&size=12
-    @GetMapping
-    public ResponseEntity<Page<TeacherCardResponse>> getTeacherList(
-            @RequestParam(required = false) String keyword,
-            @PositiveOrZero(message = "내공 점수 하한은 0 이상이어야 합니다.")
-            @RequestParam(required = false) Integer minNaegong,
-            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(teacherService.getTeacherList(keyword, minNaegong, pageable));
-    }
+    // 로그인한 선생님 본인의 수업 목록 조회
+    // 예시: GET /api/v1/teachers/me/courses?status=RECRUITING&page=0&size=12
+    @GetMapping("/me/courses")
+    public ResponseEntity<?> getMyCourses(@AuthenticationPrincipal Long userId,
+                                          Authentication authentication,
+                                          @RequestParam(required = false) CourseStatus status,
+                                          @PageableDefault(size = 12) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
 
-    // 선생님 상세 페이지
-    // 예시: GET /api/v1/teachers/1
-    @GetMapping("/{teacherProfileId}")
-    public ResponseEntity<TeacherDetailResponse> getTeacherDetail(@PathVariable Long teacherProfileId) {
-        return ResponseEntity.ok(teacherService.getTeacherDetail(teacherProfileId));
+        return ResponseEntity.ok(teacherService.getMyCourses(userId, status, pageable));
     }
 }

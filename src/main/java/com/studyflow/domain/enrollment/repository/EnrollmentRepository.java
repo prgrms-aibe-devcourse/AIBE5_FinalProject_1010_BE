@@ -2,6 +2,8 @@ package com.studyflow.domain.enrollment.repository;
 
 import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,6 +39,19 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
            "GROUP BY e.course.id")
     List<CourseEnrollmentCount> countByCourseIdsAndStatus(@Param("courseIds") List<Long> courseIds,
                                                          @Param("status") EnrollmentStatus status);
+
+    // 학생 마이페이지 — 본인 수강 수업 목록 (status 필터 선택적 적용)
+    @Query(value = "SELECT e FROM Enrollment e " +
+                   "JOIN FETCH e.course c " +
+                   "JOIN FETCH c.subject " +
+                   "WHERE e.user.id = :userId " +
+                   "AND (:status IS NULL OR e.status = :status)",
+           countQuery = "SELECT COUNT(e) FROM Enrollment e " +
+                        "WHERE e.user.id = :userId " +
+                        "AND (:status IS NULL OR e.status = :status)")
+    Page<Enrollment> findWithCourseAndSubjectByUserId(@Param("userId") Long userId,
+                                                      @Param("status") EnrollmentStatus status,
+                                                      Pageable pageable);
 
     // 특정 선생님의 전체 누적 수강생 수 — 상태 무관하게 전체 집계 (수업 상세 페이지 선생님 통계용)
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.teacherProfile.id = :teacherProfileId")

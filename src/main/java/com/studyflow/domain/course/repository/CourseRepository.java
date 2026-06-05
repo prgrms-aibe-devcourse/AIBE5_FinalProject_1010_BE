@@ -40,6 +40,18 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     List<Course> findWithSubjectByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId,
                                                    @Param("statuses") List<CourseStatus> statuses);
 
+    // 선생님 마이페이지 — 본인 수업 목록 (status 필터 선택적 적용, isListed 무관)
+    @Query(value = "SELECT c FROM Course c " +
+                   "JOIN FETCH c.subject " +
+                   "WHERE c.teacherProfile.id = :teacherProfileId " +
+                   "AND (:status IS NULL OR c.status = :status)",
+           countQuery = "SELECT COUNT(c) FROM Course c " +
+                        "WHERE c.teacherProfile.id = :teacherProfileId " +
+                        "AND (:status IS NULL OR c.status = :status)")
+    Page<Course> findWithSubjectByTeacherProfileIdAndStatus(@Param("teacherProfileId") Long teacherProfileId,
+                                                            @Param("status") CourseStatus status,
+                                                            Pageable pageable);
+
     // 여러 선생님의 공개 수업 수 일괄 조회 — 선생님 목록에서 N+1 방지
     // 반환: TeacherCourseCount{ teacherProfileId, count }
     @Query("SELECT c.teacherProfile.id AS teacherProfileId, COUNT(c) AS count " +
