@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 //애플리케이션에서 공개(permitAll) URL 목록을 중앙에서 관리합니다.
 @Component
 public class PublicUrlProvider {
-    // 인증/인가를 거치지 않는 url 목록
+    // 인증 정보 저장 및 인증 필터링 과정 전체를 생략하는 url 목록
     public String[] getPublicUrls() {
         return new String[] {
                 "/api/v1/auth/signup",
@@ -34,16 +34,10 @@ public class PublicUrlProvider {
 
     // access token이 있으면 읽어들이고, 없으면 스킵
     // SecurityConfig에서는 permitAll(), jwtAuthenticationFilter는 건너뛰지 않음
+    // 해당 url의 모든 HTTP 메서드 요청에 대해 적용됨
+    // 메서드별로 다르게 적용되는 경우 SecurityConfig에 직접 작성 필요
     public String[] getOptionalAuthUrls() {
-        return new String[] {
-                // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
-                // 주의: /api/v1/courses는 POST(TEACHER 전용)가 있어 여기서 제외하고
-                //       SecurityConfig에서 HttpMethod.GET 한정으로 허용합니다.
-                "/api/v1/teachers",
-                "/api/v1/teachers/**",
-
-                "/api/v1/students/**"
-        };
+        return new String[] { };
     }
 
     // access token 기반 인증이 아닌 url 목록
