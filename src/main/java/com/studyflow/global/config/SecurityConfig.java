@@ -74,6 +74,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
+                        .requestMatchers(publicUrlProvider.getOptionalAuthUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
                         // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
