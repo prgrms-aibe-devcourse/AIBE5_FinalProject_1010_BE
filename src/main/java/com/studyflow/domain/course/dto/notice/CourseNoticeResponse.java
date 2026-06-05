@@ -1,10 +1,12 @@
 package com.studyflow.domain.course.dto.notice;
 
+import com.studyflow.domain.course.dto.common.CourseAttachmentInfo;
 import com.studyflow.domain.course.entity.CourseNotice;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -17,6 +19,7 @@ public class CourseNoticeResponse {
     private boolean important;
     private Long authorId;
     private String authorName;
+    private List<CourseAttachmentInfo> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -29,6 +32,7 @@ public class CourseNoticeResponse {
                 .important(notice.isImportant())
                 .authorId(notice.getUser().getId())
                 .authorName(notice.getUser().getName())
+                .attachments(notice.getAttachments())
                 .createdAt(notice.getCreatedAt())
                 .updatedAt(notice.getUpdatedAt())
                 .build();

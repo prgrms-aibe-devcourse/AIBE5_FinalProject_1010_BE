@@ -46,7 +46,7 @@ public class CourseNoticeService {
 
         // JOIN FETCH 된 teacher user 재활용 — 추가 쿼리 방지
         User author = course.getTeacherProfile().getUser();
-        CourseNotice notice = CourseNotice.create(author, course, request.getTitle(), request.getContent(), request.isImportant());
+        CourseNotice notice = CourseNotice.create(author, course, request.getTitle(), request.getContent(), request.isImportant(), request.getAttachments());
         return CourseNoticeResponse.from(noticeRepository.save(notice));
     }
 
@@ -57,7 +57,7 @@ public class CourseNoticeService {
 
         CourseNotice notice = noticeRepository.findByIdAndCourseIdAndDeletedAtIsNull(noticeId, courseId)
                 .orElseThrow(() -> new CourseNoticeNotFoundException(noticeId));
-        notice.update(request.getTitle(), request.getContent(), request.isImportant());
+        notice.update(request.getTitle(), request.getContent(), request.isImportant(), request.getAttachments());
         return CourseNoticeResponse.from(notice);
     }
 
