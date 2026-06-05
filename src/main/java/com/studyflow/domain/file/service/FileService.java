@@ -79,6 +79,7 @@ public class FileService {
      * 3. file_asset에 파일 메타데이터 저장
      * 4. 프론트가 메시지 전송 때 사용할 fileId 반환
      */
+    @Transactional
     public FileUploadResponse uploadChatImage(Long uploaderId, MultipartFile file) {
         validateImage(file);
 
@@ -171,6 +172,7 @@ public class FileService {
      * @param bytes   생성된 PNG 바이트
      * @return 저장된 FileAsset
      */
+    @Transactional
     public FileAsset saveGeneratedImage(Long ownerId, byte[] bytes) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -285,6 +287,7 @@ public class FileService {
     /**
      * 공지사항 첨부파일 업로드 (이미지 + PDF 허용).
      */
+    @Transactional
     public FileUploadResponse uploadNoticeAttachment(Long uploaderId, MultipartFile file) {
         return uploadCourseAttachment(uploaderId, file, "notice");
     }
@@ -292,6 +295,7 @@ public class FileService {
     /**
      * 게시판 첨부파일 업로드 (이미지 + PDF 허용).
      */
+    @Transactional
     public FileUploadResponse uploadPostAttachment(Long uploaderId, MultipartFile file) {
         return uploadCourseAttachment(uploaderId, file, "post");
     }
@@ -303,7 +307,7 @@ public class FileService {
      * - PDF: 매직바이트(25 50 44 46) 검사
      * - 저장 경로: uploads/{folder}/yyyy/MM/dd/
      */
-    public FileUploadResponse uploadCourseAttachment(Long uploaderId, MultipartFile file, String folder) {
+    private FileUploadResponse uploadCourseAttachment(Long uploaderId, MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
