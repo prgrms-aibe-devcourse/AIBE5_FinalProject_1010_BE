@@ -79,7 +79,6 @@ public class FileService {
      * 3. file_asset에 파일 메타데이터 저장
      * 4. 프론트가 메시지 전송 때 사용할 fileId 반환
      */
-    @Transactional
     public FileUploadResponse uploadChatImage(Long uploaderId, MultipartFile file) {
         validateImage(file);
 
@@ -89,7 +88,6 @@ public class FileService {
         String originalFileName = file.getOriginalFilename();
         String extension = extractExtension(originalFileName).toLowerCase();
         validateExtension(extension);   // 확장자 화이트리스트 검사
-        String storedFileName = UUID.randomUUID() + extension;
 
         try {
             /*
@@ -104,30 +102,17 @@ public class FileService {
             // Content-Type·확장자는 위조 가능하므로, 내용 자체를 검사해 위장 업로드를 막는다.
             validateMagicBytes(bytes);
 
-            // chat/년/월/일 하위 폴더에 저장 (예: uploads/chat/2026/05/29/{uuid}.png)
-            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);   // "2026/05/29"
-
-            // 절대 루트 기준으로 저장(읽기와 동일 기준점). objectKey와 같은 "chat/날짜" 구조.
-            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve("chat").resolve(datePath);
-            Files.createDirectories(uploadPath);
-
-            Path storedPath = uploadPath.resolve(storedFileName);
-            Files.copy(new ByteArrayInputStream(bytes), storedPath, StandardCopyOption.REPLACE_EXISTING);
-
+            StoredFile sf = storeLocalFile(bytes, "chat", extension);
             ImageSize imageSize = readImageSize(bytes);
-
-            // objectKey / fileUrl 은 OS 와 무관하게 항상 '/' 구분자를 사용한다.
-            String objectKey = "chat/" + datePath + "/" + storedFileName;
-            String fileUrl = "/uploads/chat/" + datePath + "/" + storedFileName;
 
             FileAsset fileAsset = FileAsset.createImage(
                     uploader,
                     originalFileName,
-                    storedFileName,
+                    sf.storedFileName(),
                     FileStorageProvider.LOCAL,
                     null,
-                    objectKey,
-                    fileUrl,
+                    sf.objectKey(),
+                    sf.fileUrl(),
                     null,
                     file.getContentType(),
                     file.getSize(),
@@ -186,35 +171,22 @@ public class FileService {
      * @param bytes   생성된 PNG 바이트
      * @return 저장된 FileAsset
      */
-    @Transactional
     public FileAsset saveGeneratedImage(Long ownerId, byte[] bytes) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        String storedFileName = UUID.randomUUID() + ".png";
         try {
-            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
-
-            // 절대 루트 기준으로 저장(읽기와 동일 기준점). objectKey와 같은 "chat/날짜" 구조.
-            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve("chat").resolve(datePath);
-            Files.createDirectories(uploadPath);
-
-            Path storedPath = uploadPath.resolve(storedFileName);
-            Files.copy(new ByteArrayInputStream(bytes), storedPath, StandardCopyOption.REPLACE_EXISTING);
-
+            StoredFile sf = storeLocalFile(bytes, "chat", ".png");
             ImageSize imageSize = readImageSize(bytes);
-
-            String objectKey = "chat/" + datePath + "/" + storedFileName;
-            String fileUrl = "/uploads/chat/" + datePath + "/" + storedFileName;
 
             FileAsset fileAsset = FileAsset.createImage(
                     owner,
-                    storedFileName,
-                    storedFileName,
+                    sf.storedFileName(),
+                    sf.storedFileName(),
                     FileStorageProvider.LOCAL,
                     null,
-                    objectKey,
-                    fileUrl,
+                    sf.objectKey(),
+                    sf.fileUrl(),
                     null,
                     "image/png",
                     (long) bytes.length,
@@ -313,7 +285,6 @@ public class FileService {
     /**
      * 공지사항 첨부파일 업로드 (이미지 + PDF 허용).
      */
-    @Transactional
     public FileUploadResponse uploadNoticeAttachment(Long uploaderId, MultipartFile file) {
         return uploadCourseAttachment(uploaderId, file, "notice");
     }
@@ -321,7 +292,6 @@ public class FileService {
     /**
      * 게시판 첨부파일 업로드 (이미지 + PDF 허용).
      */
-    @Transactional
     public FileUploadResponse uploadPostAttachment(Long uploaderId, MultipartFile file) {
         return uploadCourseAttachment(uploaderId, file, "post");
     }
@@ -333,7 +303,6 @@ public class FileService {
      * - PDF: 매직바이트(25 50 44 46) 검사
      * - 저장 경로: uploads/{folder}/yyyy/MM/dd/
      */
-    @Transactional
     public FileUploadResponse uploadCourseAttachment(Long uploaderId, MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
@@ -373,16 +342,7 @@ public class FileService {
                 }
             }
 
-            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
-            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve(folder).resolve(datePath);
-            Files.createDirectories(uploadPath);
-
-            String storedFileName = UUID.randomUUID() + extension;
-            Files.copy(new ByteArrayInputStream(bytes), uploadPath.resolve(storedFileName),
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            String objectKey = folder + "/" + datePath + "/" + storedFileName;
-            String fileUrl   = "/uploads/" + folder + "/" + datePath + "/" + storedFileName;
+            StoredFile sf = storeLocalFile(bytes, folder, extension);
 
             FileCategory category = isPdf ? FileCategory.PDF : FileCategory.IMAGE;
             Integer width = null, height = null;
@@ -393,11 +353,11 @@ public class FileService {
             }
 
             FileAsset asset = isPdf
-                    ? FileAsset.createFile(uploader, originalFileName, storedFileName,
-                            FileStorageProvider.LOCAL, null, objectKey, fileUrl,
+                    ? FileAsset.createFile(uploader, originalFileName, sf.storedFileName(),
+                            FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(),
                             file.getContentType(), file.getSize(), category)
-                    : FileAsset.createImage(uploader, originalFileName, storedFileName,
-                            FileStorageProvider.LOCAL, null, objectKey, fileUrl, null,
+                    : FileAsset.createImage(uploader, originalFileName, sf.storedFileName(),
+                            FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(), null,
                             file.getContentType(), file.getSize(), width, height);
 
             FileAsset saved = fileAssetRepository.save(asset);
@@ -411,6 +371,20 @@ public class FileService {
         }
     }
 
-    private record ImageSize(Integer width, Integer height) {
+    private StoredFile storeLocalFile(byte[] bytes, String folder, String extension) throws IOException {
+        String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
+        Path uploadPath = LOCAL_UPLOAD_ROOT.resolve(folder).resolve(datePath);
+        Files.createDirectories(uploadPath);
+        String storedFileName = UUID.randomUUID() + extension;
+        Files.copy(new ByteArrayInputStream(bytes), uploadPath.resolve(storedFileName),
+                StandardCopyOption.REPLACE_EXISTING);
+        return new StoredFile(
+                storedFileName,
+                folder + "/" + datePath + "/" + storedFileName,
+                "/uploads/" + folder + "/" + datePath + "/" + storedFileName
+        );
     }
+
+    private record ImageSize(Integer width, Integer height) {}
+    private record StoredFile(String storedFileName, String objectKey, String fileUrl) {}
 }
