@@ -26,14 +26,6 @@ public class UserController {
     // 회원 정보 조회
     @GetMapping("/me")
     public ResponseEntity<?> getUser(@AuthenticationPrincipal Long userId) {
-        if (userId == null) {
-            Map<String, Object> body = Map.of(
-                    "code", "AUTH_REQUIRED",
-                    "message", "인증 정보가 유효하지 않습니다."
-            );
-            return ResponseEntity.status(401).body(body);
-        }
-
         UserInfoResponse response = userService.getUser(userId);
         return ResponseEntity.ok(response);
     }

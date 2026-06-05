@@ -3,9 +3,11 @@ package com.studyflow.domain.student.controller;
 import com.studyflow.domain.student.dto.StudentProfileResponse;
 import com.studyflow.domain.student.dto.StudentProfileUpdateRequest;
 import com.studyflow.domain.student.service.StudentService;
-import com.studyflow.domain.teacher.exception.ProfileAuthInfoException;
+import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.auth.controllerutil.CheckAuthInController;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/students")
 @RequiredArgsConstructor
+@Validated
 public class StudentController {
 
     private final StudentService studentService;
@@ -38,7 +41,7 @@ public class StudentController {
     @PatchMapping("/me/profile")
     public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal Long userId,
                                              Authentication authentication,
-                                             @RequestBody StudentProfileUpdateRequest request) {
+                                             @Valid @RequestBody StudentProfileUpdateRequest request) {
         CheckAuthInController.checkAuth(userId, authentication, UserRole.STUDENT,
                 ProfileAuthInfoException::new);
 

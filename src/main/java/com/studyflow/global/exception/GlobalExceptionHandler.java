@@ -17,7 +17,6 @@ import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
-import com.studyflow.domain.teacher.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;

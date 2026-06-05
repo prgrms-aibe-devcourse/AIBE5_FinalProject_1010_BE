@@ -4,10 +4,11 @@ import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
-import com.studyflow.domain.teacher.exception.ProfileAuthInfoException;
+import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.service.TeacherService;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.auth.controllerutil.CheckAuthInController;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,7 +45,7 @@ public class TeacherController {
     @PatchMapping("/me/profile")
     public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal Long userId,
                                              Authentication authentication,
-                                             @RequestBody TeacherProfileUpdateRequest request) {
+                                             @Valid @RequestBody TeacherProfileUpdateRequest request) {
         CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
                 ProfileAuthInfoException::new);
 

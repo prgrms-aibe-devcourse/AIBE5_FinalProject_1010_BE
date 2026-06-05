@@ -1,6 +1,4 @@
-package com.studyflow.domain.teacher.exception;
-
-import com.studyflow.global.exception.ErrorCode;
+package com.studyflow.global.exception;
 
 public class ProfileAuthInfoException extends RuntimeException {
     private final ErrorCode errorCode;
