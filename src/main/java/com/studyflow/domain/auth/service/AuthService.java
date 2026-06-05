@@ -73,9 +73,10 @@ public class AuthService {
         // SignupRequest의 birthDate를 LocalDate로 변환, 실패 시 커스텀 예외를 던집니다.
         LocalDate birthDateParsed;
         try {
-            birthDateParsed = LocalDate.parse(request.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE);
+            birthDateParsed = LocalDate.parse(request.getBirthDate(),
+                    DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(java.time.format.ResolverStyle.STRICT));
         } catch (DateTimeParseException e) {
-            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "생년월일 형식이 올바르지 않습니다: " + request.getBirthDate());
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "유효하지 않은 날짜입니다: " + request.getBirthDate());
         }
 
         // SignupRequest의 gender를 user.enum.Gender로 변환, 실패 시 커스텀 예외

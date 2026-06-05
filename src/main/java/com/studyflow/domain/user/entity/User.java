@@ -118,6 +118,20 @@ public class User extends BaseTimeEntity {
         return user;
     }
 
+    public void updateUser(String name, String phone, Gender gender,
+                           LocalDate birthDate, Boolean marketingAgreed, String profileImageUrl) {
+        this.name = name;
+        this.phone = phone;
+        this.gender = gender;
+        this.birthDate = birthDate;
+        this.marketingAgreed = marketingAgreed;
+        this.profileImageUrl = profileImageUrl; // null 허용 (프로필 이미지 삭제 시 null)
+    }
+
+    public void changePassword(String encodedNewPassword) {
+        this.password = encodedNewPassword;
+    }
+
     public void deleteUser() {
         this.isDeleted = this.id;
         this.deletedAt = LocalDateTime.now();
