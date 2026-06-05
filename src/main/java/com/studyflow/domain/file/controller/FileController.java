@@ -34,4 +34,32 @@ public class FileController {
     ) {
         return fileService.uploadChatImage(userId, file);
     }
+
+    /**
+     * 공지사항 첨부파일 업로드 API.
+     *
+     * POST /api/v1/files/notice/attachments
+     * 허용: 이미지(jpg/png/webp) + PDF, 최대 20MB
+     */
+    @PostMapping("/notice/attachments")
+    public FileUploadResponse uploadNoticeAttachment(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return fileService.uploadNoticeAttachment(userId, file);
+    }
+
+    /**
+     * 게시판 첨부파일 업로드 API.
+     *
+     * POST /api/v1/files/post/attachments
+     * 허용: 이미지(jpg/png/webp) + PDF, 최대 20MB
+     */
+    @PostMapping("/post/attachments")
+    public FileUploadResponse uploadPostAttachment(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return fileService.uploadPostAttachment(userId, file);
+    }
 }

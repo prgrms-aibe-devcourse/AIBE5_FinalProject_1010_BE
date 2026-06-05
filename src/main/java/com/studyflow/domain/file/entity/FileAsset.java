@@ -179,6 +179,37 @@ public class FileAsset extends BaseTimeEntity {
         return fileAsset;
     }
 
+    // 이미지 외 파일(PDF 등)을 저장할 때 사용하는 범용 팩토리 메서드
+    public static FileAsset createFile(
+            User uploader,
+            String originalFileName,
+            String storedFileName,
+            FileStorageProvider storageProvider,
+            String bucket,
+            String objectKey,
+            String fileUrl,
+            String contentType,
+            Long fileSize,
+            FileCategory fileCategory
+    ) {
+        if (uploader == null) {
+            throw new IllegalArgumentException("파일 업로더는 필수입니다.");
+        }
+        FileAsset fileAsset = new FileAsset();
+        fileAsset.uploader = uploader;
+        fileAsset.originalFileName = originalFileName;
+        fileAsset.storedFileName = storedFileName;
+        fileAsset.storageProvider = storageProvider;
+        fileAsset.bucket = bucket;
+        fileAsset.objectKey = objectKey;
+        fileAsset.fileUrl = fileUrl;
+        fileAsset.contentType = contentType;
+        fileAsset.fileSize = fileSize;
+        fileAsset.fileCategory = fileCategory;
+        fileAsset.uploadStatus = FileUploadStatus.COMPLETED;
+        return fileAsset;
+    }
+
     public void markUploading() {
         this.uploadStatus = FileUploadStatus.UPLOADING;
     }

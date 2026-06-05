@@ -68,7 +68,7 @@ public class CoursePostService {
         User author = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + userId));
 
-        CoursePost post = CoursePost.create(author, course, request.getTitle(), request.getContent());
+        CoursePost post = CoursePost.create(author, course, request.getTitle(), request.getContent(), request.getAttachments());
         postRepository.save(post);
         return CoursePostDetailResponse.of(post, List.of());
     }
@@ -80,7 +80,7 @@ public class CoursePostService {
                 .orElseThrow(() -> new CoursePostNotFoundException(postId));
         validateAuthor(post.getUser().getId(), userId);
 
-        post.update(request.getTitle(), request.getContent());
+        post.update(request.getTitle(), request.getContent(), request.getAttachments());
         return CoursePostDetailResponse.of(post, List.of());
     }
 

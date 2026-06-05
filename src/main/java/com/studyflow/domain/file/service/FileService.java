@@ -2,6 +2,7 @@ package com.studyflow.domain.file.service;
 
 import com.studyflow.domain.file.dto.response.FileUploadResponse;
 import com.studyflow.domain.file.entity.FileAsset;
+import com.studyflow.domain.file.enums.FileCategory;
 import com.studyflow.domain.file.enums.FileStorageProvider;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.user.entity.User;
@@ -306,6 +307,107 @@ public class FileService {
             return new ImageSize(image.getWidth(), image.getHeight());
         } catch (IOException e) {
             return new ImageSize(null, null);
+        }
+    }
+
+    /**
+     * 공지사항 첨부파일 업로드 (이미지 + PDF 허용).
+     */
+    @Transactional
+    public FileUploadResponse uploadNoticeAttachment(Long uploaderId, MultipartFile file) {
+        return uploadCourseAttachment(uploaderId, file, "notice");
+    }
+
+    /**
+     * 게시판 첨부파일 업로드 (이미지 + PDF 허용).
+     */
+    @Transactional
+    public FileUploadResponse uploadPostAttachment(Long uploaderId, MultipartFile file) {
+        return uploadCourseAttachment(uploaderId, file, "post");
+    }
+
+    /**
+     * 수업 관련 첨부파일 공통 업로드 로직 (이미지 + PDF 허용).
+     *
+     * - 이미지(JPEG/PNG/WEBP): 기존 채팅 이미지와 동일한 검증
+     * - PDF: 매직바이트(25 50 44 46) 검사
+     * - 저장 경로: uploads/{folder}/yyyy/MM/dd/
+     */
+    @Transactional
+    public FileUploadResponse uploadCourseAttachment(Long uploaderId, MultipartFile file, String folder) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        boolean isImage = ALLOWED_IMAGE_TYPES.contains(contentType);
+        boolean isPdf   = "application/pdf".equals(contentType);
+
+        if (!isImage && !isPdf) {
+            throw new IllegalArgumentException("이미지(jpg/png/webp) 또는 PDF 파일만 업로드할 수 있습니다.");
+        }
+
+        long maxSize = 20 * 1024 * 1024L; // 20MB
+        if (file.getSize() > maxSize) {
+            throw new IllegalArgumentException("파일은 최대 20MB까지 업로드할 수 있습니다.");
+        }
+
+        User uploader = userRepository.findById(uploaderId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        String originalFileName = file.getOriginalFilename();
+        String extension = extractExtension(originalFileName).toLowerCase();
+
+        try {
+            byte[] bytes = file.getBytes();
+
+            if (isImage) {
+                validateExtension(extension);
+                validateMagicBytes(bytes);
+            } else {
+                // PDF 매직바이트 검사: %PDF → 25 50 44 46
+                if (bytes.length < 4
+                        || (bytes[0] & 0xFF) != 0x25 || (bytes[1] & 0xFF) != 0x50
+                        || (bytes[2] & 0xFF) != 0x44 || (bytes[3] & 0xFF) != 0x46) {
+                    throw new IllegalArgumentException("올바른 PDF 파일이 아닙니다.");
+                }
+            }
+
+            String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
+            Path uploadPath = LOCAL_UPLOAD_ROOT.resolve(folder).resolve(datePath);
+            Files.createDirectories(uploadPath);
+
+            String storedFileName = UUID.randomUUID() + extension;
+            Files.copy(new ByteArrayInputStream(bytes), uploadPath.resolve(storedFileName),
+                    StandardCopyOption.REPLACE_EXISTING);
+
+            String objectKey = folder + "/" + datePath + "/" + storedFileName;
+            String fileUrl   = "/uploads/" + folder + "/" + datePath + "/" + storedFileName;
+
+            FileCategory category = isPdf ? FileCategory.PDF : FileCategory.IMAGE;
+            Integer width = null, height = null;
+            if (isImage) {
+                ImageSize size = readImageSize(bytes);
+                width  = size.width();
+                height = size.height();
+            }
+
+            FileAsset asset = isPdf
+                    ? FileAsset.createFile(uploader, originalFileName, storedFileName,
+                            FileStorageProvider.LOCAL, null, objectKey, fileUrl,
+                            file.getContentType(), file.getSize(), category)
+                    : FileAsset.createImage(uploader, originalFileName, storedFileName,
+                            FileStorageProvider.LOCAL, null, objectKey, fileUrl, null,
+                            file.getContentType(), file.getSize(), width, height);
+
+            FileAsset saved = fileAssetRepository.save(asset);
+
+            return new FileUploadResponse(
+                    saved.getId(), saved.getFileUrl(), saved.getThumbnailUrl(),
+                    saved.getOriginalFileName(), saved.getContentType(),
+                    saved.getFileSize(), saved.getWidth(), saved.getHeight());
+        } catch (IOException e) {
+            throw new IllegalStateException("파일 업로드에 실패했습니다.", e);
         }
     }
 
