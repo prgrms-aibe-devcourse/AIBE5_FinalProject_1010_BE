@@ -2,6 +2,7 @@ package com.studyflow.domain.user.service;
 
 import com.studyflow.domain.user.dto.PasswordChangeRequest;
 import com.studyflow.domain.user.dto.UserUpdateRequest;
+import com.studyflow.domain.user.dto.UserInfoResponse;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.enums.SocialProvider;
@@ -85,6 +86,15 @@ public class UserService {
         }
 
         user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+    }
+
+    // 회원 정보 조회
+    @Transactional(readOnly = true)
+    public UserInfoResponse getUser(Long userId) {
+        User user = userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        return new UserInfoResponse(user);
     }
 
     // 회원 탈퇴 로직

@@ -3,6 +3,7 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
+import com.studyflow.domain.student.exception.StudentProfileNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
@@ -181,6 +182,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CourseAccessForbiddenException.class)
     public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    // ── 학생 도메인 예외 처리 ──────────────────────
+
+    // 존재하지 않는 학생 프로필 조회 (404)
+    @ExceptionHandler(StudentProfileNotFoundException.class)
+    public ResponseEntity<String> handleStudentProfileNotFound(StudentProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // ── 선생님 도메인 예외 처리 ──────────────────────

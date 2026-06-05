@@ -66,17 +66,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
-                        .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
-                        .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
                         .requestMatchers("/error").permitAll()
                         // 수업 검색(목록) · 수업 상세 GET — 비로그인 허용
                         // /api/v1/courses를 PublicUrls에서 제거했으므로 여기서 명시적으로 GET만 허용
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses").permitAll()
-                        .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
-                        .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
                         .requestMatchers(publicUrlProvider.getUrlsWithoutAccessToken()).permitAll()
