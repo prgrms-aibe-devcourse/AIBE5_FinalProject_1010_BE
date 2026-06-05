@@ -6,6 +6,11 @@ import com.studyflow.domain.course.repository.CourseRepository.TeacherCourseCoun
 import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherCourseCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
+import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
+import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.domain.user.exception.UserNotFoundException;
+import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
@@ -26,6 +31,7 @@ public class TeacherService {
 
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
+    private final UserRepository userRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -66,6 +72,32 @@ public class TeacherService {
     // LIKE escape 문자('!')를 먼저 escape한 뒤 %, _ 순으로 처리
     private String escapeKeyword(String raw) {
         return raw.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
+
+    // 로그인한 선생님 본인의 프로필 조회
+    public TeacherProfileResponse getMyProfile(Long userId) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        return new TeacherProfileResponse(profile);
+    }
+
+    // 로그인한 선생님 본인의 프로필 수정
+    @Transactional
+    public TeacherProfileResponse updateMyProfile(Long userId, TeacherProfileUpdateRequest request) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        profile.update(request.getAddress(), request.getAwards(), request.getCareer(),
+                request.getEducation(), request.getIntroduction(), request.getTeachingStyle());
+
+        return new TeacherProfileResponse(profile);
     }
 
     // 선생님 상세 조회 — /teachers/:id 페이지용

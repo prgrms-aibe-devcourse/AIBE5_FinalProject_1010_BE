@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
+import com.studyflow.domain.user.dto.UserInfoResponse;
 
 import java.util.Map;
 
@@ -22,6 +22,13 @@ import java.util.Map;
 public class UserController {
     private final UserService userService;
     private final RefreshCookieCreator refreshCookieCreator;
+
+    // 회원 정보 조회
+    @GetMapping("/me")
+    public ResponseEntity<?> getUser(@AuthenticationPrincipal Long userId) {
+        UserInfoResponse response = userService.getUser(userId);
+        return ResponseEntity.ok(response);
+    }
 
     // 회원정보 수정
     @PatchMapping("/me")
