@@ -43,6 +43,12 @@ public enum ErrorCode {
     ALREADY_ENROLLED(HttpStatus.CONFLICT, "이미 수강 중인 수업입니다."),
     ENROLLMENT_REQUEST_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 수강 신청이 접수되어 있습니다."),
     SELF_ENROLLMENT(HttpStatus.BAD_REQUEST, "본인의 수업에는 신청할 수 없습니다."),
+    ENROLLMENT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "수강 신청 기록을 찾을 수 없습니다."),
+    NOT_MY_ENROLLMENT_REQUEST(HttpStatus.FORBIDDEN, "본인의 수강 신청이 아닙니다"),
+    CANNOT_CANCEL_ENROLLMENT_REQUEST(HttpStatus.BAD_REQUEST, "취소할 수 없는 상태의 수강 신청입니다."),
+    ENROLLMENT_REQUEST_ALREADY_PROCESSED(HttpStatus.CONFLICT, "이미 처리된 수강 신청입니다."),
+    NOT_MY_COURSE_ENROLLMENT_REQUEST(HttpStatus.FORBIDDEN, "본인 수업의 수강 신청이 아닙니다."),
+    CANNOT_PROCESS_ENROLLMENT_REQUEST(HttpStatus.BAD_REQUEST, "처리할 수 없는 상태의 수강 신청입니다."),
 
     // AI 질문
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),

@@ -2,6 +2,7 @@ package com.studyflow.domain.teacher.controller;
 
 import com.studyflow.domain.teacher.dto.*;
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.global.exception.ProfileAuthInfoException;
 import com.studyflow.domain.teacher.service.TeacherService;
 import com.studyflow.domain.user.enums.UserRole;
@@ -82,5 +83,20 @@ public class TeacherController {
                 ProfileAuthInfoException::new);
 
         return ResponseEntity.ok(teacherService.getMyCourses(userId, status, pageable));
+    }
+
+    // 본인의 수업에 대한 수강 신청 목록 조회
+    // 예시: GET /api/v1/teachers/me/enrollment-requests?courseId=10&status=PENDING&page=0&size=12
+    @GetMapping("/me/enrollment-requests")
+    public ResponseEntity<Page<EnrollmentRequestSummaryResponse>> getEnrollmentRequests(
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication,
+            @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) EnrollmentRequestStatus status,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        return ResponseEntity.ok(teacherService.getEnrollmentRequests(userId, courseId, status, pageable));
     }
 }

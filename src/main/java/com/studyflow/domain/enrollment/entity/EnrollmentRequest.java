@@ -67,6 +67,21 @@ public class EnrollmentRequest extends BaseTimeEntity {
     @Column(nullable = false)
     private EnrollmentRequestStatus status = EnrollmentRequestStatus.PENDING;
 
+    // 수강 신청 취소 — PENDING 상태에서만 호출 가능 (서비스 레이어에서 검증 후 호출)
+    public void cancel() {
+        this.status = EnrollmentRequestStatus.CANCELLED;
+    }
+
+    // 수강 신청 수락 — PENDING 상태에서만 호출 가능 (서비스 레이어에서 검증 후 호출)
+    public void accept() {
+        this.status = EnrollmentRequestStatus.ACCEPTED;
+    }
+
+    // 수강 신청 거절 — PENDING 상태에서만 호출 가능 (서비스 레이어에서 검증 후 호출)
+    public void reject() {
+        this.status = EnrollmentRequestStatus.REJECTED;
+    }
+
     // 수강 신청 생성 — status 기본값 PENDING, 선생님 수락 시 ACCEPTED로 변경 후 Enrollment 생성
     // DTO 대신 개별 값을 받아 엔티티가 DTO에 의존하지 않도록 함 (레이어 분리)
     public static EnrollmentRequest create(

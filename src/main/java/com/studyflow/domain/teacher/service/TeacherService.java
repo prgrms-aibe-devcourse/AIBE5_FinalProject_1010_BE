@@ -1,9 +1,15 @@
 package com.studyflow.domain.teacher.service;
 
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.enrollment.entity.EnrollmentRequest;
+import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
+import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
+import com.studyflow.domain.student.entity.StudentProfile;
+import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.repository.CourseRepository.TeacherCourseCount;
+import com.studyflow.domain.teacher.dto.EnrollmentRequestSummaryResponse;
 import com.studyflow.domain.teacher.dto.TeacherCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherCourseCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
@@ -22,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +39,8 @@ public class TeacherService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final EnrollmentRequestRepository enrollmentRequestRepository;
+    private final StudentProfileRepository studentProfileRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -111,6 +120,32 @@ public class TeacherService {
         return courseRepository
                 .findWithSubjectByTeacherProfileIdAndStatus(profile.getId(), status, pageable)
                 .map(TeacherCourseCardResponse::from);
+    }
+
+    // 본인 수업에 대한 수강 신청 목록 조회 — courseId/status 필터 옵션, 12개씩 페이지네이션
+    public Page<EnrollmentRequestSummaryResponse> getEnrollmentRequests(
+            Long userId, Long courseId, EnrollmentRequestStatus status, Pageable pageable) {
+
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        Page<EnrollmentRequest> requests = enrollmentRequestRepository
+                .findByTeacherProfileId(profile.getId(), courseId, status, pageable);
+
+        // N+1 방지 — 페이지 내 학생 user ID 모아서 StudentProfile 일괄 조회
+        Set<Long> userIds = requests.getContent().stream()
+                .map(r -> r.getUser().getId())
+                .collect(Collectors.toSet());
+
+        Map<Long, StudentProfile> studentProfileMap = studentProfileRepository
+                .findByUserIdIn(userIds).stream()
+                .collect(Collectors.toMap(sp -> sp.getUser().getId(), sp -> sp));
+
+        return requests.map(r ->
+                EnrollmentRequestSummaryResponse.of(r, studentProfileMap.get(r.getUser().getId())));
     }
 
     // 선생님 상세 조회 — /teachers/:id 페이지용
