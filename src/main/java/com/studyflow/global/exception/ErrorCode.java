@@ -23,6 +23,9 @@ public enum ErrorCode {
     // 회원
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
 
+    // 선생님 인증
+    VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
+
     // 수업
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의를 찾을 수 없습니다."),
     COURSE_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "해당 강의의 참여자가 아닙니다."),

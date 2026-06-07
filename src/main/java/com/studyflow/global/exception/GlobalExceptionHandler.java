@@ -18,6 +18,7 @@ import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
@@ -206,6 +207,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TeacherProfileNotFoundException.class)
     public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)
+    @ExceptionHandler(VerificationAlreadyPendingException.class)
+    public ResponseEntity<Map<String, Object>> handleVerificationAlreadyPending(VerificationAlreadyPendingException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 수강 중인 학생이 있는 수업 삭제 시도 (400)

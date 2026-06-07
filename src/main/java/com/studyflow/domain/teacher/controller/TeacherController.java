@@ -83,4 +83,30 @@ public class TeacherController {
 
         return ResponseEntity.ok(teacherService.getMyCourses(userId, status, pageable));
     }
+
+    // 선생님 인증 요청
+    // 예시: POST /api/v1/teachers/me/verifications
+    @PostMapping("/me/verifications")
+    public ResponseEntity<?> requestVerification(@AuthenticationPrincipal Long userId,
+                                                 Authentication authentication,
+                                                 @Valid @RequestBody TeacherVerificationRequest request) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        teacherService.requestVerification(userId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    // 선생님 본인 인증 신청 목록 조회
+    // 예시: GET /api/v1/teachers/me/verifications?page=0&size=12
+    @GetMapping("/me/verifications")
+    public ResponseEntity<Page<TeacherVerificationResponse>> getVerificationList(
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        return ResponseEntity.ok(teacherService.getMyVerifications(userId, pageable));
+    }
 }

@@ -1,7 +1,13 @@
 package com.studyflow.domain.teacher.service;
 
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.teacher.dto.TeacherVerificationRequest;
+import com.studyflow.domain.teacher.dto.TeacherVerificationResponse;
+import com.studyflow.domain.teacher.entity.TeacherVerification;
+import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import com.studyflow.domain.teacher.repository.TeacherVerificationRepository;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.repository.CourseRepository.TeacherCourseCount;
 import com.studyflow.domain.teacher.dto.TeacherCardResponse;
@@ -9,6 +15,7 @@ import com.studyflow.domain.teacher.dto.TeacherCourseCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.global.exception.ErrorCode;
@@ -32,6 +39,7 @@ public class TeacherService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final TeacherVerificationRepository teacherVerificationRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -128,5 +136,41 @@ public class TeacherService {
                 .toList();
 
         return TeacherDetailResponse.of(profile, courses);
+    }
+
+    // 선생님 본인 인증 신청 목록 조회 — 최신순 페이지네이션
+    public Page<TeacherVerificationResponse> getMyVerifications(Long userId, Pageable pageable) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        return teacherVerificationRepository.findByUserId(userId, pageable)
+                .map(TeacherVerificationResponse::from);
+    }
+
+    // 선생님 인증 요청 — 이미 PENDING 상태인 요청이 있으면 중복 요청 차단
+    @Transactional
+    public void requestVerification(Long userId, TeacherVerificationRequest request) {
+        User user = userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        // 선생님 프로필 존재 여부 확인
+        teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        // 이미 심사 중인 요청이 있으면 중복 요청 차단
+        if (teacherVerificationRepository.existsByUserIdAndStatus(userId, VerificationStatus.PENDING)) {
+            throw new VerificationAlreadyPendingException();
+        }
+
+        TeacherVerification verification = TeacherVerification.create(
+                user,
+                request.getDocumentType(),
+                request.getDocumentUrl(),
+                request.getDescription()
+        );
+        teacherVerificationRepository.save(verification);
     }
 }
