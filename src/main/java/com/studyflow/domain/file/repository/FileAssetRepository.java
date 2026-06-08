@@ -23,4 +23,7 @@ public interface FileAssetRepository extends JpaRepository<FileAsset, Long> {
      */
     @Query("SELECT f FROM FileAsset f JOIN FETCH f.uploader WHERE f.id IN :ids")
     List<FileAsset> findByIdInWithUploader(@Param("ids") List<Long> ids);
+
+    @Query("SELECT f FROM FileAsset f JOIN FETCH f.uploader WHERE f.id = :id")
+    java.util.Optional<FileAsset> findByIdWithUploader(@Param("id") Long id);
 }

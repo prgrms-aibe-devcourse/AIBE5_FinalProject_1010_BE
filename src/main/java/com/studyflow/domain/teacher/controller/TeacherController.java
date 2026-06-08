@@ -1,6 +1,8 @@
 package com.studyflow.domain.teacher.controller;
 
 import com.studyflow.domain.teacher.dto.*;
+
+import java.util.Map;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.global.exception.ProfileAuthInfoException;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -98,5 +101,31 @@ public class TeacherController {
                 ProfileAuthInfoException::new);
 
         return ResponseEntity.ok(teacherService.getEnrollmentRequests(userId, courseId, status, pageable));
+    }
+
+    // 선생님 인증 요청
+    // 예시: POST /api/v1/teachers/me/verifications
+    @PostMapping("/me/verifications")
+    public ResponseEntity<Map<String, Long>> requestVerification(@AuthenticationPrincipal Long userId,
+                                                                 Authentication authentication,
+                                                                 @Valid @RequestBody TeacherVerificationRequest request) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        Long verificationId = teacherService.requestVerification(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", verificationId));
+    }
+
+    // 선생님 본인 인증 신청 목록 조회
+    // 예시: GET /api/v1/teachers/me/verifications?page=0&size=12
+    @GetMapping("/me/verifications")
+    public ResponseEntity<Page<TeacherVerificationResponse>> getVerificationList(
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        return ResponseEntity.ok(teacherService.getMyVerifications(userId, pageable));
     }
 }

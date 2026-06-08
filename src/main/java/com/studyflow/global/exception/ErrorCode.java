@@ -23,6 +23,9 @@ public enum ErrorCode {
     // 회원
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
 
+    // 선생님 인증
+    VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
+
     // 수업
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의를 찾을 수 없습니다."),
     COURSE_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "해당 강의의 참여자가 아닙니다."),
@@ -59,7 +62,11 @@ public enum ErrorCode {
     QNA_QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "질문을 찾을 수 없습니다."),
     QNA_ANSWER_NOT_FOUND(HttpStatus.NOT_FOUND, "답변을 찾을 수 없습니다."),
     QNA_FORBIDDEN(HttpStatus.FORBIDDEN, "해당 작업에 대한 권한이 없습니다."),
-    QNA_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 답변이 채택된 질문입니다.");
+    QNA_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 답변이 채택된 질문입니다."),
+
+    // 파일
+    FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
+    NOT_MY_FILE(HttpStatus.FORBIDDEN, "본인이 업로드한 파일만 사용할 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;

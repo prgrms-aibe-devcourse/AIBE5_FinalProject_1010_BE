@@ -18,7 +18,9 @@ import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
+import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
@@ -209,11 +211,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)
+    @ExceptionHandler(VerificationAlreadyPendingException.class)
+    public ResponseEntity<Map<String, Object>> handleVerificationAlreadyPending(VerificationAlreadyPendingException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
     // 수강 중인 학생이 있는 수업 삭제 시도 (400)
     @ExceptionHandler(CourseHasActiveStudentsException.class)
     public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
+    }
+
+    // 선생님 인증 파일이 유효하지 않은 경우 (존재하지 않는 파일(404), 본인 파일이 아님(403))
+    @ExceptionHandler(InvalidVerificationFileException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidVerificationFileException(InvalidVerificationFileException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
     }
 
     // ── 수강 신청 도메인 예외 처리 ──────────────────────
