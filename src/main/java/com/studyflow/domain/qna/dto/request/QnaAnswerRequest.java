@@ -1,0 +1,22 @@
+package com.studyflow.domain.qna.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * 답변 작성/수정 요청. (POST /api/v1/qna/questions/{questionId}/answers, TEACHER)
+ *
+ * <p>{@code imageFileIds}는 첨부 이미지 fileId 목록(여러 장 가능). 수정 시에는 최종 첨부 상태(전체 교체).</p>
+ */
+@Getter
+@NoArgsConstructor
+public class QnaAnswerRequest {
+
+    @NotBlank(message = "답변 내용은 필수입니다.")
+    private String content;
+
+    private List<Long> imageFileIds;
+}
