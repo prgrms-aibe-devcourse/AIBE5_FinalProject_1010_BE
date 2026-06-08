@@ -44,7 +44,11 @@ public class PublicUrlProvider {
                 "/api/v1/courses/*",
                 // 선생님 목록 및 상세 — 비로그인 사용자도 조회 가능
                 "/api/v1/teachers",
-                "/api/v1/teachers/*"
+                "/api/v1/teachers/*",
+                // QnA 질문 목록·상세 GET — 비로그인 허용. (POST/PATCH/DELETE는 SecurityConfig 역할/인증 규칙이 보호)
+                // 로그인 상태로 GET 시에는 토큰을 읽어 좋아요 여부(liked) 계산에 사용한다.
+                "/api/v1/qna/questions",
+                "/api/v1/qna/questions/*"
         };
     }
 
