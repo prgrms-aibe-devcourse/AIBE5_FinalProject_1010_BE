@@ -5,6 +5,10 @@ import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
 import com.studyflow.domain.enrollment.exception.*;
 import com.studyflow.domain.student.exception.StudentProfileNotFoundException;
+import com.studyflow.domain.qna.exception.QnaAnswerNotFoundException;
+import com.studyflow.domain.qna.exception.QnaForbiddenException;
+import com.studyflow.domain.qna.exception.QnaInvalidStateException;
+import com.studyflow.domain.qna.exception.QnaQuestionNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
@@ -281,6 +285,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AiServiceException.class)
     public ResponseEntity<Map<String, Object>> handleAiService(AiServiceException ex) {
         ErrorCode errorCode = ErrorCode.AI_SERVICE_ERROR;
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // ── QnA 질문게시판 도메인 예외 처리 ──────────────────────
+
+    // 존재하지 않는 질문 (404)
+    @ExceptionHandler(QnaQuestionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleQnaQuestionNotFound(QnaQuestionNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 존재하지 않는 답변 (404)
+    @ExceptionHandler(QnaAnswerNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleQnaAnswerNotFound(QnaAnswerNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 본인 글이 아니거나 채택 권한이 없는 경우 (403)
+    @ExceptionHandler(QnaForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleQnaForbidden(QnaForbiddenException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 이미 채택된 질문에 재채택 시도 등 상태 위배 (코드별 상태)
+    @ExceptionHandler(QnaInvalidStateException.class)
+    public ResponseEntity<Map<String, Object>> handleQnaInvalidState(QnaInvalidStateException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
     // 기타 예외는 필요에 따라 추가 처리

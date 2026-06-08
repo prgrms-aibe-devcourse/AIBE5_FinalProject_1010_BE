@@ -66,6 +66,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/enrollment-requests/{requestId}/reject").hasRole("TEACHER")
                         .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
                         .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
+                        // QnA: 질문 작성/답변 채택은 STUDENT, 답변 작성은 TEACHER (GET은 optionalAuth로 공개)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/qna/questions").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/qna/questions/*/answers").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/answers/*/accept").hasRole("STUDENT")
+                        // 질문 수정/삭제는 소유권 기반(역할 무관)이라 인증만 강제. (optionalAuth permitAll은 GET만 의도)
+                        // 이 규칙이 없으면 questions/* permitAll 때문에 비인증 PATCH/DELETE가 통과되므로 반드시 필요.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/questions/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/questions/*").authenticated()
+                        // 답변 수정/삭제도 소유권 기반. 현재 answers/*는 optionalAuth에 없어 default(authenticated)로도
+                        // 보호되지만, 추후 optionalAuth 추가 시 회귀를 막기 위해 명시한다.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/answers/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/answers/*").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()

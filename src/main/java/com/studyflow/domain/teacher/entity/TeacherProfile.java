@@ -56,6 +56,13 @@ public class TeacherProfile extends BaseTimeEntity {
         return p;
     }
 
+    // 내공 점수 적립/차감 (예: QnA 답변 채택). 변동 후 누적 점수를 반환한다.
+    public int addNaegongScore(int delta) {
+        int updated = (this.naegongScore == null ? 0 : this.naegongScore) + delta;
+        this.naegongScore = Math.max(0, updated);
+        return this.naegongScore;
+    }
+
     // 프로필 수정 — 빈 문자열 포함 전달된 값 그대로 반영
     public void update(String address, String awards, String career,
                        String education, String introduction, String teachingStyle) {
