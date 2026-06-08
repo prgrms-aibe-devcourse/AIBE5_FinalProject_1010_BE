@@ -20,6 +20,7 @@ import com.studyflow.domain.qna.exception.QnaQuestionNotFoundException;
 import com.studyflow.domain.qna.repository.QnaAnswerAttachmentRepository;
 import com.studyflow.domain.qna.repository.QnaAnswerLikeRepository;
 import com.studyflow.domain.qna.repository.QnaAnswerRepository;
+import com.studyflow.domain.qna.repository.QnaAnswerRepositoryCustom;
 import com.studyflow.domain.qna.repository.QnaQuestionAttachmentRepository;
 import com.studyflow.domain.qna.repository.QnaQuestionRepository;
 import com.studyflow.domain.subject.entity.Subject;
@@ -89,8 +90,8 @@ public class QnaService {
                 ? Collections.emptyMap()
                 : answerRepository.countByQuestionIds(questionIds).stream()
                         .collect(Collectors.toMap(
-                                QnaAnswerRepository.QuestionAnswerCount::getQuestionId,
-                                QnaAnswerRepository.QuestionAnswerCount::getCnt));
+                                QnaAnswerRepositoryCustom.QuestionAnswerCount::questionId,
+                                QnaAnswerRepositoryCustom.QuestionAnswerCount::cnt));
 
         return page.map(q -> QnaQuestionSummaryResponse.of(q, answerCounts.getOrDefault(q.getId(), 0L)));
     }
