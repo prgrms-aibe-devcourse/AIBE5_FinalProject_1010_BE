@@ -12,6 +12,9 @@ import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import org.springframework.dao.DataIntegrityViolationException;
+import com.studyflow.domain.file.entity.FileAsset;
+import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.teacher.repository.TeacherVerificationRepository;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.repository.CourseRepository.TeacherCourseCount;
@@ -49,6 +52,7 @@ public class TeacherService {
     private final EnrollmentRequestRepository enrollmentRequestRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherVerificationRepository teacherVerificationRepository;
+    private final FileAssetRepository fileAssetRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -186,8 +190,9 @@ public class TeacherService {
     }
 
     // 선생님 인증 요청 — 이미 PENDING 상태인 요청이 있으면 중복 요청 차단
+    // 서비스 레벨 체크 후 DB unique 제약이 최종 방어선 (Race Condition 대비)
     @Transactional
-    public void requestVerification(Long userId, TeacherVerificationRequest request) {
+    public Long requestVerification(Long userId, TeacherVerificationRequest request) {
         User user = userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
@@ -195,17 +200,30 @@ public class TeacherService {
         teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
-        // 이미 심사 중인 요청이 있으면 중복 요청 차단
+        // 서비스 레벨 중복 체크 (빠른 실패) — DB unique 제약이 최종 방어선
         if (teacherVerificationRepository.existsByUserIdAndStatus(userId, VerificationStatus.PENDING)) {
             throw new VerificationAlreadyPendingException();
+        }
+
+        // fileAssetId가 실제로 업로드된 파일인지, 본인이 업로드한 파일인지 검증
+        FileAsset fileAsset = fileAssetRepository.findByIdWithUploader(request.getFileAssetId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 파일입니다."));
+        if (!fileAsset.getUploader().getId().equals(userId)) {
+            throw new IllegalArgumentException("본인이 업로드한 파일만 사용할 수 있습니다.");
         }
 
         TeacherVerification verification = TeacherVerification.create(
                 user,
                 request.getDocumentType(),
-                request.getDocumentUrl(),
+                fileAsset.getFileUrl(),
                 request.getDescription()
         );
-        teacherVerificationRepository.save(verification);
+
+        try {
+            return teacherVerificationRepository.save(verification).getId();
+        } catch (DataIntegrityViolationException e) {
+            // [동시성] 서비스 레벨 체크를 통과한 동시 요청이 DB unique 제약에 걸린 경우
+            throw new VerificationAlreadyPendingException();
+        }
     }
 }

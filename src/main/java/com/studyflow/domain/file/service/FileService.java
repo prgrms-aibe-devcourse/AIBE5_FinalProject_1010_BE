@@ -304,6 +304,16 @@ public class FileService {
     }
 
     /**
+     * 선생님 인증 서류 업로드 (이미지 + PDF 허용).
+     *
+     * 반환된 fileUrl을 인증 신청 API(TeacherVerificationRequest.documentUrl)에 그대로 전달한다.
+     */
+    @Transactional
+    public FileUploadResponse uploadVerificationDocument(Long uploaderId, MultipartFile file) {
+        return uploadCourseAttachment(uploaderId, file, "verification");
+    }
+
+    /**
      * 수업 관련 첨부파일 공통 업로드 로직 (이미지 + PDF 허용).
      *
      * - 이미지(JPEG/PNG/WEBP): 기존 채팅 이미지와 동일한 검증

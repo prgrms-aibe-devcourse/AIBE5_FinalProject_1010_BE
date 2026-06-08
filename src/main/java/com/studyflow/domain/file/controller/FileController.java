@@ -62,4 +62,19 @@ public class FileController {
     ) {
         return fileService.uploadPostAttachment(userId, file);
     }
+
+    /**
+     * 선생님 인증 서류 업로드 API.
+     *
+     * POST /api/v1/files/verification/documents
+     * 허용: 이미지(jpg/png/webp) + PDF, 최대 20MB
+     * 응답의 fileUrl을 인증 신청 API(POST /api/v1/teachers/verification)의 documentUrl 필드에 전달한다.
+     */
+    @PostMapping("/verification/documents")
+    public FileUploadResponse uploadVerificationDocument(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return fileService.uploadVerificationDocument(userId, file);
+    }
 }
