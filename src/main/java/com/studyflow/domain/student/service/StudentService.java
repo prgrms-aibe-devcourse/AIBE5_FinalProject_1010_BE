@@ -1,7 +1,10 @@
 package com.studyflow.domain.student.service;
 
+import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
+import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
+import com.studyflow.domain.student.dto.StudentEnrollmentRequestResponse;
 import com.studyflow.domain.student.dto.StudentEnrolledCourseResponse;
 import com.studyflow.domain.student.dto.StudentProfileResponse;
 import com.studyflow.domain.student.dto.StudentProfileUpdateRequest;
@@ -25,6 +28,7 @@ public class StudentService {
     private final StudentProfileRepository studentProfileRepository;
     private final UserRepository userRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentRequestRepository enrollmentRequestRepository;
 
     @Transactional(readOnly = true)
     public StudentProfileResponse getMyProfile(Long userId) {
@@ -47,6 +51,17 @@ public class StudentService {
         profile.update(request.getGoal(), request.getGrade(), request.getInterestSubjects(), request.getRegion());
 
         return new StudentProfileResponse(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StudentEnrollmentRequestResponse> getMyEnrollmentRequests(
+            Long userId, EnrollmentRequestStatus status, Pageable pageable) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        return enrollmentRequestRepository
+                .findByUserId(userId, status, pageable)
+                .map(StudentEnrollmentRequestResponse::from);
     }
 
     @Transactional(readOnly = true)
