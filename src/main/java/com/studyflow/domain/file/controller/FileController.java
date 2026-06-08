@@ -36,6 +36,25 @@ public class FileController {
     }
 
     /**
+     * QnA(질문게시판) 이미지 업로드 API.
+     *
+     * 요청:
+     * POST /api/v1/files/qna/images
+     * Content-Type: multipart/form-data
+     * key: file
+     * 허용: 이미지(jpg/png/webp), 최대 10MB
+     *
+     * 응답으로 받은 fileId를 질문/답변 작성 요청의 imageFileIds 배열에 넣는다(여러 장이면 각각 업로드 후 모아서).
+     */
+    @PostMapping("/qna/images")
+    public FileUploadResponse uploadQnaImage(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return fileService.uploadQnaImage(userId, file);
+    }
+
+    /**
      * 공지사항 첨부파일 업로드 API.
      *
      * POST /api/v1/files/notice/attachments

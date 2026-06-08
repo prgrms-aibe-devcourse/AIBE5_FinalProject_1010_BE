@@ -58,6 +58,12 @@ public enum ErrorCode {
     CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "대화를 찾을 수 없습니다."),
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다."),
 
+    // QnA 질문게시판
+    QNA_QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "질문을 찾을 수 없습니다."),
+    QNA_ANSWER_NOT_FOUND(HttpStatus.NOT_FOUND, "답변을 찾을 수 없습니다."),
+    QNA_FORBIDDEN(HttpStatus.FORBIDDEN, "해당 작업에 대한 권한이 없습니다."),
+    QNA_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 답변이 채택된 질문입니다."),
+
     // 파일
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
     NOT_MY_FILE(HttpStatus.FORBIDDEN, "본인이 업로드한 파일만 사용할 수 있습니다.");
