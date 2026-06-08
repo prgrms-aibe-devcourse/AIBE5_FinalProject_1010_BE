@@ -56,7 +56,11 @@ public enum ErrorCode {
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),
     AI_QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "질문 기록을 찾을 수 없습니다."),
     CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "대화를 찾을 수 없습니다."),
-    AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다.");
+    AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 처리 중 오류가 발생했습니다."),
+
+    // 파일
+    FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
+    NOT_MY_FILE(HttpStatus.FORBIDDEN, "본인이 업로드한 파일만 사용할 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;
