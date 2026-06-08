@@ -15,11 +15,20 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     // 특정 상태의 신청 존재 여부 확인 — 주로 PENDING 중복 신청 방지에 사용
     boolean existsByUserIdAndCourseIdAndStatus(Long userId, Long courseId, EnrollmentRequestStatus status);
 
+    // 수락/거절 처리용 — course·teacherProfile JOIN FETCH (소유권 검증 시 LAZY 추가 쿼리 방지)
+    @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.course c JOIN FETCH c.teacherProfile WHERE er.id = :id")
+    Optional<EnrollmentRequest> findByIdWithCourse(@Param("id") Long id);
+
+    // 취소 처리용 — user JOIN FETCH (본인 확인 시 LAZY 추가 쿼리 방지)
+    @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user WHERE er.id = :id")
+    Optional<EnrollmentRequest> findByIdWithUser(@Param("id") Long id);
+
     // 신청/취소를 반복했을 수 있으므로 가장 최근 신청 기준으로 myStatus 결정
     Optional<EnrollmentRequest> findFirstByUserIdAndCourseIdOrderByCreatedAtDesc(Long userId, Long courseId);
 
     // 선생님 본인 수업에 대한 수강 신청 목록 조회 — courseId/status 필터 옵션
-    @Query("""
+    // countQuery를 분리해 JOIN FETCH + Page 조합에서 발생하는 count 오류 방지
+    @Query(value = """
             SELECT er FROM EnrollmentRequest er
             JOIN FETCH er.course c
             JOIN FETCH er.user u
@@ -27,6 +36,13 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
               AND (:courseId IS NULL OR c.id = :courseId)
               AND (:status IS NULL OR er.status = :status)
             ORDER BY er.createdAt DESC
+            """,
+           countQuery = """
+            SELECT COUNT(er) FROM EnrollmentRequest er
+            JOIN er.course c
+            WHERE c.teacherProfile.id = :teacherProfileId
+              AND (:courseId IS NULL OR c.id = :courseId)
+              AND (:status IS NULL OR er.status = :status)
             """)
     Page<EnrollmentRequest> findByTeacherProfileId(
             @Param("teacherProfileId") Long teacherProfileId,
@@ -35,7 +51,8 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
             Pageable pageable);
 
     // 학생 본인 수강 신청 목록 조회 — status 필터 옵션
-    @Query("""
+    // countQuery를 분리해 JOIN FETCH + Page 조합에서 발생하는 count 오류 방지
+    @Query(value = """
             SELECT er FROM EnrollmentRequest er
             JOIN FETCH er.course c
             JOIN FETCH c.teacherProfile tp
@@ -43,6 +60,11 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
             WHERE er.user.id = :userId
               AND (:status IS NULL OR er.status = :status)
             ORDER BY er.createdAt DESC
+            """,
+           countQuery = """
+            SELECT COUNT(er) FROM EnrollmentRequest er
+            WHERE er.user.id = :userId
+              AND (:status IS NULL OR er.status = :status)
             """)
     Page<EnrollmentRequest> findByUserId(
             @Param("userId") Long userId,

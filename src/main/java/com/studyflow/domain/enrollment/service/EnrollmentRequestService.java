@@ -137,7 +137,7 @@ public class EnrollmentRequestService {
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
-        EnrollmentRequest request = enrollmentRequestRepository.findById(requestId)
+        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithCourse(requestId)
                 .orElseThrow(() -> new ProcessEnrollmentRequestException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));
@@ -164,7 +164,7 @@ public class EnrollmentRequestService {
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
         // 2. 수강 신청 기록 조회
-        EnrollmentRequest request = enrollmentRequestRepository.findById(requestId)
+        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUser(requestId)
                 .orElseThrow(() -> new EnrollmentRequestCancelException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));
