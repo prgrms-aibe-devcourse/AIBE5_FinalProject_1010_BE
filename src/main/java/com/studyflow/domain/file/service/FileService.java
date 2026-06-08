@@ -84,6 +84,27 @@ public class FileService {
      */
     @Transactional
     public FileUploadResponse uploadChatImage(Long uploaderId, MultipartFile file) {
+        return uploadImage(uploaderId, file, "chat");
+    }
+
+    /**
+     * QnA(질문게시판) 이미지 업로드.
+     *
+     * <p>질문(학생)·답변(선생님)에 첨부할 이미지를 올린다. 채팅 이미지와 동일한 검증/저장 흐름이며
+     * 저장 폴더만 {@code qna}로 분리한다. 응답의 fileId를 질문/답변 작성 요청의
+     * {@code imageFileIds}에 담아 보낸다(여러 장이면 각 fileId를 모아 배열로).</p>
+     */
+    @Transactional
+    public FileUploadResponse uploadQnaImage(Long uploaderId, MultipartFile file) {
+        return uploadImage(uploaderId, file, "qna");
+    }
+
+    /**
+     * 이미지 업로드 공통 로직. (저장 폴더만 {@code folder}로 분리)
+     *
+     * <p>허용 형식: JPEG/PNG/WEBP, 최대 10MB. Content-Type·확장자·매직바이트를 모두 검사한다.</p>
+     */
+    private FileUploadResponse uploadImage(Long uploaderId, MultipartFile file, String folder) {
         validateImage(file);
 
         User uploader = userRepository.findById(uploaderId)
@@ -106,7 +127,7 @@ public class FileService {
             // Content-Type·확장자는 위조 가능하므로, 내용 자체를 검사해 위장 업로드를 막는다.
             validateMagicBytes(bytes);
 
-            StoredFile sf = storeLocalFile(bytes, "chat", extension);
+            StoredFile sf = storeLocalFile(bytes, folder, extension);
             ImageSize imageSize = readImageSize(bytes);
 
             FileAsset fileAsset = FileAsset.createImage(
