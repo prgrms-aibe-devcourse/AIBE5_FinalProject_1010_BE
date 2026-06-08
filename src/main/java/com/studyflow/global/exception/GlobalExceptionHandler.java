@@ -293,14 +293,14 @@ public class GlobalExceptionHandler {
     // 존재하지 않는 질문 (404)
     @ExceptionHandler(QnaQuestionNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleQnaQuestionNotFound(QnaQuestionNotFoundException ex) {
-        ErrorCode errorCode = ErrorCode.QNA_QUESTION_NOT_FOUND;
+        ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 존재하지 않는 답변 (404)
     @ExceptionHandler(QnaAnswerNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleQnaAnswerNotFound(QnaAnswerNotFoundException ex) {
-        ErrorCode errorCode = ErrorCode.QNA_ANSWER_NOT_FOUND;
+        ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 

@@ -15,11 +15,15 @@ import org.springframework.data.domain.Sort;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.studyflow.domain.qna.entity.QQnaQuestion.qnaQuestion;
 
 @RequiredArgsConstructor
 public class QnaQuestionRepositoryImpl implements QnaQuestionRepositoryCustom {
+
+    // 정렬 허용 필드 화이트리스트 — 존재하지 않는 sort 파라미터로 인한 런타임 오류를 막는다.
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "viewCount", "resolved", "id");
 
     private final JPAQueryFactory queryFactory;
 
@@ -89,8 +93,16 @@ public class QnaQuestionRepositoryImpl implements QnaQuestionRepositoryCustom {
         PathBuilder<QnaQuestion> path = new PathBuilder<>(QnaQuestion.class, qnaQuestion.getMetadata().getName());
         List<OrderSpecifier> orders = new ArrayList<>();
         for (Sort.Order o : sort) {
+            // 화이트리스트에 없는 필드는 무시 (잘못된 sort 파라미터로 QueryDSL 런타임 오류 방지)
+            if (!ALLOWED_SORT_FIELDS.contains(o.getProperty())) {
+                continue;
+            }
             orders.add(new OrderSpecifier(o.isAscending() ? Order.ASC : Order.DESC,
                     path.get(o.getProperty())));
+        }
+        // 유효한 정렬이 하나도 없으면 최신순 기본 적용
+        if (orders.isEmpty()) {
+            return new OrderSpecifier<?>[]{qnaQuestion.createdAt.desc()};
         }
         return orders.toArray(new OrderSpecifier[0]);
     }

@@ -16,8 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,14 +57,14 @@ class NaegongServiceTest {
     }
 
     @Test
-    @DisplayName("addScore: 선생님 프로필이 없으면 이력만 남기고 0을 반환한다(흐름은 막지 않음)")
-    void addScore_noProfile_returnsZero() {
+    @DisplayName("addScore: 선생님 프로필이 없으면 IllegalStateException, 이력도 저장하지 않는다(상태 일관성)")
+    void addScore_noProfile_throwsAndSkipsHistory() {
         User teacher = mockUser(2L);
         when(teacherProfileRepository.findByUserId(2L)).thenReturn(Optional.empty());
 
-        int total = service.addScore(teacher, 10, NaegongReason.ANSWER_ACCEPTED, 20L);
+        assertThatThrownBy(() -> service.addScore(teacher, 10, NaegongReason.ANSWER_ACCEPTED, 20L))
+                .isInstanceOf(IllegalStateException.class);
 
-        assertThat(total).isZero();
-        verify(naegongHistoryRepository).save(any(NaegongHistory.class));
+        verify(naegongHistoryRepository, never()).save(any(NaegongHistory.class));
     }
 }

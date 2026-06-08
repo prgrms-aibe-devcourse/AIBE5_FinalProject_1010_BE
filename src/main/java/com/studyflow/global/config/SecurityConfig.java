@@ -74,6 +74,10 @@ public class SecurityConfig {
                         // 이 규칙이 없으면 questions/* permitAll 때문에 비인증 PATCH/DELETE가 통과되므로 반드시 필요.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/questions/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/questions/*").authenticated()
+                        // 답변 수정/삭제도 소유권 기반. 현재 answers/*는 optionalAuth에 없어 default(authenticated)로도
+                        // 보호되지만, 추후 optionalAuth 추가 시 회귀를 막기 위해 명시한다.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/answers/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/answers/*").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()

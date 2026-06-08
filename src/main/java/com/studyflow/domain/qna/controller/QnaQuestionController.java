@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -61,7 +62,7 @@ public class QnaQuestionController {
     public ResponseEntity<QnaQuestionCreateResponse> createQuestion(
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody QnaQuestionCreateRequest request) {
-        return ResponseEntity.ok(qnaService.createQuestion(userId, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(qnaService.createQuestion(userId, request));
     }
 
     // 질문 수정 (작성 학생 본인)
@@ -90,6 +91,6 @@ public class QnaQuestionController {
             @PathVariable Long questionId,
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody QnaAnswerRequest request) {
-        return ResponseEntity.ok(qnaService.createAnswer(userId, questionId, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(qnaService.createAnswer(userId, questionId, request));
     }
 }
