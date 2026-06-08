@@ -21,6 +21,8 @@ import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import com.studyflow.domain.teacher.exception.VerificationNotFoundException;
+import com.studyflow.domain.teacher.exception.VerificationNotPendingException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
@@ -228,6 +230,22 @@ public class GlobalExceptionHandler {
     // 선생님 인증 파일이 유효하지 않은 경우 (존재하지 않는 파일(404), 본인 파일이 아님(403))
     @ExceptionHandler(InvalidVerificationFileException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidVerificationFileException(InvalidVerificationFileException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    // 선생님 인증 요청을 찾을 수 없는 경우 (404)
+    @ExceptionHandler(VerificationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleVerificationNotFoundException(VerificationNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    // 이미 처리된 인증 요청에 수락/거절 시도 (400)
+    @ExceptionHandler(VerificationNotPendingException.class)
+    public ResponseEntity<Map<String, Object>> handleVerificationNotPendingException(VerificationNotPendingException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         Map<String, Object> body = errorCode.toBody(ex.getMessage());
         return ResponseEntity.status(errorCode.getStatus()).body(body);

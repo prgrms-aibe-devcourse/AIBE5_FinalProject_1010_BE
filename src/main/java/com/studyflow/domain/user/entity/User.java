@@ -137,5 +137,9 @@ public class User extends BaseTimeEntity {
         this.deletedAt = LocalDateTime.now();
         this.isActive = false;
     }
+
+    public void verify() {
+        this.isVerified = true;
+    }
 }
 
