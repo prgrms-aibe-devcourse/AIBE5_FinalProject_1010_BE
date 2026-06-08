@@ -3,14 +3,11 @@ package com.studyflow.global.exception;
 import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
+import com.studyflow.domain.enrollment.exception.*;
 import com.studyflow.domain.student.exception.StudentProfileNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
-import com.studyflow.domain.enrollment.exception.AlreadyEnrolledException;
-import com.studyflow.domain.enrollment.exception.CourseNotRecruitingException;
-import com.studyflow.domain.enrollment.exception.EnrollmentRequestAlreadyPendingException;
-import com.studyflow.domain.enrollment.exception.SelfEnrollmentException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -239,6 +236,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleSelfEnrollment(SelfEnrollmentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorCode.SELF_ENROLLMENT.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EnrollmentRequestCancelException.class)
+    public ResponseEntity<Map<String, Object>> handleEnrollmentRequestCancelException(
+            EnrollmentRequestCancelException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    @ExceptionHandler(ProcessEnrollmentRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleProcessEnrollmentRequestException(
+            ProcessEnrollmentRequestException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
     }
 
     // ── AI 질문 도메인 예외 처리 ──────────────────────
