@@ -57,6 +57,22 @@ public class CourseSpecification {
         };
     }
 
+    // 최소 인원 필터 (maxStudents >= minGroupSize)
+    public static Specification<Course> hasMinGroupSize(Integer minGroupSize) {
+        return (root, query, cb) -> {
+            if (minGroupSize == null) return null;
+            return cb.greaterThanOrEqualTo(root.get("maxStudents"), minGroupSize);
+        };
+    }
+
+    // 최대 인원 필터 (maxStudents <= maxGroupSize)
+    public static Specification<Course> hasMaxGroupSize(Integer maxGroupSize) {
+        return (root, query, cb) -> {
+            if (maxGroupSize == null) return null;
+            return cb.lessThanOrEqualTo(root.get("maxStudents"), maxGroupSize);
+        };
+    }
+
     // 검색 목록 기본 조건: 공개 수업(isListed=true) + 모집 중 또는 수강 중인 수업
     // isListed는 선생님이 직접 토글로 제어하는 노출 여부 플래그
     // IN_PROGRESS 포함: 수강 중인 수업도 선생님이 원하면 검색 노출 가능

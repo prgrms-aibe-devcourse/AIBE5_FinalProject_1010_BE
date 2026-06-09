@@ -44,6 +44,22 @@ public class CourseSearchRequest {
         return minPrice <= maxPrice;
     }
 
+    // 수업 최대 인원 하한 필터 (maxStudents >= minGroupSize)
+    @Min(value = 1, message = "최소 인원은 1명 이상이어야 합니다.")
+    private Integer minGroupSize;
+
+    // 수업 최대 인원 상한 필터 (maxStudents <= maxGroupSize)
+    @Min(value = 1, message = "최대 인원은 1명 이상이어야 합니다.")
+    private Integer maxGroupSize;
+
+    // minGroupSize > maxGroupSize 교차 검증
+    @AssertTrue(message = "최소 인원은 최대 인원보다 클 수 없습니다.")
+    public boolean isGroupSizeRangeValid() {
+        if (minGroupSize == null || maxGroupSize == null)
+            return true;
+        return minGroupSize <= maxGroupSize;
+    }
+
     // 정렬 기준 (기본값: 최신순)
     private CourseSort sort = CourseSort.LATEST;
 }

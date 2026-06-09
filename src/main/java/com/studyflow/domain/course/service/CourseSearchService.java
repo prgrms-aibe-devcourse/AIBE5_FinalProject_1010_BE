@@ -40,7 +40,9 @@ public class CourseSearchService {
                 .and(CourseSpecification.hasSubjects(request.getSubjectIds()))
                 .and(CourseSpecification.hasTargetGrades(request.getTargetGrades()))
                 .and(CourseSpecification.hasMinPrice(request.getMinPrice()))
-                .and(CourseSpecification.hasMaxPrice(request.getMaxPrice()));
+                .and(CourseSpecification.hasMaxPrice(request.getMaxPrice()))
+                .and(CourseSpecification.hasMinGroupSize(request.getMinGroupSize()))
+                .and(CourseSpecification.hasMaxGroupSize(request.getMaxGroupSize()));
 
         // 2단계: 요청의 sort 필드로 정렬 기준 생성 후 Pageable에 반영
         // 컨트롤러에서 넘어온 Pageable의 sort는 무시하고 request.sort를 우선 사용
