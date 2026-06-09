@@ -60,6 +60,9 @@ public class OAuth2TokenController {
             throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "코드 처리 중 오류가 발생했습니다.");
         }
 
+        Long   userId          = ((Number) data.get("userId")).longValue();
+        String name            = (String) data.get("name");
+        String role            = (String) data.get("role");
         String accessToken     = (String) data.get("accessToken");
         String refreshToken    = (String) data.get("refreshToken");
         long refreshExpiresIn  = ((Number) data.get("refreshExpiresIn")).longValue();
@@ -68,7 +71,10 @@ public class OAuth2TokenController {
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(refreshToken, refreshExpiresIn);
 
         Map<String, Object> body = Map.of(
-                "accessToken",   accessToken,
+                "userId",          userId,
+                "name",            name,
+                "role",            role,
+                "accessToken",     accessToken,
                 "accessExpiresIn", accessExpiresIn
         );
 

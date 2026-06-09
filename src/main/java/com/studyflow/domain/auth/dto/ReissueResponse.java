@@ -10,6 +10,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ReissueResponse {
+    private Long userId;
+    private String name;
+    private String role;
     private String accessToken;
     private String refreshToken;
     private long accessExpiresIn; // ms

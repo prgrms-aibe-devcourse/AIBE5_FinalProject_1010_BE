@@ -75,9 +75,11 @@ public class AuthController {
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
                 resp.getRefreshToken(), resp.getRefreshExpiresIn());
 
-        // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
-                "accessToken", resp.getAccessToken(),
+                "userId",          resp.getUserId(),
+                "name",            resp.getName(),
+                "role",            resp.getRole(),
+                "accessToken",     resp.getAccessToken(),
                 "accessExpiresIn", resp.getAccessExpiresIn()
         );
 
@@ -110,9 +112,11 @@ public class AuthController {
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
                 reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
 
-        // 응답 바디에는 access token과 만료시간만 전달
         Map<String, Object> body = Map.of(
-                "accessToken", reissueResponse.getAccessToken(),
+                "userId",          reissueResponse.getUserId(),
+                "name",            reissueResponse.getName(),
+                "role",            reissueResponse.getRole(),
+                "accessToken",     reissueResponse.getAccessToken(),
                 "accessExpiresIn", reissueResponse.getAccessExpiresIn()
         );
 

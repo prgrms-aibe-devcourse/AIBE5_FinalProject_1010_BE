@@ -14,15 +14,13 @@ import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.user.entity.User;
+import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -147,13 +145,12 @@ public class AuthService {
                 java.util.concurrent.TimeUnit.MILLISECONDS
         );
 
-        return new LoginResponse(accessToken, refreshToken,
+        return new LoginResponse(user.getId(), user.getName(), user.getRole(),
+                accessToken, refreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
     
     public ReissueResponse reissue(String refreshToken, Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
         // Redis에서 저장된 refresh token 조회 후 유효성 검증
         // 추후 동시성 문제 고려 필요
         String storedRefreshToken = redisTemplate.opsForValue().get(RedisPrefixProvider.refreshTokenKey(userId));
@@ -162,16 +159,12 @@ public class AuthService {
                     "서버의 refresh token 정보와 일치하지 않거나 존재하지 않습니다.");
         }
 
-        // role 정보 추출 (1계정 2권한 허용 시 수정 필요)
-        String role = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("권한 정보가 존재하지 않습니다."));
-        // 'ROLE_' 접두사가 붙어있는 경우 접두사를 제거하여 순수한 role 문자열(STUDENT 등)을 사용
-        if (role.startsWith("ROLE_")) {
-            role = role.substring(5);
-        }
-        String newAccessToken = jwtTokenProvider.createAccessToken(userId, role);
+        // DB에서 최신 사용자 정보 조회 — role을 토큰에서 추출하지 않고 DB 기준으로 발급
+        User user = userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        String role = user.getRole().name();
+        String newAccessToken  = jwtTokenProvider.createAccessToken(userId, role);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
 
         // 기존 refresh token을 새 refresh token으로 교체: key = rt:{userId}, TTL = refreshToken 만료 시간
@@ -182,7 +175,8 @@ public class AuthService {
                 TimeUnit.MILLISECONDS
         );
 
-        return new ReissueResponse(newAccessToken, newRefreshToken,
+        return new ReissueResponse(user.getId(), user.getName(), role,
+                newAccessToken, newRefreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
 
