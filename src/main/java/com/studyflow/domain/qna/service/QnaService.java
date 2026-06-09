@@ -73,6 +73,9 @@ public class QnaService {
     // 답변 채택 시 선생님에게 적립되는 내공 점수
     private static final int ACCEPT_ANSWER_NAEGONG_SCORE = 10;
 
+    // 목록 정렬 파라미터 중 '답변 많은순'을 가리키는 키. (오타/이름 변경 시 컴파일에서 잡히도록 상수화)
+    private static final String SORT_ANSWER_COUNT = "answerCount";
+
     // 본문 블록(content_json) 역직렬화용 타입 토큰
     private static final TypeReference<List<QnaBlockRequest>> BLOCK_LIST_TYPE = new TypeReference<>() {
     };
@@ -99,7 +102,7 @@ public class QnaService {
 
         // 정렬이 'answerCount'(답변 많은순)이면 집계 기반 전용 쿼리로, 그 외(createdAt/viewCount)는 일반 정렬로 조회
         boolean orderByAnswers = pageable.getSort().stream()
-                .anyMatch(o -> "answerCount".equals(o.getProperty()));
+                .anyMatch(o -> SORT_ANSWER_COUNT.equals(o.getProperty()));
         Page<QnaQuestion> page = orderByAnswers
                 ? questionRepository.findFilteredOrderByAnswerCount(subjectId, normalizedKeyword, resolved, pageable)
                 : questionRepository.findFiltered(subjectId, normalizedKeyword, resolved, pageable);
@@ -131,6 +134,10 @@ public class QnaService {
         long total = questionRepository.count();
         long resolved = questionRepository.countByResolved(true);
         long totalAnswers = answerRepository.count();
+        if (resolved > total) {
+            // count()와 countByResolved() 사이 동시 변경으로 인한 일시적 불일치 — 감지 가능하도록 로그
+            log.warn("QnA 통계 불일치 감지: resolved({}) > total({})", resolved, total);
+        }
         return QnaBoardStatsResponse.of(total, resolved, totalAnswers);
     }
 
