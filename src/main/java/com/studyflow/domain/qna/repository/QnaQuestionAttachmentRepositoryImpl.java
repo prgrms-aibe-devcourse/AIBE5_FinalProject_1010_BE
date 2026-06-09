@@ -22,4 +22,17 @@ public class QnaQuestionAttachmentRepositoryImpl implements QnaQuestionAttachmen
                 .orderBy(qnaQuestionAttachment.sortOrder.asc())
                 .fetch();
     }
+
+    @Override
+    public List<QnaQuestionAttachment> findFirstImagesByQuestionIds(List<Long> questionIds) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return List.of();
+        }
+        return queryFactory
+                .selectFrom(qnaQuestionAttachment)
+                .join(qnaQuestionAttachment.fileAsset).fetchJoin()
+                .where(qnaQuestionAttachment.question.id.in(questionIds)
+                        .and(qnaQuestionAttachment.sortOrder.eq(0)))
+                .fetch();
+    }
 }

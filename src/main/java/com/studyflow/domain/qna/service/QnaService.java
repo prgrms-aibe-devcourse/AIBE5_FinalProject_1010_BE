@@ -103,7 +103,17 @@ public class QnaService {
                                 QnaAnswerRepositoryCustom.QuestionAnswerCount::questionId,
                                 QnaAnswerRepositoryCustom.QuestionAnswerCount::cnt));
 
-        return page.map(q -> QnaQuestionSummaryResponse.of(q, answerCounts.getOrDefault(q.getId(), 0L)));
+        // 카드 썸네일용: 질문별 첫 번째 첨부 이미지 URL을 일괄 조회
+        Map<Long, String> thumbnails = questionIds.isEmpty()
+                ? Collections.emptyMap()
+                : questionAttachmentRepository.findFirstImagesByQuestionIds(questionIds).stream()
+                        .collect(Collectors.toMap(
+                                a -> a.getQuestion().getId(),
+                                a -> a.getFileAsset().getFileUrl(),
+                                (a, b) -> a));
+
+        return page.map(q -> QnaQuestionSummaryResponse.of(
+                q, answerCounts.getOrDefault(q.getId(), 0L), thumbnails.get(q.getId())));
     }
 
     /** 질문 상세 조회 (Public). 조회 시 조회수를 1 증가시킨다. */

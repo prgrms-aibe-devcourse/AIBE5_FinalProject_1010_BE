@@ -14,9 +14,13 @@ public record QnaQuestionSummaryResponse(
         boolean isResolved,
         long answerCount,
         int viewCount,
+        String thumbnailUrl,
         LocalDateTime createdAt
 ) {
-    public static QnaQuestionSummaryResponse of(QnaQuestion q, long answerCount) {
+    /**
+     * @param thumbnailUrl 첫 번째 첨부 이미지 URL(목록 카드 썸네일용). 이미지가 없으면 null.
+     */
+    public static QnaQuestionSummaryResponse of(QnaQuestion q, long answerCount, String thumbnailUrl) {
         return new QnaQuestionSummaryResponse(
                 q.getId(),
                 q.getTitle(),
@@ -26,6 +30,7 @@ public record QnaQuestionSummaryResponse(
                 q.isResolved(),
                 answerCount,
                 q.getViewCount(),
+                thumbnailUrl,
                 q.getCreatedAt()
         );
     }
