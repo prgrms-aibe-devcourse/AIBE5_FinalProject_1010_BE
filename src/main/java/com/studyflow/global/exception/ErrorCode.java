@@ -25,6 +25,8 @@ public enum ErrorCode {
 
     // 선생님 인증
     VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
+    VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "인증 요청을 찾을 수 없습니다."),
+    VERIFICATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "심사 중이 아닌 인증 요청입니다."),
 
     // 수업
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의를 찾을 수 없습니다."),
