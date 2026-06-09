@@ -96,7 +96,13 @@ public class QnaService {
     public Page<QnaQuestionSummaryResponse> getQuestions(Long subjectId, String keyword, Boolean resolved,
                                                          Pageable pageable) {
         String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
-        Page<QnaQuestion> page = questionRepository.findFiltered(subjectId, normalizedKeyword, resolved, pageable);
+
+        // 정렬이 'answerCount'(답변 많은순)이면 집계 기반 전용 쿼리로, 그 외(createdAt/viewCount)는 일반 정렬로 조회
+        boolean orderByAnswers = pageable.getSort().stream()
+                .anyMatch(o -> "answerCount".equals(o.getProperty()));
+        Page<QnaQuestion> page = orderByAnswers
+                ? questionRepository.findFilteredOrderByAnswerCount(subjectId, normalizedKeyword, resolved, pageable)
+                : questionRepository.findFiltered(subjectId, normalizedKeyword, resolved, pageable);
 
         List<Long> questionIds = page.getContent().stream().map(QnaQuestion::getId).toList();
         Map<Long, Long> answerCounts = questionIds.isEmpty()
@@ -117,6 +123,15 @@ public class QnaService {
 
         return page.map(q -> QnaQuestionSummaryResponse.of(
                 q, answerCounts.getOrDefault(q.getId(), 0L), thumbnails.get(q.getId())));
+    }
+
+    /** 질문게시판 전역 통계 (목록 상단 카드용). 필터와 무관하다. */
+    @Transactional(readOnly = true)
+    public QnaBoardStatsResponse getBoardStats() {
+        long total = questionRepository.count();
+        long resolved = questionRepository.countByResolved(true);
+        long totalAnswers = answerRepository.count();
+        return QnaBoardStatsResponse.of(total, resolved, totalAnswers);
     }
 
     /** 질문 상세 조회 (Public). 조회 시 조회수를 1 증가시킨다. */

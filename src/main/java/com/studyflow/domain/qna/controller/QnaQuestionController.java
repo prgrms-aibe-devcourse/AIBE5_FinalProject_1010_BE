@@ -4,6 +4,7 @@ import com.studyflow.domain.qna.dto.request.QnaAnswerRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionCreateRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionUpdateRequest;
 import com.studyflow.domain.qna.dto.response.QnaAnswerCreateResponse;
+import com.studyflow.domain.qna.dto.response.QnaBoardStatsResponse;
 import com.studyflow.domain.qna.dto.response.QnaQuestionCreateResponse;
 import com.studyflow.domain.qna.dto.response.QnaQuestionDetailResponse;
 import com.studyflow.domain.qna.dto.response.QnaQuestionSummaryResponse;
@@ -47,6 +48,12 @@ public class QnaQuestionController {
             @RequestParam(required = false) Boolean resolved,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(qnaService.getQuestions(subjectId, keyword, resolved, pageable));
+    }
+
+    // 질문게시판 전역 통계 (Public). '/{questionId}'보다 위에 둬 리터럴 경로가 우선 매칭되게 한다.
+    @GetMapping("/stats")
+    public ResponseEntity<QnaBoardStatsResponse> getBoardStats() {
+        return ResponseEntity.ok(qnaService.getBoardStats());
     }
 
     // 질문 상세 조회 (Public). 로그인 시 좋아요 여부(liked) 계산을 위해 userId를 함께 받는다(없으면 null).
