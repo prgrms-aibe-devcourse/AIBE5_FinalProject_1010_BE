@@ -20,6 +20,7 @@ import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -161,7 +163,10 @@ public class AuthService {
 
         // DB에서 최신 사용자 정보 조회 — role을 토큰에서 추출하지 않고 DB 기준으로 발급
         User user = userRepository.findActiveById(userId)
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> {
+                    log.warn("reissue 실패 — userId={} 에 해당하는 활성 사용자 없음 (비활성 또는 탈퇴 가능성)", userId);
+                    return new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다.");
+                });
 
         String role = user.getRole().name();
         String newAccessToken  = jwtTokenProvider.createAccessToken(userId, role);
@@ -175,7 +180,7 @@ public class AuthService {
                 TimeUnit.MILLISECONDS
         );
 
-        return new ReissueResponse(user.getId(), user.getName(), role,
+        return new ReissueResponse(user.getId(), user.getName(), user.getRole(),
                 newAccessToken, newRefreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }

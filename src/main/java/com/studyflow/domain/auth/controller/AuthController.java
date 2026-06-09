@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -75,13 +76,12 @@ public class AuthController {
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
                 resp.getRefreshToken(), resp.getRefreshExpiresIn());
 
-        Map<String, Object> body = Map.of(
-                "userId",          resp.getUserId(),
-                "name",            resp.getName(),
-                "role",            resp.getRole(),
-                "accessToken",     resp.getAccessToken(),
-                "accessExpiresIn", resp.getAccessExpiresIn()
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("userId",          resp.getUserId());
+        body.put("name",            resp.getName());
+        body.put("role",            resp.getRole());
+        body.put("accessToken",     resp.getAccessToken());
+        body.put("accessExpiresIn", resp.getAccessExpiresIn());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
@@ -112,13 +112,12 @@ public class AuthController {
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
                 reissueResponse.getRefreshToken(), reissueResponse.getRefreshExpiresIn());
 
-        Map<String, Object> body = Map.of(
-                "userId",          reissueResponse.getUserId(),
-                "name",            reissueResponse.getName(),
-                "role",            reissueResponse.getRole(),
-                "accessToken",     reissueResponse.getAccessToken(),
-                "accessExpiresIn", reissueResponse.getAccessExpiresIn()
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("userId",          reissueResponse.getUserId());
+        body.put("name",            reissueResponse.getName());
+        body.put("role",            reissueResponse.getRole());
+        body.put("accessToken",     reissueResponse.getAccessToken());
+        body.put("accessExpiresIn", reissueResponse.getAccessExpiresIn());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())

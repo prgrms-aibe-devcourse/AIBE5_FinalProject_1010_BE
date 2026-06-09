@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -60,23 +61,28 @@ public class OAuth2TokenController {
             throw new SignupRequestException(ErrorCode.VALIDATION_ERROR, "코드 처리 중 오류가 발생했습니다.");
         }
 
-        Long   userId          = ((Number) data.get("userId")).longValue();
-        String name            = (String) data.get("name");
-        String role            = (String) data.get("role");
-        String accessToken     = (String) data.get("accessToken");
-        String refreshToken    = (String) data.get("refreshToken");
-        long refreshExpiresIn  = ((Number) data.get("refreshExpiresIn")).longValue();
-        long accessExpiresIn   = ((Number) data.get("accessExpiresIn")).longValue();
+        // 재배포 직후 이전 형식의 코드가 Redis에 남아 있을 수 있으므로 null 방어
+        Number userIdNum = (Number) data.get("userId");
+        if (userIdNum == null) {
+            throw new SignupRequestException(ErrorCode.VALIDATION_ERROR,
+                    "유효하지 않거나 만료된 코드입니다. 소셜 로그인을 다시 시도해 주세요.");
+        }
+        Long   userId         = userIdNum.longValue();
+        String name           = (String) data.get("name");
+        String role           = (String) data.get("role");
+        String accessToken    = (String) data.get("accessToken");
+        String refreshToken   = (String) data.get("refreshToken");
+        long refreshExpiresIn = ((Number) data.get("refreshExpiresIn")).longValue();
+        long accessExpiresIn  = ((Number) data.get("accessExpiresIn")).longValue();
 
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(refreshToken, refreshExpiresIn);
 
-        Map<String, Object> body = Map.of(
-                "userId",          userId,
-                "name",            name,
-                "role",            role,
-                "accessToken",     accessToken,
-                "accessExpiresIn", accessExpiresIn
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("userId",          userId);
+        body.put("name",            name);
+        body.put("role",            role);
+        body.put("accessToken",     accessToken);
+        body.put("accessExpiresIn", accessExpiresIn);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
