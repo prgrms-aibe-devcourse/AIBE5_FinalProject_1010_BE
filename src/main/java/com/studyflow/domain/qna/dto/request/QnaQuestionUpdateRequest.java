@@ -29,4 +29,7 @@ public class QnaQuestionUpdateRequest {
     private String content;
 
     private List<Long> imageFileIds;
+
+    // 글·이미지를 자유롭게 배치한 본문 블록(선택). 주면 이미지 첨부는 블록에서 도출하고 전체 교체한다.
+    private List<QnaBlockRequest> blocks;
 }
