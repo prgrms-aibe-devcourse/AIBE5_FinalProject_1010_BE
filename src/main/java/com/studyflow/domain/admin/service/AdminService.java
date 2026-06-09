@@ -17,6 +17,8 @@ import com.studyflow.domain.admin.dto.UserCountResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.entity.UserCountStatistics;
 import com.studyflow.domain.admin.repository.UserCountStatisticsRepository;
+import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
@@ -43,6 +45,7 @@ public class AdminService {
     private final UserCountStatisticsRepository userCountStatisticsRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final CourseRepository courseRepository;
 
     // 선생님 인증 요청 목록 조회 — status가 null이면 전체 반환
     public Page<AdminVerificationSummaryResponse> getTeacherVerifications(
@@ -56,6 +59,20 @@ public class AdminService {
         return teacherVerificationRepository.findByIdWithUser(verificationId)
                 .map(AdminVerificationDetailResponse::from)
                 .orElseThrow(() -> new VerificationNotFoundException(verificationId));
+    }
+
+    // 승인 대기 선생님 수 조회
+    public UserCountResponse getVerificationPendingCount() {
+        return new UserCountResponse(
+                teacherVerificationRepository.countByStatus(VerificationStatus.PENDING));
+    }
+
+    // 수업 수 조회 — status가 null이면 전체 반환
+    public UserCountResponse getCourseCount(CourseStatus status) {
+        long count = (status == null)
+                ? courseRepository.count()
+                : courseRepository.countByStatus(status);
+        return new UserCountResponse(count);
     }
 
     // 활성 회원 수 조회 — role이 null이면 전체 반환

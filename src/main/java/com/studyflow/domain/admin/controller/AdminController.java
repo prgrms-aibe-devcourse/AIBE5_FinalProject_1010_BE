@@ -8,6 +8,7 @@ import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.UserCountResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.service.AdminService;
+import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.user.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 
@@ -94,6 +95,22 @@ public class AdminController {
     public ResponseEntity<UserCountStatisticsResponse> getUserCountStatistics(
             @PathVariable LocalDate date) {
         return ResponseEntity.ok(adminService.getUserCountStatistics(date));
+    }
+
+    // 관리자 대시보드 - 개설 수업 수 조회
+    // 예시: GET /api/v1/admin/dashboard/course-count
+    //       GET /api/v1/admin/dashboard/course-count?status=RECRUITING
+    @GetMapping("/dashboard/course-count")
+    public ResponseEntity<UserCountResponse> getCourseCount(
+            @RequestParam(required = false) CourseStatus status) {
+        return ResponseEntity.ok(adminService.getCourseCount(status));
+    }
+
+    // 관리자 대시보드 - 승인대기 선생님 수 조회
+    // 예시: GET /api/v1/admin/dashboard/verification-pending-count
+    @GetMapping("/dashboard/verification-pending-count")
+    public ResponseEntity<UserCountResponse> getVerificationPendingCount() {
+        return ResponseEntity.ok(adminService.getVerificationPendingCount());
     }
 
     // 관리자 페이지 - 활성 회원 목록 조회
