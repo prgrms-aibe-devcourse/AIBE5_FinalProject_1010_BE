@@ -59,7 +59,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         // 기존 회원: JWT 발급 후 one-time code를 Redis에 저장하고 code만 URL에 포함
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        Long userId  = (Long)   oAuth2User.getAttributes().get("userId");
+        String name  = (String) oAuth2User.getAttributes().get("name");
         String role  = (String) oAuth2User.getAttributes().get("role");
 
         String accessToken  = jwtTokenProvider.createAccessToken(userId, role);
@@ -76,8 +77,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // one-time code → Redis (oauth2:code:{uuid}, TTL 30초)
         String code = UUID.randomUUID().toString();
         Map<String, Object> codeData = Map.of(
-                "accessToken",    accessToken,
-                "refreshToken",   refreshToken,
+                "userId",           userId,
+                "name",             name,
+                "role",             role,
+                "accessToken",      accessToken,
+                "refreshToken",     refreshToken,
                 "accessExpiresIn",  jwtTokenProvider.getAccessTokenExpiration(),
                 "refreshExpiresIn", jwtTokenProvider.getRefreshTokenExpiration()
         );

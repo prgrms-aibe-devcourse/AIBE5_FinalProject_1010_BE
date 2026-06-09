@@ -68,6 +68,7 @@ public class OAuth2UserService implements org.springframework.security.oauth2.cl
                                                        Map<String, Object> attributes,
                                                        String nameAttributeKey) {
         attributes.put("userId", user.getId());
+        attributes.put("name", user.getName());
         attributes.put("role", user.getRole().name());
         return new DefaultOAuth2User(
                 Collections.singleton(() -> "ROLE_" + user.getRole().name()),
