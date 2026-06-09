@@ -1,5 +1,6 @@
 package com.studyflow.domain.qna.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.naegong.enums.NaegongReason;
@@ -74,6 +75,7 @@ class QnaServiceTest {
     @Mock UserRepository userRepository;
     @Mock FileAssetRepository fileAssetRepository;
     @Mock NaegongService naegongService;
+    @Mock ObjectMapper objectMapper;
 
     @InjectMocks QnaService service;
 
@@ -353,7 +355,7 @@ class QnaServiceTest {
 
         assertThat(res.questionId()).isEqualTo(10L);
         assertThat(res.answers()).isEmpty();
-        assertThat(res.imageUrls()).isEmpty();
+        assertThat(res.images()).isEmpty();
         assertThat(q.getViewCount()).isEqualTo(1);
     }
 

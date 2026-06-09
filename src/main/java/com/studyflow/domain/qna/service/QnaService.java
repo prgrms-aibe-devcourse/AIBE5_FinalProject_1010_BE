@@ -1,10 +1,14 @@
 package com.studyflow.domain.qna.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.naegong.enums.NaegongReason;
 import com.studyflow.domain.naegong.service.NaegongService;
 import com.studyflow.domain.qna.dto.request.QnaAnswerRequest;
+import com.studyflow.domain.qna.dto.request.QnaBlockRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionCreateRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionUpdateRequest;
 import com.studyflow.domain.qna.dto.response.*;
@@ -30,12 +34,14 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,10 +67,15 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class QnaService {
 
     // 답변 채택 시 선생님에게 적립되는 내공 점수
     private static final int ACCEPT_ANSWER_NAEGONG_SCORE = 10;
+
+    // 본문 블록(content_json) 역직렬화용 타입 토큰
+    private static final TypeReference<List<QnaBlockRequest>> BLOCK_LIST_TYPE = new TypeReference<>() {
+    };
 
     private final QnaQuestionRepository questionRepository;
     private final QnaAnswerRepository answerRepository;
@@ -75,6 +86,8 @@ public class QnaService {
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
     private final NaegongService naegongService;
+    // 본문 블록 직렬화/역직렬화용. Spring이 관리하는 빈을 주입받아 앱 Jackson 설정을 동일하게 따른다.
+    private final ObjectMapper objectMapper;
 
     // ── 질문 ────────────────────────────────────────────────
 
@@ -93,7 +106,17 @@ public class QnaService {
                                 QnaAnswerRepositoryCustom.QuestionAnswerCount::questionId,
                                 QnaAnswerRepositoryCustom.QuestionAnswerCount::cnt));
 
-        return page.map(q -> QnaQuestionSummaryResponse.of(q, answerCounts.getOrDefault(q.getId(), 0L)));
+        // 카드 썸네일용: 질문별 첫 번째 첨부 이미지 URL을 일괄 조회
+        Map<Long, String> thumbnails = questionIds.isEmpty()
+                ? Collections.emptyMap()
+                : questionAttachmentRepository.findThumbnailsByQuestionIds(questionIds).stream()
+                        .collect(Collectors.toMap(
+                                a -> a.getQuestion().getId(),
+                                a -> a.getFileAsset().getFileUrl(),
+                                (a, b) -> a));
+
+        return page.map(q -> QnaQuestionSummaryResponse.of(
+                q, answerCounts.getOrDefault(q.getId(), 0L), thumbnails.get(q.getId())));
     }
 
     /** 질문 상세 조회 (Public). 조회 시 조회수를 1 증가시킨다. */
@@ -103,14 +126,18 @@ public class QnaService {
                 .orElseThrow(() -> new QnaQuestionNotFoundException(questionId));
         question.increaseViewCount();
 
-        List<String> questionImageUrls = questionAttachmentRepository.findByQuestionIdWithFile(questionId).stream()
-                .map(a -> a.getFileAsset().getFileUrl())
+        List<QnaQuestionAttachment> questionAttachments = questionAttachmentRepository.findByQuestionIdWithFile(questionId);
+        List<QnaImageResponse> questionImages = questionAttachments.stream()
+                .map(a -> new QnaImageResponse(a.getFileAsset().getId(), a.getFileAsset().getFileUrl()))
                 .toList();
+        Map<Long, String> questionUrlByFileId = questionAttachments.stream()
+                .collect(Collectors.toMap(a -> a.getFileAsset().getId(), a -> a.getFileAsset().getFileUrl(), (a, b) -> a));
+        List<QnaBlockResponse> questionBlocks = buildContentBlocks(question.getContentJson(), questionUrlByFileId);
 
         List<QnaAnswer> answers = answerRepository.findByQuestionIdWithAuthor(questionId);
         List<QnaAnswerResponse> answerResponses = buildAnswerResponses(answers, currentUserId);
 
-        return QnaQuestionDetailResponse.of(question, questionImageUrls, answerResponses);
+        return QnaQuestionDetailResponse.of(question, questionImages, questionBlocks, answerResponses);
     }
 
     /** 질문 작성 (STUDENT). */
@@ -120,12 +147,25 @@ public class QnaService {
         User author = userRepository.getReferenceById(userId);
 
         QnaQuestion question = QnaQuestion.create(author, subject, request.getTitle(), request.getContent());
-        attachQuestionImages(question, request.getImageFileIds(), userId);
+
+        // 블록 에디터로 작성된 경우: 블록 JSON을 저장하고 이미지 첨부는 블록의 image 블록에서 도출한다.
+        List<Long> imageFileIds = request.getImageFileIds();
+        if (request.getBlocks() != null) {
+            ContentParts parts = parseBlocks(request.getBlocks());
+            question.applyContentJson(parts.json());
+            imageFileIds = parts.imageFileIds();
+        }
+        attachQuestionImages(question, imageFileIds, userId);
         questionRepository.save(question);
         return QnaQuestionCreateResponse.from(question);
     }
 
-    /** 질문 수정 (작성 학생 본인). 이미지는 요청 목록으로 전체 교체한다. */
+    /**
+     * 질문 수정 (작성 학생 본인).
+     * <p>이미지(imageFileIds) 정책: null이면 <b>기존 첨부 유지</b>(텍스트만 수정), 배열이 오면 그 목록으로
+     * 전체 교체(빈 배열이면 모두 제거). 일부만 남기고 일부만 삭제·추가하려면 FE가 상세 응답의
+     * fileId들 중 남길 것 + 새로 올린 fileId를 합쳐 보내면 된다(이미 본인이 올린 fileId는 재첨부 가능).</p>
+     */
     @Transactional
     public void updateQuestion(Long userId, Long questionId, QnaQuestionUpdateRequest request) {
         QnaQuestion question = questionRepository.findById(questionId)
@@ -135,12 +175,15 @@ public class QnaService {
         Subject subject = getSubject(request.getSubjectId());
         question.update(subject, request.getTitle(), request.getContent());
 
-        // 기존 첨부 제거(orphan 삭제를 먼저 flush) 후 새 목록으로 교체 — unique(question_id,file_id) 충돌 방지
-        if (!question.getAttachments().isEmpty()) {
-            question.clearAttachments();
-            questionAttachmentRepository.flush();
+        if (request.getBlocks() != null) {
+            // 블록 에디터 수정: 블록 JSON을 갱신하고 이미지는 블록 기준으로 전체 교체한다.
+            ContentParts parts = parseBlocks(request.getBlocks());
+            question.applyContentJson(parts.json());
+            replaceQuestionImages(question, parts.imageFileIds(), userId);
+        } else if (request.getImageFileIds() != null) {
+            // 레거시(블록 없음): imageFileIds == null이면 기존 이미지 유지, 배열이면 전체 교체
+            replaceQuestionImages(question, request.getImageFileIds(), userId);
         }
-        attachQuestionImages(question, request.getImageFileIds(), userId);
     }
 
     /** 질문 삭제 (작성 학생 본인 또는 관리자). 답변·좋아요·첨부는 cascade로 함께 삭제된다. */
@@ -162,12 +205,22 @@ public class QnaService {
         User author = userRepository.getReferenceById(userId);
 
         QnaAnswer answer = QnaAnswer.create(question, author, request.getContent());
-        attachAnswerImages(answer, request.getImageFileIds(), userId);
+
+        List<Long> imageFileIds = request.getImageFileIds();
+        if (request.getBlocks() != null) {
+            ContentParts parts = parseBlocks(request.getBlocks());
+            answer.applyContentJson(parts.json());
+            imageFileIds = parts.imageFileIds();
+        }
+        attachAnswerImages(answer, imageFileIds, userId);
         answerRepository.save(answer);
         return QnaAnswerCreateResponse.from(answer);
     }
 
-    /** 답변 수정 (작성 선생님 본인). 이미지는 요청 목록으로 전체 교체한다. */
+    /**
+     * 답변 수정 (작성 선생님 본인).
+     * <p>이미지(imageFileIds) 정책: null이면 기존 첨부 유지(텍스트만 수정), 배열이 오면 전체 교체.</p>
+     */
     @Transactional
     public void updateAnswer(Long userId, Long answerId, QnaAnswerRequest request) {
         QnaAnswer answer = answerRepository.findDetailById(answerId)
@@ -175,11 +228,13 @@ public class QnaService {
         requireAuthor(answer.isAuthor(userId), "본인이 작성한 답변만 수정할 수 있습니다.");
         answer.updateContent(request.getContent());
 
-        if (!answer.getAttachments().isEmpty()) {
-            answer.clearAttachments();
-            answerAttachmentRepository.flush();
+        if (request.getBlocks() != null) {
+            ContentParts parts = parseBlocks(request.getBlocks());
+            answer.applyContentJson(parts.json());
+            replaceAnswerImages(answer, parts.imageFileIds(), userId);
+        } else if (request.getImageFileIds() != null) {
+            replaceAnswerImages(answer, request.getImageFileIds(), userId);
         }
-        attachAnswerImages(answer, request.getImageFileIds(), userId);
     }
 
     /**
@@ -261,23 +316,104 @@ public class QnaService {
         }
         List<Long> answerIds = answers.stream().map(QnaAnswer::getId).toList();
 
-        // 답변별 첨부 이미지 URL (sortOrder 순). 쿼리가 sortOrder ASC로 정렬되어 그룹 내 순서가 보존된다.
-        Map<Long, List<String>> imageUrlsByAnswer = answerAttachmentRepository.findByAnswerIdsWithFile(answerIds)
+        // 답변별 첨부 (sortOrder 순). 쿼리가 sortOrder ASC로 정렬되어 그룹 내 순서가 보존된다.
+        Map<Long, List<QnaAnswerAttachment>> attachmentsByAnswer = answerAttachmentRepository.findByAnswerIdsWithFile(answerIds)
                 .stream()
-                .collect(Collectors.groupingBy(
-                        a -> a.getAnswer().getId(),
-                        Collectors.mapping(a -> a.getFileAsset().getFileUrl(), Collectors.toList())));
+                .collect(Collectors.groupingBy(a -> a.getAnswer().getId()));
 
         Set<Long> likedAnswerIds = (currentUserId == null)
                 ? Collections.emptySet()
                 : Set.copyOf(likeRepository.findLikedAnswerIds(currentUserId, answerIds));
 
         return answers.stream()
-                .map(a -> QnaAnswerResponse.of(
-                        a,
-                        likedAnswerIds.contains(a.getId()),
-                        imageUrlsByAnswer.getOrDefault(a.getId(), List.of())))
+                .map(a -> {
+                    List<QnaAnswerAttachment> atts = attachmentsByAnswer.getOrDefault(a.getId(), List.of());
+                    List<QnaImageResponse> images = atts.stream()
+                            .map(x -> new QnaImageResponse(x.getFileAsset().getId(), x.getFileAsset().getFileUrl()))
+                            .toList();
+                    Map<Long, String> urlByFileId = atts.stream()
+                            .collect(Collectors.toMap(x -> x.getFileAsset().getId(), x -> x.getFileAsset().getFileUrl(), (p, q) -> p));
+                    List<QnaBlockResponse> blocks = buildContentBlocks(a.getContentJson(), urlByFileId);
+                    return QnaAnswerResponse.of(a, likedAnswerIds.contains(a.getId()), images, blocks);
+                })
                 .toList();
+    }
+
+    /** 질문 이미지를 전체 교체한다. (기존 첨부 제거 후 새 목록 연결 — unique(question_id,file_id) 충돌 방지) */
+    private void replaceQuestionImages(QnaQuestion question, List<Long> fileIds, Long userId) {
+        if (!question.getAttachments().isEmpty()) {
+            question.clearAttachments();
+            questionAttachmentRepository.flush();
+        }
+        attachQuestionImages(question, fileIds, userId);
+    }
+
+    /** 답변 이미지를 전체 교체한다. */
+    private void replaceAnswerImages(QnaAnswer answer, List<Long> fileIds, Long userId) {
+        if (!answer.getAttachments().isEmpty()) {
+            answer.clearAttachments();
+            answerAttachmentRepository.flush();
+        }
+        attachAnswerImages(answer, fileIds, userId);
+    }
+
+    /**
+     * 요청 본문 블록을 검증·정규화해 저장용 JSON과 이미지 fileId 목록으로 변환한다.
+     *
+     * <p>text 블록은 text만, image 블록은 fileId만 남겨 직렬화한다(url은 저장하지 않음 — 조회 시 fileId로 해석).
+     * image 블록에 fileId가 없으면 400.</p>
+     */
+    private ContentParts parseBlocks(List<QnaBlockRequest> blocks) {
+        List<QnaBlockRequest> normalized = new ArrayList<>();
+        List<Long> imageFileIds = new ArrayList<>();
+        for (QnaBlockRequest b : blocks) {
+            if (b == null || b.type() == null) {
+                continue;
+            }
+            switch (b.type()) {
+                case "text" -> normalized.add(new QnaBlockRequest("text", b.text() == null ? "" : b.text(), null));
+                case "image" -> {
+                    if (b.fileId() == null) {
+                        throw new IllegalArgumentException("이미지 블록에 fileId가 없습니다.");
+                    }
+                    normalized.add(new QnaBlockRequest("image", null, b.fileId()));
+                    imageFileIds.add(b.fileId());
+                }
+                default -> throw new IllegalArgumentException("알 수 없는 블록 타입: " + b.type());
+            }
+        }
+        try {
+            return new ContentParts(objectMapper.writeValueAsString(normalized), imageFileIds);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("본문 블록 직렬화에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * 저장된 content_json을 응답 블록 목록으로 변환한다. image 블록의 url은 fileId→url 맵으로 해석한다.
+     * json이 없거나(레거시) 파싱 불가하면 null을 반환해 FE가 content/imageUrls로 폴백하게 한다.
+     */
+    private List<QnaBlockResponse> buildContentBlocks(String contentJson, Map<Long, String> urlByFileId) {
+        if (contentJson == null || contentJson.isBlank()) {
+            return null;
+        }
+        List<QnaBlockRequest> stored;
+        try {
+            stored = objectMapper.readValue(contentJson, BLOCK_LIST_TYPE);
+        } catch (JsonProcessingException e) {
+            // 저장된 본문 블록 JSON이 손상된 경우: 폴백(null) 반환하되 감지 가능하도록 로그를 남긴다.
+            log.warn("content_json 파싱 실패 — 블록 없이 폴백 렌더합니다. json={}", contentJson, e);
+            return null;
+        }
+        return stored.stream()
+                .map(b -> "image".equals(b.type())
+                        ? new QnaBlockResponse("image", null, b.fileId(), urlByFileId.get(b.fileId()))
+                        : new QnaBlockResponse("text", b.text(), null, null))
+                .toList();
+    }
+
+    /** 본문 블록 파싱 결과: 저장용 JSON + 이미지 fileId 목록(순서 보존). */
+    private record ContentParts(String json, List<Long> imageFileIds) {
     }
 
     /** 질문에 첨부 이미지를 연결한다. (요청 fileId 순서를 sortOrder로 보존) */

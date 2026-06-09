@@ -30,4 +30,7 @@ public class QnaQuestionCreateRequest {
 
     // 첨부 이미지들의 FileAsset id 목록 (선택, 없으면 null 또는 빈 배열)
     private List<Long> imageFileIds;
+
+    // 글·이미지를 자유롭게 배치한 본문 블록(선택). 주면 이미지 첨부는 블록의 image 블록에서 도출한다.
+    private List<QnaBlockRequest> blocks;
 }

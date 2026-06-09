@@ -46,6 +46,10 @@ public class QnaQuestion extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
+    // 글·이미지를 자유롭게 배치한 본문 블록의 JSON(선택). null이면 평문(content)+첨부(images)로 렌더(레거시).
+    @Column(name = "content_json", columnDefinition = "LONGTEXT")
+    private String contentJson;
+
     // 답변 채택 여부 (= 해결됨)
     @Column(nullable = false)
     private boolean resolved = false;
@@ -82,6 +86,11 @@ public class QnaQuestion extends BaseTimeEntity {
         this.subject = subject;
         this.title = title;
         this.content = content;
+    }
+
+    /** 본문 블록 JSON을 설정한다(블록 에디터로 작성/수정 시). 블록 없이 평문이면 null. */
+    public void applyContentJson(String contentJson) {
+        this.contentJson = contentJson;
     }
 
     public void increaseViewCount() {
