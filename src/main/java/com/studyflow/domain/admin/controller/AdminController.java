@@ -3,6 +3,7 @@ package com.studyflow.domain.admin.controller;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
+import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.UserCountResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
@@ -126,7 +127,7 @@ public class AdminController {
     // 관리자 페이지 - 회원 상세 정보 조회 (활성/비활성/탈퇴 무관)
     // 예시: GET /api/v1/admin/users/1
     @GetMapping("/users/{userId}")
-    public ResponseEntity<?> getUserDetail(@PathVariable Long userId) {
+    public ResponseEntity<AdminUserDetailInterface> getUserDetail(@PathVariable Long userId) {
         return ResponseEntity.ok(adminService.getUserDetail(userId));
     }
 }

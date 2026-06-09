@@ -20,7 +20,7 @@ public record AdminStudentDetailResponse(
         LocalDate birthDate,
         boolean isVerified,
         boolean isActive,
-        Long isDeleted,
+        boolean isDeleted,
         LocalDateTime deletedAt,
         boolean marketingAgreed,
         LocalDateTime createdAt,
@@ -33,7 +33,7 @@ public record AdminStudentDetailResponse(
         String goal,
         LocalDateTime profileCreatedAt,
         LocalDateTime profileUpdatedAt
-) {
+) implements AdminUserDetailInterface {
     public static AdminStudentDetailResponse of(User user, StudentProfile profile) {
         return new AdminStudentDetailResponse(
                 user.getId(),
@@ -46,7 +46,7 @@ public record AdminStudentDetailResponse(
                 user.getBirthDate(),
                 user.isVerified(),
                 user.isActive(),
-                user.getIsDeleted(),
+                user.getIsDeleted() != 0,
                 user.getDeletedAt(),
                 user.isMarketingAgreed(),
                 user.getCreatedAt(),

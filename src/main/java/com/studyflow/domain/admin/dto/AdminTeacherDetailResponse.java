@@ -21,7 +21,7 @@ public record AdminTeacherDetailResponse(
         LocalDate birthDate,
         boolean isVerified,
         boolean isActive,
-        Long isDeleted,
+        boolean isDeleted,
         LocalDateTime deletedAt,
         boolean marketingAgreed,
         LocalDateTime createdAt,
@@ -38,7 +38,7 @@ public record AdminTeacherDetailResponse(
         BigDecimal totalTeachingHours,
         LocalDateTime profileCreatedAt,
         LocalDateTime profileUpdatedAt
-) {
+) implements AdminUserDetailInterface {
     public static AdminTeacherDetailResponse of(User user, TeacherProfile profile) {
         return new AdminTeacherDetailResponse(
                 user.getId(),
@@ -51,7 +51,7 @@ public record AdminTeacherDetailResponse(
                 user.getBirthDate(),
                 user.isVerified(),
                 user.isActive(),
-                user.getIsDeleted(),
+                user.getIsDeleted() != 0,
                 user.getDeletedAt(),
                 user.isMarketingAgreed(),
                 user.getCreatedAt(),

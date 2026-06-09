@@ -18,12 +18,12 @@ public record AdminUserDetailResponse(
         LocalDate birthDate,
         boolean isVerified,
         boolean isActive,
-        Long isDeleted,
+        boolean isDeleted,
         LocalDateTime deletedAt,
         boolean marketingAgreed,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
-) {
+) implements AdminUserDetailInterface {
     public static AdminUserDetailResponse from(User user) {
         return new AdminUserDetailResponse(
                 user.getId(),
@@ -36,7 +36,7 @@ public record AdminUserDetailResponse(
                 user.getBirthDate(),
                 user.isVerified(),
                 user.isActive(),
-                user.getIsDeleted(),
+                user.getIsDeleted() != 0,
                 user.getDeletedAt(),
                 user.isMarketingAgreed(),
                 user.getCreatedAt(),

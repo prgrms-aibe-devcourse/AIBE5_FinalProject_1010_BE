@@ -8,6 +8,7 @@ import com.studyflow.domain.admin.exception.VerificationNotPendingException;
 import com.studyflow.domain.teacher.repository.TeacherVerificationRepository;
 import com.studyflow.domain.admin.dto.AdminStudentDetailResponse;
 import com.studyflow.domain.admin.dto.AdminTeacherDetailResponse;
+import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserDetailResponse;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
@@ -24,6 +25,7 @@ import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -67,8 +69,8 @@ public class AdminService {
     // 비활성 회원 수 조회 (isActive=false, 탈퇴 안 함)
     public UserCountResponse getInactiveUserCount(UserRole role) {
         long count = (role == null)
-                ? userRepository.countByIsActiveFalseAndIsDeleted(0L)
-                : userRepository.countByIsActiveFalseAndIsDeletedAndRole(0L, role);
+                ? userRepository.countInactiveNonDeleted()
+                : userRepository.countInactiveNonDeletedByRole(role);
         return new UserCountResponse(count);
     }
 
@@ -91,8 +93,8 @@ public class AdminService {
     // 비활성 회원 목록 조회
     public Page<AdminUserSummaryResponse> getInactiveUsers(UserRole role, Pageable pageable) {
         Page<User> users = (role == null)
-                ? userRepository.findByIsActiveFalseAndIsDeleted(0L, pageable)
-                : userRepository.findByIsActiveFalseAndIsDeletedAndRole(0L, role, pageable);
+                ? userRepository.findInactiveNonDeleted(pageable)
+                : userRepository.findInactiveNonDeletedByRole(role, pageable);
         return users.map(AdminUserSummaryResponse::from);
     }
 
@@ -105,7 +107,7 @@ public class AdminService {
     }
 
     // 회원 상세 조회 — 학생이면 StudentProfile, 선생님이면 TeacherProfile 포함
-    public Object getUserDetail(Long userId) {
+    public AdminUserDetailInterface getUserDetail(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
@@ -127,15 +129,24 @@ public class AdminService {
         return userCountStatisticsRepository.findByDate(date)
                 .map(UserCountStatisticsResponse::from)
                 .orElseGet(() -> {
-                    UserCountStatistics statistics = UserCountStatistics.builder()
-                            .date(date)
-                            .newStudentCount(userRepository.countByRoleAndCreatedAtDate(UserRole.STUDENT, date))
-                            .newTeacherCount(userRepository.countByRoleAndCreatedAtDate(UserRole.TEACHER, date))
-                            .deletedStudentCount(userRepository.countByRoleAndDeletedAtDate(UserRole.STUDENT, date))
-                            .deletedTeacherCount(userRepository.countByRoleAndDeletedAtDate(UserRole.TEACHER, date))
-                            .build();
-                    userCountStatisticsRepository.save(statistics);
-                    return UserCountStatisticsResponse.from(statistics);
+                    try {
+                        UserCountStatistics statistics = UserCountStatistics.builder()
+                                .date(date)
+                                .newStudentCount(userRepository.countByRoleAndCreatedAtDate(UserRole.STUDENT.name(), date))
+                                .newTeacherCount(userRepository.countByRoleAndCreatedAtDate(UserRole.TEACHER.name(), date))
+                                .newAdminCount(userRepository.countByRoleAndCreatedAtDate(UserRole.ADMIN.name(), date))
+                                .deletedStudentCount(userRepository.countByRoleAndDeletedAtDate(UserRole.STUDENT.name(), date))
+                                .deletedTeacherCount(userRepository.countByRoleAndDeletedAtDate(UserRole.TEACHER.name(), date))
+                                .deletedAdminCount(userRepository.countByRoleAndDeletedAtDate(UserRole.ADMIN.name(), date))
+                                .build();
+                        userCountStatisticsRepository.save(statistics);
+                        return UserCountStatisticsResponse.from(statistics);
+                    } catch (DataIntegrityViolationException e) {
+                        // 동시 요청으로 인한 unique constraint 위반 — 이미 저장된 데이터를 재조회
+                        return userCountStatisticsRepository.findByDate(date)
+                                .map(UserCountStatisticsResponse::from)
+                                .orElseThrow();
+                    }
                 });
     }
 

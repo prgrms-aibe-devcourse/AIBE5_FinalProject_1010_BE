@@ -31,18 +31,26 @@ public class UserCountStatistics extends BaseTimeEntity {
     private long newTeacherCount;
 
     @Column(nullable = false)
+    private long newAdminCount;
+
+    @Column(nullable = false)
     private long deletedStudentCount;
 
     @Column(nullable = false)
     private long deletedTeacherCount;
 
+    @Column(nullable = false)
+    private long deletedAdminCount;
+
     @Builder
-    private UserCountStatistics(LocalDate date, long newStudentCount, long newTeacherCount,
-                                long deletedStudentCount, long deletedTeacherCount) {
+    private UserCountStatistics(LocalDate date, long newStudentCount, long newTeacherCount, long newAdminCount,
+                                long deletedStudentCount, long deletedTeacherCount, long deletedAdminCount) {
         this.date = date;
         this.newStudentCount = newStudentCount;
         this.newTeacherCount = newTeacherCount;
+        this.newAdminCount = newAdminCount;
         this.deletedStudentCount = deletedStudentCount;
         this.deletedTeacherCount = deletedTeacherCount;
+        this.deletedAdminCount = deletedAdminCount;
     }
 }

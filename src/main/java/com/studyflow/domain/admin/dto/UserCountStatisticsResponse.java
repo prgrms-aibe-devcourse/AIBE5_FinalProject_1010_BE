@@ -8,16 +8,20 @@ public record UserCountStatisticsResponse(
         LocalDate date,
         long newStudentCount,
         long newTeacherCount,
+        long newAdminCount,
         long deletedStudentCount,
-        long deletedTeacherCount
+        long deletedTeacherCount,
+        long deletedAdminCount
 ) {
     public static UserCountStatisticsResponse from(UserCountStatistics statistics) {
         return new UserCountStatisticsResponse(
                 statistics.getDate(),
                 statistics.getNewStudentCount(),
                 statistics.getNewTeacherCount(),
+                statistics.getNewAdminCount(),
                 statistics.getDeletedStudentCount(),
-                statistics.getDeletedTeacherCount()
+                statistics.getDeletedTeacherCount(),
+                statistics.getDeletedAdminCount()
         );
     }
 }
