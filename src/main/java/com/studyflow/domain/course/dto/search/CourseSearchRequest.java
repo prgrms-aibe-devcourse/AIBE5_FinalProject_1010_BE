@@ -3,7 +3,6 @@ package com.studyflow.domain.course.dto.search;
 import com.studyflow.domain.course.enums.CourseSort;
 import com.studyflow.domain.course.enums.TargetGrade;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -47,12 +46,10 @@ public class CourseSearchRequest {
 
     // 수업 최대 인원 하한 필터 (maxStudents >= minGroupSize)
     @Min(value = 1, message = "최소 인원은 1명 이상이어야 합니다.")
-    @Max(value = 200, message = "최소 인원은 200명 이하이어야 합니다.")
     private Integer minGroupSize;
 
     // 수업 최대 인원 상한 필터 (maxStudents <= maxGroupSize)
     @Min(value = 1, message = "최대 인원은 1명 이상이어야 합니다.")
-    @Max(value = 200, message = "최대 인원은 200명 이하이어야 합니다.")
     private Integer maxGroupSize;
 
     // minGroupSize > maxGroupSize 교차 검증
