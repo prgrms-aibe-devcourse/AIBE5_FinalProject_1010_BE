@@ -43,7 +43,7 @@ public record QnaQuestionSummaryResponse(
     /** 본문을 카드 미리보기용으로 줄인다. 줄바꿈은 공백으로 정리하고 최대 길이로 자른다. */
     private static String previewOf(String content) {
         if (content == null) {
-            return null;
+            return ""; // content는 not-null이지만 방어적으로 빈 문자열 반환(FE null 가드 불필요)
         }
         String flattened = content.replaceAll("\\s+", " ").trim();
         return flattened.length() > PREVIEW_MAX ? flattened.substring(0, PREVIEW_MAX) : flattened;

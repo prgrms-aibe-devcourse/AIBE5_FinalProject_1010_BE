@@ -24,7 +24,7 @@ public class QnaQuestionAttachmentRepositoryImpl implements QnaQuestionAttachmen
     }
 
     @Override
-    public List<QnaQuestionAttachment> findFirstImagesByQuestionIds(List<Long> questionIds) {
+    public List<QnaQuestionAttachment> findThumbnailsByQuestionIds(List<Long> questionIds) {
         if (questionIds == null || questionIds.isEmpty()) {
             return List.of();
         }

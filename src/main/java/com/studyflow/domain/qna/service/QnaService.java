@@ -34,6 +34,7 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -66,13 +67,13 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class QnaService {
 
     // 답변 채택 시 선생님에게 적립되는 내공 점수
     private static final int ACCEPT_ANSWER_NAEGONG_SCORE = 10;
 
-    // 본문 블록(content_json) 직렬화/역직렬화용. ObjectMapper는 스레드 안전하므로 정적 공유한다.
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    // 본문 블록(content_json) 역직렬화용 타입 토큰
     private static final TypeReference<List<QnaBlockRequest>> BLOCK_LIST_TYPE = new TypeReference<>() {
     };
 
@@ -85,6 +86,8 @@ public class QnaService {
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
     private final NaegongService naegongService;
+    // 본문 블록 직렬화/역직렬화용. Spring이 관리하는 빈을 주입받아 앱 Jackson 설정을 동일하게 따른다.
+    private final ObjectMapper objectMapper;
 
     // ── 질문 ────────────────────────────────────────────────
 
@@ -106,7 +109,7 @@ public class QnaService {
         // 카드 썸네일용: 질문별 첫 번째 첨부 이미지 URL을 일괄 조회
         Map<Long, String> thumbnails = questionIds.isEmpty()
                 ? Collections.emptyMap()
-                : questionAttachmentRepository.findFirstImagesByQuestionIds(questionIds).stream()
+                : questionAttachmentRepository.findThumbnailsByQuestionIds(questionIds).stream()
                         .collect(Collectors.toMap(
                                 a -> a.getQuestion().getId(),
                                 a -> a.getFileAsset().getFileUrl(),
@@ -325,11 +328,13 @@ public class QnaService {
         return answers.stream()
                 .map(a -> {
                     List<QnaAnswerAttachment> atts = attachmentsByAnswer.getOrDefault(a.getId(), List.of());
-                    List<String> imageUrls = atts.stream().map(x -> x.getFileAsset().getFileUrl()).toList();
+                    List<QnaImageResponse> images = atts.stream()
+                            .map(x -> new QnaImageResponse(x.getFileAsset().getId(), x.getFileAsset().getFileUrl()))
+                            .toList();
                     Map<Long, String> urlByFileId = atts.stream()
                             .collect(Collectors.toMap(x -> x.getFileAsset().getId(), x -> x.getFileAsset().getFileUrl(), (p, q) -> p));
                     List<QnaBlockResponse> blocks = buildContentBlocks(a.getContentJson(), urlByFileId);
-                    return QnaAnswerResponse.of(a, likedAnswerIds.contains(a.getId()), imageUrls, blocks);
+                    return QnaAnswerResponse.of(a, likedAnswerIds.contains(a.getId()), images, blocks);
                 })
                 .toList();
     }
@@ -378,7 +383,7 @@ public class QnaService {
             }
         }
         try {
-            return new ContentParts(OBJECT_MAPPER.writeValueAsString(normalized), imageFileIds);
+            return new ContentParts(objectMapper.writeValueAsString(normalized), imageFileIds);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("본문 블록 직렬화에 실패했습니다.", e);
         }
@@ -394,8 +399,10 @@ public class QnaService {
         }
         List<QnaBlockRequest> stored;
         try {
-            stored = OBJECT_MAPPER.readValue(contentJson, BLOCK_LIST_TYPE);
+            stored = objectMapper.readValue(contentJson, BLOCK_LIST_TYPE);
         } catch (JsonProcessingException e) {
+            // 저장된 본문 블록 JSON이 손상된 경우: 폴백(null) 반환하되 감지 가능하도록 로그를 남긴다.
+            log.warn("content_json 파싱 실패 — 블록 없이 폴백 렌더합니다. json={}", contentJson, e);
             return null;
         }
         return stored.stream()
