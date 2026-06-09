@@ -1,4 +1,4 @@
-package com.studyflow.domain.teacher.exception;
+package com.studyflow.domain.admin.exception;
 
 import com.studyflow.global.exception.ErrorCode;
 

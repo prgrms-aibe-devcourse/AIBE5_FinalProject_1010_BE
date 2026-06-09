@@ -1,4 +1,4 @@
-package com.studyflow.domain.user.dto;
+package com.studyflow.domain.admin.dto;
 
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.VerificationStatus;

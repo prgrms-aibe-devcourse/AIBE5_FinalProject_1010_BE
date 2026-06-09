@@ -17,8 +17,10 @@ public interface TeacherVerificationRepository extends JpaRepository<TeacherVeri
     Page<TeacherVerification> findByUserId(Long userId, Pageable pageable);
 
     // 관리자 목록 조회 — User fetch join (teacherName 접근용), status 필터 옵션
-    @Query("SELECT v FROM TeacherVerification v JOIN FETCH v.user " +
-           "WHERE (:status IS NULL OR v.status = :status)")
+    @Query(value = "SELECT v FROM TeacherVerification v JOIN FETCH v.user " +
+                   "WHERE (:status IS NULL OR v.status = :status)",
+           countQuery = "SELECT COUNT(v) FROM TeacherVerification v " +
+                        "WHERE (:status IS NULL OR v.status = :status)")
     Page<TeacherVerification> findAllWithUser(
             @Param("status") VerificationStatus status, Pageable pageable);
 

@@ -1,11 +1,9 @@
-package com.studyflow.domain.user.controller;
+package com.studyflow.domain.admin.controller;
 
 import com.studyflow.domain.teacher.enums.VerificationStatus;
-import com.studyflow.domain.user.dto.AdminVerificationDetailResponse;
-import com.studyflow.domain.user.dto.AdminVerificationSummaryResponse;
-import com.studyflow.domain.user.dto.RejectVerificationRequest;
-import com.studyflow.domain.user.service.AdminService;
-import jakarta.validation.Valid;
+import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
+import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
+import com.studyflow.domain.admin.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,12 +45,12 @@ public class AdminController {
     }
 
     // 선생님 인증요청 거절
-    // 예시: PATCH /api/v1/admin/teacher-verifications/1/reject
+    // 예시: PATCH /api/v1/admin/teacher-verifications/1/reject?rejectReason=사유
     @PatchMapping("/teacher-verifications/{verificationId}/reject")
     public ResponseEntity<Void> rejectVerification(
             @PathVariable Long verificationId,
-            @Valid @RequestBody(required = false) RejectVerificationRequest request) {
-        adminService.rejectVerification(verificationId, request != null ? request : new RejectVerificationRequest());
+            @RequestParam(required = false) String rejectReason) {
+        adminService.rejectVerification(verificationId, rejectReason);
         return ResponseEntity.ok().build();
     }
 }

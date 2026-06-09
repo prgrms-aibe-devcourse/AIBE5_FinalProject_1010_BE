@@ -1,4 +1,4 @@
-package com.studyflow.domain.user.dto;
+package com.studyflow.domain.admin.dto;
 
 import jakarta.validation.constraints.Size;
 import lombok.Getter;

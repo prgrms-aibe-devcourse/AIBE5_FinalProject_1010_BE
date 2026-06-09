@@ -1,13 +1,12 @@
-package com.studyflow.domain.user.service;
+package com.studyflow.domain.admin.service;
 
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
-import com.studyflow.domain.teacher.exception.VerificationNotFoundException;
-import com.studyflow.domain.teacher.exception.VerificationNotPendingException;
+import com.studyflow.domain.admin.exception.VerificationNotFoundException;
+import com.studyflow.domain.admin.exception.VerificationNotPendingException;
 import com.studyflow.domain.teacher.repository.TeacherVerificationRepository;
-import com.studyflow.domain.user.dto.AdminVerificationDetailResponse;
-import com.studyflow.domain.user.dto.AdminVerificationSummaryResponse;
-import com.studyflow.domain.user.dto.RejectVerificationRequest;
+import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
+import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,14 +50,14 @@ public class AdminService {
 
     // 선생님 인증 요청 거절
     @Transactional
-    public void rejectVerification(Long verificationId, RejectVerificationRequest request) {
-        TeacherVerification verification = teacherVerificationRepository.findById(verificationId)
+    public void rejectVerification(Long verificationId, String rejectReason) {
+        TeacherVerification verification = teacherVerificationRepository.findByIdWithUser(verificationId)
                 .orElseThrow(() -> new VerificationNotFoundException(verificationId));
 
         if (verification.getStatus() != VerificationStatus.PENDING) {
             throw new VerificationNotPendingException();
         }
 
-        verification.process(VerificationStatus.REJECTED, request.getRejectReason());
+        verification.process(VerificationStatus.REJECTED, rejectReason);
     }
 }
