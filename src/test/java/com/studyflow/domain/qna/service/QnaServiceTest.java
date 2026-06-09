@@ -353,7 +353,7 @@ class QnaServiceTest {
 
         assertThat(res.questionId()).isEqualTo(10L);
         assertThat(res.answers()).isEmpty();
-        assertThat(res.imageUrls()).isEmpty();
+        assertThat(res.images()).isEmpty();
         assertThat(q.getViewCount()).isEqualTo(1);
     }
 

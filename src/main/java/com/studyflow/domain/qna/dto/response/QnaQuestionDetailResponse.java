@@ -11,7 +11,7 @@ public record QnaQuestionDetailResponse(
         QnaSubjectResponse subject,
         String title,
         String content,
-        List<String> imageUrls,
+        List<QnaImageResponse> images,
         boolean isResolved,
         int viewCount,
         AuthorResponse author,
@@ -22,16 +22,17 @@ public record QnaQuestionDetailResponse(
     }
 
     /**
-     * @param imageUrls 질문 첨부 이미지 URL 목록 (sortOrder 순, 없으면 빈 배열)
-     * @param answers   답변 목록
+     * @param images  질문 첨부 이미지 목록 (sortOrder 순, 없으면 빈 배열). 각 항목은 fileId+url을 가져
+     *                수정 화면에서 일부만 남기고 일부만 삭제할 수 있다.
+     * @param answers 답변 목록
      */
-    public static QnaQuestionDetailResponse of(QnaQuestion q, List<String> imageUrls, List<QnaAnswerResponse> answers) {
+    public static QnaQuestionDetailResponse of(QnaQuestion q, List<QnaImageResponse> images, List<QnaAnswerResponse> answers) {
         return new QnaQuestionDetailResponse(
                 q.getId(),
                 QnaSubjectResponse.from(q.getSubject()),
                 q.getTitle(),
                 q.getContent(),
-                imageUrls,
+                images,
                 q.isResolved(),
                 q.getViewCount(),
                 new AuthorResponse(q.getAuthor().getId(), q.getAuthor().getName()),

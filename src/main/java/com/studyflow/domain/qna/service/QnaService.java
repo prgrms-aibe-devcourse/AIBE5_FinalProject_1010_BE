@@ -103,14 +103,14 @@ public class QnaService {
                 .orElseThrow(() -> new QnaQuestionNotFoundException(questionId));
         question.increaseViewCount();
 
-        List<String> questionImageUrls = questionAttachmentRepository.findByQuestionIdWithFile(questionId).stream()
-                .map(a -> a.getFileAsset().getFileUrl())
+        List<QnaImageResponse> questionImages = questionAttachmentRepository.findByQuestionIdWithFile(questionId).stream()
+                .map(a -> new QnaImageResponse(a.getFileAsset().getId(), a.getFileAsset().getFileUrl()))
                 .toList();
 
         List<QnaAnswer> answers = answerRepository.findByQuestionIdWithAuthor(questionId);
         List<QnaAnswerResponse> answerResponses = buildAnswerResponses(answers, currentUserId);
 
-        return QnaQuestionDetailResponse.of(question, questionImageUrls, answerResponses);
+        return QnaQuestionDetailResponse.of(question, questionImages, answerResponses);
     }
 
     /** 질문 작성 (STUDENT). */
