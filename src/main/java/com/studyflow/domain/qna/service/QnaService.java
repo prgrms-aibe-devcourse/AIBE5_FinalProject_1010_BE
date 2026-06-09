@@ -125,7 +125,12 @@ public class QnaService {
         return QnaQuestionCreateResponse.from(question);
     }
 
-    /** 질문 수정 (작성 학생 본인). 이미지는 요청 목록으로 전체 교체한다. */
+    /**
+     * 질문 수정 (작성 학생 본인).
+     * <p>이미지(imageFileIds) 정책: null이면 <b>기존 첨부 유지</b>(텍스트만 수정), 배열이 오면 그 목록으로
+     * 전체 교체(빈 배열이면 모두 제거). 일부만 남기고 일부만 삭제·추가하려면 FE가 상세 응답의
+     * fileId들 중 남길 것 + 새로 올린 fileId를 합쳐 보내면 된다(이미 본인이 올린 fileId는 재첨부 가능).</p>
+     */
     @Transactional
     public void updateQuestion(Long userId, Long questionId, QnaQuestionUpdateRequest request) {
         QnaQuestion question = questionRepository.findById(questionId)
@@ -135,12 +140,15 @@ public class QnaService {
         Subject subject = getSubject(request.getSubjectId());
         question.update(subject, request.getTitle(), request.getContent());
 
-        // 기존 첨부 제거(orphan 삭제를 먼저 flush) 후 새 목록으로 교체 — unique(question_id,file_id) 충돌 방지
-        if (!question.getAttachments().isEmpty()) {
-            question.clearAttachments();
-            questionAttachmentRepository.flush();
+        // imageFileIds == null → 첨부 변경 없음(기존 이미지 유지)
+        if (request.getImageFileIds() != null) {
+            // 기존 첨부 제거(orphan 삭제를 먼저 flush) 후 새 목록으로 교체 — unique(question_id,file_id) 충돌 방지
+            if (!question.getAttachments().isEmpty()) {
+                question.clearAttachments();
+                questionAttachmentRepository.flush();
+            }
+            attachQuestionImages(question, request.getImageFileIds(), userId);
         }
-        attachQuestionImages(question, request.getImageFileIds(), userId);
     }
 
     /** 질문 삭제 (작성 학생 본인 또는 관리자). 답변·좋아요·첨부는 cascade로 함께 삭제된다. */
@@ -167,7 +175,10 @@ public class QnaService {
         return QnaAnswerCreateResponse.from(answer);
     }
 
-    /** 답변 수정 (작성 선생님 본인). 이미지는 요청 목록으로 전체 교체한다. */
+    /**
+     * 답변 수정 (작성 선생님 본인).
+     * <p>이미지(imageFileIds) 정책: null이면 기존 첨부 유지(텍스트만 수정), 배열이 오면 전체 교체.</p>
+     */
     @Transactional
     public void updateAnswer(Long userId, Long answerId, QnaAnswerRequest request) {
         QnaAnswer answer = answerRepository.findDetailById(answerId)
@@ -175,11 +186,14 @@ public class QnaService {
         requireAuthor(answer.isAuthor(userId), "본인이 작성한 답변만 수정할 수 있습니다.");
         answer.updateContent(request.getContent());
 
-        if (!answer.getAttachments().isEmpty()) {
-            answer.clearAttachments();
-            answerAttachmentRepository.flush();
+        // imageFileIds == null → 첨부 변경 없음(기존 이미지 유지)
+        if (request.getImageFileIds() != null) {
+            if (!answer.getAttachments().isEmpty()) {
+                answer.clearAttachments();
+                answerAttachmentRepository.flush();
+            }
+            attachAnswerImages(answer, request.getImageFileIds(), userId);
         }
-        attachAnswerImages(answer, request.getImageFileIds(), userId);
     }
 
     /**
