@@ -13,6 +13,7 @@ import com.studyflow.domain.admin.dto.AdminUserDetailResponse;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
+import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.entity.UserCountStatistics;
@@ -75,28 +76,34 @@ public class AdminService {
         return new UserCountResponse(count);
     }
 
-    // 활성 회원 수 조회 — role이 null이면 전체 반환
-    public UserCountResponse getUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countByIsActiveTrue()
-                : userRepository.countByIsActiveTrueAndRole(role);
-        return new UserCountResponse(count);
+    // 활성 회원 수 조회 — 전체/학생/선생님/관리자 동시 반환
+    public UserCountByRoleResponse getUserCount() {
+        return new UserCountByRoleResponse(
+                userRepository.countByIsActiveTrue(),
+                userRepository.countByIsActiveTrueAndRole(UserRole.STUDENT),
+                userRepository.countByIsActiveTrueAndRole(UserRole.TEACHER),
+                userRepository.countByIsActiveTrueAndRole(UserRole.ADMIN)
+        );
     }
 
-    // 비활성 회원 수 조회 (isActive=false, 탈퇴 안 함)
-    public UserCountResponse getInactiveUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countInactiveNonDeleted()
-                : userRepository.countInactiveNonDeletedByRole(role);
-        return new UserCountResponse(count);
+    // 비활성 회원 수 조회 (isActive=false, 탈퇴 안 함) — 전체/학생/선생님/관리자 동시 반환
+    public UserCountByRoleResponse getInactiveUserCount() {
+        return new UserCountByRoleResponse(
+                userRepository.countInactiveNonDeleted(),
+                userRepository.countInactiveNonDeletedByRole(UserRole.STUDENT),
+                userRepository.countInactiveNonDeletedByRole(UserRole.TEACHER),
+                userRepository.countInactiveNonDeletedByRole(UserRole.ADMIN)
+        );
     }
 
-    // 탈퇴 회원 수 조회 (isDeleted != 0)
-    public UserCountResponse getDeletedUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countDeleted()
-                : userRepository.countDeletedByRole(role);
-        return new UserCountResponse(count);
+    // 탈퇴 회원 수 조회 (isDeleted != 0) — 전체/학생/선생님/관리자 동시 반환
+    public UserCountByRoleResponse getDeletedUserCount() {
+        return new UserCountByRoleResponse(
+                userRepository.countDeleted(),
+                userRepository.countDeletedByRole(UserRole.STUDENT),
+                userRepository.countDeletedByRole(UserRole.TEACHER),
+                userRepository.countDeletedByRole(UserRole.ADMIN)
+        );
     }
 
     // 활성 회원 목록 조회
