@@ -21,6 +21,7 @@ import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
 import com.studyflow.domain.admin.exception.VerificationNotFoundException;
 import com.studyflow.domain.admin.exception.VerificationNotPendingException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
@@ -35,6 +36,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -66,6 +68,17 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(null);
         body.put("errors", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // @RequestParam enum 바인딩 실패 (400) — 예: role=INVALID
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        Class<?> requiredType = ex.getRequiredType();
+        String message = (requiredType != null && requiredType.isEnum())
+                ? "'" + ex.getValue() + "'은(는) 올바르지 않은 값입니다."
+                : "'" + ex.getName() + "' 파라미터의 형식이 올바르지 않습니다.";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.VALIDATION_ERROR.toBody(message));
     }
 
     // request JSON 형식이 올바르지 않은 경우 (400)
@@ -233,6 +246,13 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ex.getErrorCode();
         Map<String, Object> body = errorCode.toBody(ex.getMessage());
         return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    // 통계 조회 날짜가 과거가 아닌 경우 (400)
+    @ExceptionHandler(StatisticsDateNotPastException.class)
+    public ResponseEntity<Map<String, Object>> handleStatisticsDateNotPast(StatisticsDateNotPastException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 선생님 인증 요청을 찾을 수 없는 경우 (404)
