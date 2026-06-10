@@ -14,9 +14,13 @@ import org.springframework.data.domain.Sort;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import static com.studyflow.domain.qna.entity.QQnaAnswer.qnaAnswer;
 import static com.studyflow.domain.qna.entity.QQnaQuestion.qnaQuestion;
 
 @RequiredArgsConstructor
@@ -50,6 +54,49 @@ public class QnaQuestionRepositoryImpl implements QnaQuestionRepositoryCustom {
                 .from(qnaQuestion)
                 .where(conditions)
                 .fetchOne();
+
+        return new PageImpl<>(content, pageable, total == null ? 0L : total);
+    }
+
+    @Override
+    public Page<QnaQuestion> findFilteredOrderByAnswerCount(Long subjectId, String keyword, Boolean resolved, Pageable pageable) {
+        BooleanExpression[] conditions = {
+                subjectEq(subjectId),
+                resolvedEq(resolved),
+                keywordContains(keyword)
+        };
+
+        // 1) 답변 많은순으로 정렬된 질문 id만 페이지 단위로 조회 (left join + group by + count)
+        List<Long> ids = queryFactory
+                .select(qnaQuestion.id)
+                .from(qnaQuestion)
+                .leftJoin(qnaAnswer).on(qnaAnswer.question.id.eq(qnaQuestion.id))
+                .where(conditions)
+                .groupBy(qnaQuestion.id)
+                .orderBy(qnaAnswer.count().desc(), qnaQuestion.createdAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(qnaQuestion.count())
+                .from(qnaQuestion)
+                .where(conditions)
+                .fetchOne();
+
+        if (ids.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, total == null ? 0L : total);
+        }
+
+        // 2) 해당 id들을 subject·author fetch join으로 가져온 뒤 id 순서대로 재정렬
+        List<QnaQuestion> fetched = queryFactory
+                .selectFrom(qnaQuestion)
+                .join(qnaQuestion.subject).fetchJoin()
+                .join(qnaQuestion.author).fetchJoin()
+                .where(qnaQuestion.id.in(ids))
+                .fetch();
+        Map<Long, QnaQuestion> byId = fetched.stream().collect(Collectors.toMap(QnaQuestion::getId, q -> q));
+        List<QnaQuestion> content = ids.stream().map(byId::get).filter(Objects::nonNull).toList();
 
         return new PageImpl<>(content, pageable, total == null ? 0L : total);
     }

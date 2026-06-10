@@ -15,6 +15,13 @@ public interface QnaQuestionRepositoryCustom {
      */
     Page<QnaQuestion> findFiltered(Long subjectId, String keyword, Boolean resolved, Pageable pageable);
 
+    /**
+     * 위와 동일한 필터에 '답변 많은순' 정렬을 적용해 페이지 조회한다.
+     * answerCount는 컬럼이 아니라 집계값이라 Pageable 정렬로 처리할 수 없어 별도 쿼리로 분리한다.
+     * (동점은 최신순으로 보조 정렬)
+     */
+    Page<QnaQuestion> findFilteredOrderByAnswerCount(Long subjectId, String keyword, Boolean resolved, Pageable pageable);
+
     /** 상세 조회 — subject·author 함께 fetch. */
     Optional<QnaQuestion> findDetailById(Long id);
 }
