@@ -185,7 +185,8 @@ public class SocialSignupService {
                 TimeUnit.MILLISECONDS
         );
 
-        return new LoginResponse(accessToken, refreshToken,
+        return new LoginResponse(user.getId(), user.getName(), user.getRole(),
+                accessToken, refreshToken,
                 jwtTokenProvider.getAccessTokenExpiration(), jwtTokenProvider.getRefreshTokenExpiration());
     }
 
