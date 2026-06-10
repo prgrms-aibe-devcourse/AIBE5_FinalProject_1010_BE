@@ -1,5 +1,6 @@
 package com.studyflow.domain.classroom.service;
 
+import com.studyflow.domain.classroom.dto.request.LivekitTokenRequest;
 import com.studyflow.domain.classroom.dto.request.ParticipantPermissionUpdateRequest;
 import com.studyflow.domain.classroom.dto.response.*;
 import com.studyflow.domain.classroom.entity.ClassroomParticipant;
@@ -43,6 +44,7 @@ public class ClassroomService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
+    private final LiveKitTokenService liveKitTokenService;
 
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
@@ -134,8 +136,45 @@ public class ClassroomService {
                         "강의실 참가자를 찾을 수 없습니다. (participantId: " + participantId + ")"));
         assertHost(participant.getSession().getCourse(), teacherUserId);
 
-        participant.updatePermissions(request.canDraw(), request.canShareScreen(), request.canChat());
+        // canPublish는 선택값 — null이면 기존 값 유지
+        boolean canPublish = request.canPublish() != null ? request.canPublish() : participant.isCanPublish();
+        participant.updatePermissions(request.canDraw(), request.canShareScreen(), request.canChat(), canPublish);
         return ParticipantPermissionResponse.from(participant);
+    }
+
+    /**
+     * LiveKit 토큰 발급 (22-4) — 수업 멤버만.
+     * 송출 게이팅: 참가자의 canPublish(선생님 기본 true, 학생 기본 false)를 토큰에 반영.
+     */
+    @Transactional(readOnly = true)
+    public LivekitTokenResponse issueLivekitToken(Long sessionId, Long userId, LivekitTokenRequest request) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        if (!session.isOpen()) {
+            throw new ClassroomNotOpenException("종료된 강의실의 토큰은 발급할 수 없습니다.");
+        }
+
+        boolean isHost = assertMember(session.getCourse(), userId);
+
+        // 참가(22-3) 이력이 있으면 그 권한을, 없으면 호스트 여부로 기본 결정
+        boolean canPublish = participantRepository.findBySessionIdAndUserId(sessionId, userId)
+                .map(ClassroomParticipant::isCanPublish)
+                .orElse(isHost);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ClassroomForbiddenException("사용자를 찾을 수 없습니다."));
+
+        Long courseId = session.getCourse().getId();
+        String roomName = "course-" + courseId + "-session-" + sessionId;
+        String identity = "user-" + userId;
+        String displayName = user.getName();
+        String role = user.getRole() != null ? user.getRole().name() : null;
+
+        String token = liveKitTokenService.createToken(roomName, identity, displayName, canPublish);
+
+        return new LivekitTokenResponse(
+                liveKitTokenService.getUrl(), roomName, token, identity, displayName, role);
     }
 
     // ── 권한 검증 헬퍼 ──

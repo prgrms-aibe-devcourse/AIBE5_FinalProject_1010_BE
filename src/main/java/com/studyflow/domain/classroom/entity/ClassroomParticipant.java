@@ -53,6 +53,15 @@ public class ClassroomParticipant {
     @Column(nullable = false)
     private boolean canChat = true;
 
+    /**
+     * 미디어 송출(카메라/마이크/화면) 권한 — LiveKit canPublish로 매핑.
+     *
+     * <p>한 방 다수 인원(예: 100명) 대비 "송출 게이팅": 기본적으로 선생님만 송출하고
+     * 학생은 구독(시청)만 한다. 선생님이 발표시키려는 학생에게만 true로 부여한다.</p>
+     */
+    @Column(nullable = false)
+    private boolean canPublish = false;
+
     /** 카메라 on/off 상태 */
     @Column(nullable = false)
     private boolean isVideoOn = false;
@@ -77,15 +86,17 @@ public class ClassroomParticipant {
         p.canChat = true;
         p.canDraw = host;
         p.canShareScreen = host;
+        p.canPublish = host;   // 선생님은 기본 송출 가능, 학생은 시청 전용
         p.isVideoOn = false;
         p.isAudioOn = false;
         return p;
     }
 
-    /** 선생님이 참가자 권한을 변경 */
-    public void updatePermissions(boolean canDraw, boolean canShareScreen, boolean canChat) {
+    /** 선생님이 참가자 권한을 변경 (canPublish=송출 게이팅 포함) */
+    public void updatePermissions(boolean canDraw, boolean canShareScreen, boolean canChat, boolean canPublish) {
         this.canDraw = canDraw;
         this.canShareScreen = canShareScreen;
         this.canChat = canChat;
+        this.canPublish = canPublish;
     }
 }

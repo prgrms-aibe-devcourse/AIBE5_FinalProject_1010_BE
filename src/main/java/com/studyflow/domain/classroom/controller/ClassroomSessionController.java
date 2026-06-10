@@ -1,9 +1,11 @@
 package com.studyflow.domain.classroom.controller;
 
+import com.studyflow.domain.classroom.dto.request.LivekitTokenRequest;
 import com.studyflow.domain.classroom.dto.response.ClassroomCloseResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomCurrentResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomParticipantResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomSessionResponse;
+import com.studyflow.domain.classroom.dto.response.LivekitTokenResponse;
 import com.studyflow.domain.classroom.service.ClassroomService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -58,6 +60,17 @@ public class ClassroomSessionController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(classroomService.joinSession(sessionId, userId));
+    }
+
+    // 22-4 LiveKit 토큰 발급 — 수업 멤버. 입장 시점마다 즉석 발급(저장 안 함).
+    @Operation(summary = "LiveKit 토큰 발급", description = "수업 멤버만. 송출 권한(canPublish)이 토큰에 반영됩니다.")
+    @PostMapping("/classroom-sessions/{sessionId}/livekit-token")
+    public ResponseEntity<LivekitTokenResponse> issueLivekitToken(
+            @PathVariable Long sessionId,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId,
+            @RequestBody(required = false) LivekitTokenRequest request
+    ) {
+        return ResponseEntity.ok(classroomService.issueLivekitToken(sessionId, userId, request));
     }
 
     // 22-6 강의실 종료 — 담당 선생님 전용

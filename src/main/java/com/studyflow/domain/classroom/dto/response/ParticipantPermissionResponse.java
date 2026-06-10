@@ -7,14 +7,16 @@ public record ParticipantPermissionResponse(
         Long participantId,
         boolean canDraw,
         boolean canShareScreen,
-        boolean canChat
+        boolean canChat,
+        boolean canPublish
 ) {
     public static ParticipantPermissionResponse from(ClassroomParticipant p) {
         return new ParticipantPermissionResponse(
                 p.getId(),
                 p.isCanDraw(),
                 p.isCanShareScreen(),
-                p.isCanChat()
+                p.isCanChat(),
+                p.isCanPublish()
         );
     }
 }
