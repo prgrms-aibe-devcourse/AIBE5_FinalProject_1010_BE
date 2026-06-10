@@ -8,8 +8,10 @@ import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
+import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class CourseUpdateService {
     private final CourseRepository courseRepository;
     private final SubjectRepository subjectRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentRequestRepository enrollmentRequestRepository;
 
     // 수업 수정
     @Transactional
@@ -80,6 +83,10 @@ public class CourseUpdateService {
         if (activeStudents > 0) {
             throw new CourseHasActiveStudentsException();
         }
+
+        // 수업 닫기 전 PENDING 신청 일괄 거절 — 학생 신청 내역에 "대기 중"이 남지 않도록
+        enrollmentRequestRepository.bulkRejectByCourseId(
+                courseId, EnrollmentRequestStatus.PENDING, EnrollmentRequestStatus.REJECTED);
 
         // hard delete 대신 soft delete — Enrollment, ChatRoom 등 FK 참조로 인한 오류 방지
         course.close();
