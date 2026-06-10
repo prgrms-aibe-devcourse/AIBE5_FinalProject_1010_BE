@@ -58,6 +58,15 @@ public class TeacherVerification extends BaseTimeEntity {
     private String description;
 
     @Column(columnDefinition = "TEXT")
+    private String awards;
+
+    @Column(columnDefinition = "TEXT")
+    private String career;
+
+    @Column(length = 300)
+    private String education;
+
+    @Column(columnDefinition = "TEXT")
     private String rejectedReason;
 
     // 관리자가 수락 또는 거절 처리 시 호출 — isProcessed를 자신의 PK로 설정해 unique 제약 해제
@@ -70,12 +79,16 @@ public class TeacherVerification extends BaseTimeEntity {
         }
     }
 
-    public static TeacherVerification create(User user, DocumentType documentType, String documentUrl, String description) {
+    public static TeacherVerification create(User user, DocumentType documentType, String documentUrl,
+                                             String description, String awards, String career, String education) {
         TeacherVerification v = new TeacherVerification();
         v.user = user;
         v.documentType = documentType;
         v.documentUrl = documentUrl;
         v.description = description;
+        v.awards = awards;
+        v.career = career;
+        v.education = education;
         return v;
     }
 }

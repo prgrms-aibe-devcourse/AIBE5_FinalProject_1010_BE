@@ -191,6 +191,13 @@ public class AdminService {
 
         verification.process(VerificationStatus.APPROVED, null);
         verification.getUser().verify();
+
+        teacherProfileRepository.findByUserId(verification.getUser().getId())
+                .ifPresent(profile -> profile.updateVerifiedInfo(
+                        verification.getAwards(),
+                        verification.getCareer(),
+                        verification.getEducation()
+                ));
     }
 
     // 선생님 인증 요청 거절

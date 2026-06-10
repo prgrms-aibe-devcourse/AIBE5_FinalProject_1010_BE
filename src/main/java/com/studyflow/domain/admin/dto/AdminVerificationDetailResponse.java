@@ -21,6 +21,9 @@ public class AdminVerificationDetailResponse {
 
     // 상세 추가 항목
     private String description;
+    private String awards;
+    private String career;
+    private String education;
     private DocumentType documentType;
     private String documentUrl;
     private String rejectedReason;
@@ -34,6 +37,9 @@ public class AdminVerificationDetailResponse {
                 .status(v.getStatus())
                 .createdAt(v.getCreatedAt())
                 .description(v.getDescription())
+                .awards(v.getAwards())
+                .career(v.getCareer())
+                .education(v.getEducation())
                 .documentType(v.getDocumentType())
                 .documentUrl(v.getDocumentUrl())
                 .rejectedReason(v.getRejectedReason())

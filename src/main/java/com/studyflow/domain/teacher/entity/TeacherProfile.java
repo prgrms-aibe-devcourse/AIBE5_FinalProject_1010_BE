@@ -64,14 +64,17 @@ public class TeacherProfile extends BaseTimeEntity {
     }
 
     // 프로필 수정 — 빈 문자열 포함 전달된 값 그대로 반영
-    public void update(String address, String awards, String career,
-                       String education, String introduction, String teachingStyle) {
+    public void update(String address, String introduction, String teachingStyle) {
         this.address       = address;
-        this.awards        = awards;
-        this.career        = career;
-        this.education     = education;
         this.introduction  = introduction;
         this.teachingStyle = teachingStyle;
+    }
+
+    // 관리자 승인을 통한 인증 정보 반영
+    public void updateVerifiedInfo(String awards, String career, String education) {
+        this.awards    = awards;
+        this.career    = career;
+        this.education = education;
     }
 
 }

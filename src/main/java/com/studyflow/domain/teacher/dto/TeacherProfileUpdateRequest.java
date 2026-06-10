@@ -13,15 +13,6 @@ public class TeacherProfileUpdateRequest {
     private String address;
 
     @Size(max = 5000)
-    private String awards;
-
-    @Size(max = 5000)
-    private String career;
-
-    @Size(max = 300)
-    private String education;
-
-    @Size(max = 5000)
     private String introduction;
 
     @Size(max = 500)
