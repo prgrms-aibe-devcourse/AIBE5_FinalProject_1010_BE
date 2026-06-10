@@ -78,6 +78,10 @@ public class SecurityConfig {
                         // 보호되지만, 추후 optionalAuth 추가 시 회귀를 막기 위해 명시한다.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/answers/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/answers/*").authenticated()
+                        // 강의실: 열기/종료/참가자 권한변경은 담당 선생님(TEACHER)만. (조회·참가는 멤버십을 서비스에서 검증 → default authenticated)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/classroom-sessions").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/classroom-sessions/*/close").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/classroom-participants/*/permissions").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
