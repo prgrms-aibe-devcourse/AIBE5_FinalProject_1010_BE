@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -17,11 +18,10 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     boolean existsByUserIdAndCourseIdAndStatus(Long userId, Long courseId, EnrollmentRequestStatus status);
 
     // 수업 삭제 시 해당 수업의 PENDING 신청을 일괄 REJECTED 처리
-    @Modifying
-    @Query("UPDATE EnrollmentRequest er SET er.status = :to WHERE er.course.id = :courseId AND er.status = :from")
-    int bulkRejectByCourseId(@Param("courseId") Long courseId,
-                             @Param("from") EnrollmentRequestStatus from,
-                             @Param("to") EnrollmentRequestStatus to);
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE EnrollmentRequest er SET er.status = 'REJECTED' WHERE er.course.id = :courseId AND er.status = 'PENDING'")
+    int bulkRejectPendingByCourseId(@Param("courseId") Long courseId);
 
     // 수락/거절 처리용 — course·teacherProfile JOIN FETCH (소유권 검증 시 LAZY 추가 쿼리 방지)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.course c JOIN FETCH c.teacherProfile WHERE er.id = :id")
