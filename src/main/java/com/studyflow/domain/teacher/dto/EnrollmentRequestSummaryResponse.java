@@ -17,6 +17,7 @@ public class EnrollmentRequestSummaryResponse {
     private String courseTitle;
     private StudentInfo student;
     private String introduction;
+    private String goal;
     private String preferredSchedule;
     private String preferredStart;
     private String message;
@@ -48,6 +49,7 @@ public class EnrollmentRequestSummaryResponse {
                 .courseTitle(request.getCourse().getTitle())
                 .student(studentInfo)
                 .introduction(request.getIntroduction())
+                .goal(request.getGoal())
                 .preferredSchedule(request.getPreferredScheduleNote())
                 .preferredStart(request.getPreferredStart())
                 .message(request.getMessage())

@@ -73,13 +73,12 @@ public class CourseSpecification {
         };
     }
 
-    // 검색 목록 기본 조건: 공개 수업(isListed=true) + 모집 중 또는 수강 중인 수업
-    // isListed는 선생님이 직접 토글로 제어하는 노출 여부 플래그
-    // IN_PROGRESS 포함: 수강 중인 수업도 선생님이 원하면 검색 노출 가능
+    // 검색 목록 기본 조건: 공개 수업(isListed=true) + 모집 중인 수업만
+    // IN_PROGRESS(수업 진행 중)는 신규 수강생을 받지 않으므로 검색 노출에서 제외
     public static Specification<Course> isSearchable() {
         return (root, query, cb) -> cb.and(
                 cb.isTrue(root.get("isListed")),
-                root.get("status").in(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS)
+                cb.equal(root.get("status"), CourseStatus.RECRUITING)
         );
     }
 }

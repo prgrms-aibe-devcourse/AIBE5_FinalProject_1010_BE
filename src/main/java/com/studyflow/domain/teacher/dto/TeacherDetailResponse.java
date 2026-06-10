@@ -13,6 +13,7 @@ import java.util.List;
 public class TeacherDetailResponse {
 
     private Long id;                    // TeacherProfile.id
+    private Long userId;               // User.id (채팅방 생성에 필요)
     private String name;                // User.name
     private String profileImageUrl;     // User.profileImageUrl
     private Gender gender;              // User.gender
@@ -32,6 +33,7 @@ public class TeacherDetailResponse {
     public static TeacherDetailResponse of(TeacherProfile profile, List<TeacherCourseCardResponse> courses) {
         return TeacherDetailResponse.builder()
                 .id(profile.getId())
+                .userId(profile.getUser().getId())
                 .name(profile.getUser().getName())
                 .profileImageUrl(profile.getUser().getProfileImageUrl())
                 .gender(profile.getUser().getGender())
