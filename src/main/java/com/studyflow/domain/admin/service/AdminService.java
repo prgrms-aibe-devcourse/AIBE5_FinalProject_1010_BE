@@ -1,5 +1,6 @@
 package com.studyflow.domain.admin.service;
 
+import com.studyflow.global.config.CacheConfig;
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
@@ -13,10 +14,13 @@ import com.studyflow.domain.admin.dto.AdminUserDetailResponse;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
-import com.studyflow.domain.admin.dto.UserCountResponse;
+import com.studyflow.domain.admin.dto.CountResponse;
+import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.entity.UserCountStatistics;
 import com.studyflow.domain.admin.repository.UserCountStatisticsRepository;
+import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
@@ -25,6 +29,7 @@ import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +37,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -43,6 +51,7 @@ public class AdminService {
     private final UserCountStatisticsRepository userCountStatisticsRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final CourseRepository courseRepository;
 
     // 선생님 인증 요청 목록 조회 — status가 null이면 전체 반환
     public Page<AdminVerificationSummaryResponse> getTeacherVerifications(
@@ -58,28 +67,48 @@ public class AdminService {
                 .orElseThrow(() -> new VerificationNotFoundException(verificationId));
     }
 
-    // 활성 회원 수 조회 — role이 null이면 전체 반환
-    public UserCountResponse getUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countByIsActiveTrue()
-                : userRepository.countByIsActiveTrueAndRole(role);
-        return new UserCountResponse(count);
+    // 승인 대기 선생님 수 조회
+    public CountResponse getVerificationPendingCount() {
+        return new CountResponse(
+                teacherVerificationRepository.countByStatus(VerificationStatus.PENDING));
     }
 
-    // 비활성 회원 수 조회 (isActive=false, 탈퇴 안 함)
-    public UserCountResponse getInactiveUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countInactiveNonDeleted()
-                : userRepository.countInactiveNonDeletedByRole(role);
-        return new UserCountResponse(count);
+    // 수업 수 조회 — status가 null이면 전체 반환
+    public CountResponse getCourseCount(CourseStatus status) {
+        long count = (status == null)
+                ? courseRepository.count()
+                : courseRepository.countByStatus(status);
+        return new CountResponse(count);
     }
 
-    // 탈퇴 회원 수 조회 (isDeleted != 0)
-    public UserCountResponse getDeletedUserCount(UserRole role) {
-        long count = (role == null)
-                ? userRepository.countDeleted()
-                : userRepository.countDeletedByRole(role);
-        return new UserCountResponse(count);
+    // 활성 회원 수 조회 — GROUP BY role 단일 쿼리 + 5분 캐시
+    @Cacheable(cacheNames = CacheConfig.ADMIN_USER_COUNT, key = "'all'")
+    public UserCountByRoleResponse getUserCount() {
+        return toUserCountByRoleResponse(userRepository.countActiveGroupByRole());
+    }
+
+    // 비활성 회원 수 조회 (isActive=false, 탈퇴 안 함) — GROUP BY role 단일 쿼리 + 5분 캐시
+    @Cacheable(cacheNames = CacheConfig.ADMIN_INACTIVE_USER_COUNT, key = "'all'")
+    public UserCountByRoleResponse getInactiveUserCount() {
+        return toUserCountByRoleResponse(userRepository.countInactiveNonDeletedGroupByRole());
+    }
+
+    // 탈퇴 회원 수 조회 (isDeleted != 0) — GROUP BY role 단일 쿼리 + 5분 캐시
+    @Cacheable(cacheNames = CacheConfig.ADMIN_DELETED_USER_COUNT, key = "'all'")
+    public UserCountByRoleResponse getDeletedUserCount() {
+        return toUserCountByRoleResponse(userRepository.countDeletedGroupByRole());
+    }
+
+    // GROUP BY 쿼리 결과([role, count] 행 목록)를 UserCountByRoleResponse로 변환
+    private UserCountByRoleResponse toUserCountByRoleResponse(List<Object[]> rows) {
+        Map<UserRole, Long> map = new EnumMap<>(UserRole.class);
+        for (Object[] row : rows) {
+            map.put((UserRole) row[0], (Long) row[1]);
+        }
+        long student = map.getOrDefault(UserRole.STUDENT, 0L);
+        long teacher = map.getOrDefault(UserRole.TEACHER, 0L);
+        long admin   = map.getOrDefault(UserRole.ADMIN,   0L);
+        return new UserCountByRoleResponse(student + teacher + admin, student, teacher, admin);
     }
 
     // 활성 회원 목록 조회

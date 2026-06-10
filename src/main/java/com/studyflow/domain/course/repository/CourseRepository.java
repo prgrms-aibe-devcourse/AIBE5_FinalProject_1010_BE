@@ -63,6 +63,9 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     List<TeacherCourseCount> countCoursesByTeacherProfileIds(@Param("teacherProfileIds") List<Long> teacherProfileIds,
                                                              @Param("statuses") List<CourseStatus> statuses);
 
+    // 관리자 대시보드 — status별 수업 수 (전체는 JpaRepository#count() 사용)
+    long countByStatus(CourseStatus status);
+
     // 검색 필터(Specification) 적용 + teacherProfile → user, subject 한 번에 페치
     // @EntityGraph로 ManyToOne 관계만 페치하기 때문에 컬렉션 페치가 없어 페이지네이션 메모리 경고 없음
     // CourseCardResponse.of()에서 teacherProfile, user, subject에 접근하므로 반드시 함께 페치해야 LazyInitializationException 방지

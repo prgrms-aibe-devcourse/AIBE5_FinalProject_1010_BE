@@ -13,6 +13,9 @@ public interface TeacherVerificationRepository extends JpaRepository<TeacherVeri
     // 이미 심사 대기 중인 인증 요청 존재 여부 확인
     boolean existsByUserIdAndStatus(Long userId, VerificationStatus status);
 
+    // 관리자 대시보드 — 승인 대기 중인 인증 요청 수
+    long countByStatus(VerificationStatus status);
+
     // 본인 인증 신청 목록 — 최신순 페이지네이션
     Page<TeacherVerification> findByUserId(Long userId, Pageable pageable);
 
