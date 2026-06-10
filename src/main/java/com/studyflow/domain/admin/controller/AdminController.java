@@ -5,8 +5,8 @@ import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
+import com.studyflow.domain.admin.dto.CountResponse;
 import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
-import com.studyflow.domain.admin.dto.UserCountResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.service.AdminService;
 import com.studyflow.domain.course.enums.CourseStatus;
@@ -96,7 +96,7 @@ public class AdminController {
     // 예시: GET /api/v1/admin/dashboard/course-count
     //       GET /api/v1/admin/dashboard/course-count?status=RECRUITING
     @GetMapping("/dashboard/course-count")
-    public ResponseEntity<UserCountResponse> getCourseCount(
+    public ResponseEntity<CountResponse> getCourseCount(
             @RequestParam(required = false) CourseStatus status) {
         return ResponseEntity.ok(adminService.getCourseCount(status));
     }
@@ -104,7 +104,7 @@ public class AdminController {
     // 관리자 대시보드 - 승인대기 선생님 수 조회
     // 예시: GET /api/v1/admin/dashboard/verification-pending-count
     @GetMapping("/dashboard/verification-pending-count")
-    public ResponseEntity<UserCountResponse> getVerificationPendingCount() {
+    public ResponseEntity<CountResponse> getVerificationPendingCount() {
         return ResponseEntity.ok(adminService.getVerificationPendingCount());
     }
 

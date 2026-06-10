@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -23,23 +24,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.id = :id AND u.isDeleted = 0")
     Optional<User> findActiveById(Long id);
 
-    long countByIsActiveTrue();
+    // 활성 유저 수 — role별 [role, count] 목록 (1번 쿼리)
+    @Query("SELECT u.role, COUNT(u) FROM User u WHERE u.isActive = true GROUP BY u.role")
+    List<Object[]> countActiveGroupByRole();
 
-    long countByIsActiveTrueAndRole(UserRole role);
+    // 비활성 유저 수 — isActive=false, isDeleted=0 (탈퇴 안 함), role별 (1번 쿼리)
+    @Query("SELECT u.role, COUNT(u) FROM User u WHERE u.isActive = false AND u.isDeleted = 0 GROUP BY u.role")
+    List<Object[]> countInactiveNonDeletedGroupByRole();
 
-    // 비활성 유저: isActive=false, isDeleted=0 (탈퇴 안 함)
-    @Query("SELECT COUNT(u) FROM User u WHERE u.isActive = false AND u.isDeleted = 0")
-    long countInactiveNonDeleted();
-
-    @Query("SELECT COUNT(u) FROM User u WHERE u.isActive = false AND u.isDeleted = 0 AND u.role = :role")
-    long countInactiveNonDeletedByRole(@Param("role") UserRole role);
-
-    // 탈퇴 유저: isDeleted != 0
-    @Query("SELECT COUNT(u) FROM User u WHERE u.isDeleted <> 0")
-    long countDeleted();
-
-    @Query("SELECT COUNT(u) FROM User u WHERE u.isDeleted <> 0 AND u.role = :role")
-    long countDeletedByRole(@Param("role") UserRole role);
+    // 탈퇴 유저 수 — isDeleted != 0, role별 (1번 쿼리)
+    @Query("SELECT u.role, COUNT(u) FROM User u WHERE u.isDeleted <> 0 GROUP BY u.role")
+    List<Object[]> countDeletedGroupByRole();
 
     // 활성 유저 목록 (isActive=true) — role이 null이면 전체
     Page<User> findByIsActiveTrue(Pageable pageable);
