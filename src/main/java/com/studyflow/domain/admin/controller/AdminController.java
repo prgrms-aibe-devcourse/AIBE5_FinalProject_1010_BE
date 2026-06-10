@@ -5,6 +5,7 @@ import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
+import com.studyflow.domain.admin.dto.RejectVerificationRequest;
 import com.studyflow.domain.admin.dto.CountResponse;
 import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
@@ -54,11 +55,13 @@ public class AdminController {
     }
 
     // 선생님 인증요청 거절
-    // 예시: PATCH /api/v1/admin/teacher-verifications/1/reject?rejectReason=사유
+    // 예시: PATCH /api/v1/admin/teacher-verifications/1/reject
+    //       Body: { "rejectReason": "사유" }  (선택)
     @PatchMapping("/teacher-verifications/{verificationId}/reject")
     public ResponseEntity<Void> rejectVerification(
             @PathVariable Long verificationId,
-            @RequestParam(required = false) String rejectReason) {
+            @RequestBody(required = false) RejectVerificationRequest request) {
+        String rejectReason = (request != null) ? request.getRejectReason() : null;
         adminService.rejectVerification(verificationId, rejectReason);
         return ResponseEntity.ok().build();
     }
