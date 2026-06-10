@@ -5,8 +5,10 @@ import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -14,6 +16,12 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
 
     // 특정 상태의 신청 존재 여부 확인 — 주로 PENDING 중복 신청 방지에 사용
     boolean existsByUserIdAndCourseIdAndStatus(Long userId, Long courseId, EnrollmentRequestStatus status);
+
+    // 수업 삭제 시 해당 수업의 PENDING 신청을 일괄 REJECTED 처리
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE EnrollmentRequest er SET er.status = 'REJECTED' WHERE er.course.id = :courseId AND er.status = 'PENDING'")
+    int bulkRejectPendingByCourseId(@Param("courseId") Long courseId);
 
     // 수락/거절 처리용 — course·teacherProfile JOIN FETCH (소유권 검증 시 LAZY 추가 쿼리 방지)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.course c JOIN FETCH c.teacherProfile WHERE er.id = :id")
