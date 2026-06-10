@@ -8,6 +8,7 @@ import com.studyflow.domain.classroom.entity.ClassroomSession;
 import com.studyflow.domain.classroom.enums.ClassroomStatus;
 import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
+import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
 import com.studyflow.domain.classroom.repository.ClassroomParticipantRepository;
 import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
@@ -18,7 +19,9 @@ import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
+import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +52,8 @@ public class ClassroomService {
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
      * 이미 열린(OPEN) 세션이 있으면 새로 만들지 않고 기존 세션을 반환한다(멱등).
+     * 개설한 선생님은 곧바로 참가자(canPublish=true)로 등록해, 열기 직후 토큰을 요청해도
+     * 송출 권한이 보장되도록 한다.
      */
     @Transactional
     public ClassroomSessionResponse openSession(Long courseId, Long teacherUserId) {
@@ -57,10 +62,20 @@ public class ClassroomService {
         assertHost(course, teacherUserId);
 
         ClassroomSession session = sessionRepository
-                .findFirstByCourseIdAndStatus(courseId, ClassroomStatus.OPEN)
+                .findTopByCourseIdAndStatusOrderByStartedAtDesc(courseId, ClassroomStatus.OPEN)
                 .orElseGet(() -> sessionRepository.save(ClassroomSession.open(course)));
 
+        // 선생님을 호스트 참가자로 등록(멱등) — canPublish=true
+        ensureHostParticipant(session, teacherUserId);
+
         return ClassroomSessionResponse.from(session);
+    }
+
+    // 개설 선생님의 참가자 행을 보장(이미 있으면 그대로 둔다)
+    private void ensureHostParticipant(ClassroomSession session, Long teacherUserId) {
+        participantRepository.findBySessionIdAndUserId(session.getId(), teacherUserId)
+                .orElseGet(() -> participantRepository.save(
+                        ClassroomParticipant.join(session, userRepository.getReferenceById(teacherUserId), true)));
     }
 
     /**
@@ -74,7 +89,7 @@ public class ClassroomService {
         assertMember(course, userId);
 
         ClassroomSession session = sessionRepository
-                .findFirstByCourseIdAndStatus(courseId, ClassroomStatus.OPEN)
+                .findTopByCourseIdAndStatusOrderByStartedAtDesc(courseId, ClassroomStatus.OPEN)
                 .orElseThrow(() -> new ClassroomSessionNotFoundException(
                         "현재 열려 있는 강의실이 없습니다. (courseId: " + courseId + ")"));
 
@@ -132,8 +147,7 @@ public class ClassroomService {
     public ParticipantPermissionResponse updatePermissions(
             Long participantId, Long teacherUserId, ParticipantPermissionUpdateRequest request) {
         ClassroomParticipant participant = participantRepository.findById(participantId)
-                .orElseThrow(() -> new ClassroomSessionNotFoundException(
-                        "강의실 참가자를 찾을 수 없습니다. (participantId: " + participantId + ")"));
+                .orElseThrow(() -> new ClassroomParticipantNotFoundException(participantId));
         assertHost(participant.getSession().getCourse(), teacherUserId);
 
         // canPublish는 선택값 — null이면 기존 값 유지
@@ -162,8 +176,10 @@ public class ClassroomService {
                 .map(ClassroomParticipant::isCanPublish)
                 .orElse(isHost);
 
+        // 인증된 userId 기반이라 보통 존재하지만, 정합성 위해 404로 처리
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ClassroomForbiddenException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND,
+                        "사용자를 찾을 수 없습니다. (userId: " + userId + ")"));
 
         Long courseId = session.getCourse().getId();
         String roomName = "course-" + courseId + "-session-" + sessionId;

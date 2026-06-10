@@ -11,6 +11,7 @@ import com.studyflow.domain.qna.exception.QnaInvalidStateException;
 import com.studyflow.domain.qna.exception.QnaQuestionNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
+import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
@@ -380,6 +381,13 @@ public class GlobalExceptionHandler {
     // 강의실 세션을 찾을 수 없음 (404)
     @ExceptionHandler(ClassroomSessionNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleClassroomNotFound(ClassroomSessionNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 강의실 참가자를 찾을 수 없음 (404)
+    @ExceptionHandler(ClassroomParticipantNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleClassroomParticipantNotFound(ClassroomParticipantNotFoundException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }

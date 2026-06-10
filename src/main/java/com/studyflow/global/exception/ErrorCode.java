@@ -68,6 +68,7 @@ public enum ErrorCode {
 
     // 강의실(화상수업)
     CLASSROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "강의실 세션을 찾을 수 없습니다."),
+    CLASSROOM_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의실 참가자를 찾을 수 없습니다."),
     CLASSROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "강의실에 대한 권한이 없습니다."),
     CLASSROOM_NOT_OPEN(HttpStatus.BAD_REQUEST, "열려 있는 강의실이 아닙니다."),
 

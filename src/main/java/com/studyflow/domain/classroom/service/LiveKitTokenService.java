@@ -32,6 +32,9 @@ public class LiveKitTokenService {
     private final String apiSecret;
     private final String url;
 
+    // 최초 발급 시 1회 생성 후 캐싱 (요청마다 키 재생성 방지)
+    private volatile SecretKey cachedKey;
+
     // 토큰 유효시간(수업 1회 기준 충분) — 6시간
     private static final long TOKEN_TTL_MS = 6 * 60 * 60 * 1000L;
 
@@ -79,13 +82,24 @@ public class LiveKitTokenService {
                 .compact();
     }
 
+    /**
+     * HS256 서명 키를 반환(최초 1회 생성 후 캐싱).
+     *
+     * <p>생성자/@PostConstruct에서 미리 검증하지 않는 이유: 키 미설정(placeholder)이 기본 상태이며,
+     * 그 경우에도 앱은 정상 기동되어야 한다(토큰 발급을 호출할 때만 실패하면 됨). 그래서 지연 생성한다.</p>
+     */
     private SecretKey buildKey() {
+        SecretKey local = cachedKey;
+        if (local != null) return local;
+
         if (apiSecret == null || apiSecret.isBlank() || apiSecret.startsWith("your-")) {
             // 아직 실제 키 미설정(placeholder) — 명확한 메시지로 알림
             throw new IllegalStateException("LiveKit api-secret이 설정되지 않았습니다. application-secret.yml에 실제 키를 넣어주세요.");
         }
         try {
-            return Keys.hmacShaKeyFor(apiSecret.getBytes(StandardCharsets.UTF_8));
+            local = Keys.hmacShaKeyFor(apiSecret.getBytes(StandardCharsets.UTF_8));
+            cachedKey = local;
+            return local;
         } catch (WeakKeyException e) {
             throw new IllegalStateException("LiveKit api-secret이 너무 짧습니다(HS256은 32바이트 이상 필요).", e);
         }

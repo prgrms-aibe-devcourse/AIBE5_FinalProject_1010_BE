@@ -62,13 +62,13 @@ public class ClassroomParticipant {
     @Column(nullable = false)
     private boolean canPublish = false;
 
-    /** 카메라 on/off 상태 */
+    /** 카메라 on/off 상태 (Lombok getter: isVideoOn()) */
     @Column(nullable = false)
-    private boolean isVideoOn = false;
+    private boolean videoOn = false;
 
-    /** 마이크 on/off 상태 */
+    /** 마이크 on/off 상태 (Lombok getter: isAudioOn()) */
     @Column(nullable = false)
-    private boolean isAudioOn = false;
+    private boolean audioOn = false;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -87,8 +87,8 @@ public class ClassroomParticipant {
         p.canDraw = host;
         p.canShareScreen = host;
         p.canPublish = host;   // 선생님은 기본 송출 가능, 학생은 시청 전용
-        p.isVideoOn = false;
-        p.isAudioOn = false;
+        p.videoOn = false;
+        p.audioOn = false;
         return p;
     }
 
