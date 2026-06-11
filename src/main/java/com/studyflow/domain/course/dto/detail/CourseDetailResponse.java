@@ -21,6 +21,7 @@ public class CourseDetailResponse {
     // ── 수업 기본 정보 ──────────────────────
     private Long id;
     private String title;
+    private Long subjectId;
     private String subjectName;
     private TargetGrade targetGrade;
     private int maxStudents;
@@ -77,6 +78,7 @@ public class CourseDetailResponse {
         return CourseDetailResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
+                .subjectId(course.getSubject().getId())
                 .subjectName(course.getSubject().getName())
                 .targetGrade(course.getTargetGrade())
                 .maxStudents(course.getMaxStudents())
