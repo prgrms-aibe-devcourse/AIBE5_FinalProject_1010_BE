@@ -207,10 +207,11 @@ public class ClassroomService {
 
     /**
      * 수업 멤버(담당 선생님 또는 ACTIVE 수강생)인지 검증. 아니면 403.
+     * 채팅 등 다른 강의실 서비스에서도 재사용하므로 public.
      *
      * @return 담당 선생님(host)이면 true, ACTIVE 수강생이면 false
      */
-    private boolean assertMember(Course course, Long userId) {
+    public boolean assertMember(Course course, Long userId) {
         boolean isHost = teacherProfileRepository.findByUserId(userId)
                 .map(tp -> course.getTeacherProfile().getId().equals(tp.getId()))
                 .orElse(false);
