@@ -9,6 +9,10 @@ import com.studyflow.domain.qna.exception.QnaAnswerNotFoundException;
 import com.studyflow.domain.qna.exception.QnaForbiddenException;
 import com.studyflow.domain.qna.exception.QnaInvalidStateException;
 import com.studyflow.domain.qna.exception.QnaQuestionNotFoundException;
+import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
+import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
+import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
+import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
@@ -372,6 +376,36 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
+    // ── 강의실(화상수업) ──
+
+    // 강의실 세션을 찾을 수 없음 (404)
+    @ExceptionHandler(ClassroomSessionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleClassroomNotFound(ClassroomSessionNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 강의실 참가자를 찾을 수 없음 (404)
+    @ExceptionHandler(ClassroomParticipantNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleClassroomParticipantNotFound(ClassroomParticipantNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 담당 선생님/수강생이 아닌 사용자의 강의실 접근 (403)
+    @ExceptionHandler(ClassroomForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleClassroomForbidden(ClassroomForbiddenException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 이미 종료된 강의실에 참가/종료 시도 등 상태 위배 (400)
+    @ExceptionHandler(ClassroomNotOpenException.class)
+    public ResponseEntity<Map<String, Object>> handleClassroomNotOpen(ClassroomNotOpenException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
     // 기타 예외는 필요에 따라 추가 처리
 
     // 헬퍼 메서드는 ErrorCode enum 내부의 toBody 메서드를 사용하도록 이동했습니다.
