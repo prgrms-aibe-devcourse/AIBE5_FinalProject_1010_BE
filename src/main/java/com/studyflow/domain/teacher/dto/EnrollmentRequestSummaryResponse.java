@@ -29,6 +29,7 @@ public class EnrollmentRequestSummaryResponse {
     public static class StudentInfo {
         private Long userId;
         private String name;
+        private String profileImageUrl;
         private String grade;
         private String region;
         private String goal;
@@ -38,6 +39,7 @@ public class EnrollmentRequestSummaryResponse {
         StudentInfo studentInfo = StudentInfo.builder()
                 .userId(request.getUser().getId())
                 .name(request.getUser().getName())
+                .profileImageUrl(request.getUser().getProfileImageUrl())
                 .grade(studentProfile != null ? studentProfile.getGrade() : null)
                 .region(studentProfile != null ? studentProfile.getRegion() : null)
                 .goal(studentProfile != null ? studentProfile.getGoal() : null)

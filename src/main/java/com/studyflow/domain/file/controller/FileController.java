@@ -55,6 +55,25 @@ public class FileController {
     }
 
     /**
+     * 프로필 이미지 업로드 API.
+     *
+     * 요청:
+     * POST /api/v1/files/profile/images
+     * Content-Type: multipart/form-data
+     * key: file
+     * 허용: 이미지(jpg/png/webp), 최대 10MB
+     *
+     * 응답으로 받은 fileUrl을 회원 정보 수정 API(PATCH /api/v1/users/me)의 profileImageUrl 필드에 전달한다.
+     */
+    @PostMapping("/profile/images")
+    public FileUploadResponse uploadProfileImage(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return fileService.uploadProfileImage(userId, file);
+    }
+
+    /**
      * 공지사항 첨부파일 업로드 API.
      *
      * POST /api/v1/files/notice/attachments
