@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -41,7 +40,7 @@ public class NotificationService {
                 .orElseThrow(() -> new NotificationException(
                         ErrorCode.NOTIFICATION_NOT_FOUND, ErrorCode.NOTIFICATION_NOT_FOUND.getMessage()));
 
-        if (!notification.getRecipient().getId().equals(userId)) {
+        if (!notification.getRecipientId().equals(userId)) {
             throw new NotificationException(
                     ErrorCode.NOTIFICATION_ACCESS_FORBIDDEN, ErrorCode.NOTIFICATION_ACCESS_FORBIDDEN.getMessage());
         }
@@ -55,10 +54,10 @@ public class NotificationService {
         notificationRepository.markAllReadByRecipientId(userId);
     }
 
-    // 알림 저장 — 커밋 이후 리스너가 별도 트랜잭션으로 호출 (REQUIRES_NEW)
-    // 모든 값은 발행 시점에 원시값으로 담겨오므로 여기서는 수신자 프록시만 붙여 저장
+    // 알림 저장 — 커밋 이후 AFTER_COMMIT 단계에서 리스너가 호출할 때는 이미 원 트랜잭션이 없으므로
+    // REQUIRES_NEW 없이 @Transactional 만으로 동일하게 새 트랜잭션에서 저장됨
     // TODO: 알림 누적 정리 정책 미구현 — 장기적으로 "N일 경과 또는 읽음 처리된 알림 삭제" 배치 필요
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void create(Long recipientId, NotificationType type, String title, String message, Long relatedId) {
         User recipient = userRepository.getReferenceById(recipientId);
         notificationRepository.save(Notification.create(recipient, type, title, message, relatedId));

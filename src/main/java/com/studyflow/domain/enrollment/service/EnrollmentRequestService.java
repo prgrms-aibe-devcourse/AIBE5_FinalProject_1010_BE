@@ -129,7 +129,7 @@ public class EnrollmentRequestService {
         eventPublisher.publishEvent(new NotificationCreatedEvent(
                 request.getUser().getId(), NotificationType.ENROLLMENT_ACCEPTED,
                 "수강 신청 수락",
-                String.format("'%s' 수강 신청이 수락되었어요. 🎉", request.getCourse().getTitle()),
+                String.format("'%s' 수강 신청이 수락되었어요.", request.getCourse().getTitle()),
                 request.getId()));
     }
 
@@ -188,8 +188,8 @@ public class EnrollmentRequestService {
         userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        // 2. 수강 신청 기록 조회
-        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUser(requestId)
+        // 2. 수강 신청 기록 조회 (course → teacherProfile → user 알림 발행에 필요해 한 번에 fetch)
+        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUserAndCourse(requestId)
                 .orElseThrow(() -> new EnrollmentRequestCancelException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));

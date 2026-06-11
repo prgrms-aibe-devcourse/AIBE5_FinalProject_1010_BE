@@ -30,6 +30,10 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "recipient_id", nullable = false)
     private User recipient;
 
+    // 소유권 검증 시 LAZY 로딩 없이 비교하기 위해 FK를 직접 노출 (읽기 전용)
+    @Column(name = "recipient_id", insertable = false, updatable = false)
+    private Long recipientId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private NotificationType type;
@@ -40,8 +44,11 @@ public class Notification extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String message;
 
+    @Getter(AccessLevel.NONE) // boolean isRead 에 @Getter 적용 시 isIsRead() 가 생성되는 문제 방지
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
+
+    public boolean isRead() { return isRead; }
 
     // 클릭 시 이동 대상 ID (예: questionId). 없을 수 있음
     @Column(name = "related_id")

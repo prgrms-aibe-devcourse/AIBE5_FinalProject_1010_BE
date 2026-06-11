@@ -31,6 +31,10 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithUser(@Param("id") Long id);
 
+    // 취소 알림 발행용 — user + course + teacherProfile + teacher user 한 번에 로딩 (lazy 체인 3회 방지)
+    @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user JOIN FETCH er.course c JOIN FETCH c.teacherProfile tp JOIN FETCH tp.user WHERE er.id = :id")
+    Optional<EnrollmentRequest> findByIdWithUserAndCourse(@Param("id") Long id);
+
     // 신청/취소를 반복했을 수 있으므로 가장 최근 신청 기준으로 myStatus 결정
     Optional<EnrollmentRequest> findFirstByUserIdAndCourseIdOrderByCreatedAtDesc(Long userId, Long courseId);
 
