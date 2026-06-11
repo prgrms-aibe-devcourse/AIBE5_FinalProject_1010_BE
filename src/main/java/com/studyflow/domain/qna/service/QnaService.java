@@ -7,6 +7,8 @@ import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.naegong.enums.NaegongReason;
 import com.studyflow.domain.naegong.service.NaegongService;
+import com.studyflow.domain.notification.enums.NotificationType;
+import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.domain.qna.dto.request.QnaAnswerRequest;
 import com.studyflow.domain.qna.dto.request.QnaBlockRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionCreateRequest;
@@ -35,6 +37,7 @@ import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -91,6 +94,7 @@ public class QnaService {
     private final NaegongService naegongService;
     // 본문 블록 직렬화/역직렬화용. Spring이 관리하는 빈을 주입받아 앱 Jackson 설정을 동일하게 따른다.
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ── 질문 ────────────────────────────────────────────────
 
@@ -236,6 +240,17 @@ public class QnaService {
         }
         attachAnswerImages(answer, imageFileIds, userId);
         answerRepository.save(answer);
+
+        // 질문 작성 학생에게 답변 알림 (본인 질문에 본인이 답변하는 경우는 제외 — 일반적으로 발생하지 않음)
+        Long questionAuthorId = question.getAuthor().getId();
+        if (!questionAuthorId.equals(userId)) {
+            eventPublisher.publishEvent(new NotificationCreatedEvent(
+                    questionAuthorId, NotificationType.QNA_ANSWERED,
+                    "새 답변",
+                    String.format("내 질문 '%s'에 답변이 달렸어요.", question.getTitle()),
+                    question.getId()));
+        }
+
         return QnaAnswerCreateResponse.from(answer);
     }
 

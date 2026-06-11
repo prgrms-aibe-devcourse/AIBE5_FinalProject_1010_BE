@@ -24,11 +24,14 @@ import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
+import com.studyflow.domain.notification.enums.NotificationType;
+import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +47,7 @@ public class EnrollmentRequestService {
     private final UserRepository userRepository;
     private final ChatService chatService;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public EnrollmentRequestResponse createEnrollmentRequest(
@@ -102,6 +106,13 @@ public class EnrollmentRequestService {
             throw new EnrollmentRequestAlreadyPendingException();
         }
 
+        // 선생님에게 새 수강 신청 알림 (커밋 이후 저장)
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                teacherUserId, NotificationType.ENROLLMENT_REQUESTED,
+                "새 수강 신청",
+                String.format("%s님이 '%s' 수업에 수강을 신청했어요.", student.getName(), course.getTitle()),
+                saved.getId()));
+
         return EnrollmentRequestResponse.of(saved, chatRoom.getRoomId());
     }
 
@@ -113,6 +124,13 @@ public class EnrollmentRequestService {
         request.accept();
         Enrollment enrollment = Enrollment.create(request.getUser(), request.getCourse(), request);
         enrollmentRepository.save(enrollment);
+
+        // 학생에게 수락 알림
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                request.getUser().getId(), NotificationType.ENROLLMENT_ACCEPTED,
+                "수강 신청 수락",
+                String.format("'%s' 수강 신청이 수락되었어요.", request.getCourse().getTitle()),
+                request.getId()));
     }
 
     @Transactional
@@ -121,6 +139,13 @@ public class EnrollmentRequestService {
 
         // 수강 신청 거절
         request.reject();
+
+        // 학생에게 거절 알림
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                request.getUser().getId(), NotificationType.ENROLLMENT_REJECTED,
+                "수강 신청 거절",
+                String.format("'%s' 수강 신청이 거절되었어요.", request.getCourse().getTitle()),
+                request.getId()));
     }
 
     /**
@@ -163,8 +188,8 @@ public class EnrollmentRequestService {
         userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        // 2. 수강 신청 기록 조회
-        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUser(requestId)
+        // 2. 수강 신청 기록 조회 (course → teacherProfile → user 알림 발행에 필요해 한 번에 fetch)
+        EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUserAndCourse(requestId)
                 .orElseThrow(() -> new EnrollmentRequestCancelException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));
@@ -186,5 +211,14 @@ public class EnrollmentRequestService {
 
         // 5. 취소 처리
         request.cancel();
+
+        // 선생님에게 취소 알림 (course → teacherProfile → user 는 트랜잭션 내 lazy 로딩)
+        Long teacherUserId = request.getCourse().getTeacherProfile().getUser().getId();
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                teacherUserId, NotificationType.ENROLLMENT_CANCELLED,
+                "수강 신청 취소",
+                String.format("%s님이 '%s' 수강 신청을 취소했어요.",
+                        request.getUser().getName(), request.getCourse().getTitle()),
+                request.getId()));
     }
 }
