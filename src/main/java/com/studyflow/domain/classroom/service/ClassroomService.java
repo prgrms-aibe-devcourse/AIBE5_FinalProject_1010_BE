@@ -23,6 +23,7 @@ import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +58,8 @@ public class ClassroomService {
      */
     @Transactional
     public ClassroomSessionResponse openSession(Long courseId, Long teacherUserId) {
-        Course course = courseRepository.findById(courseId)
+        // 동시성: course 행에 쓰기 락을 걸어 "열기" 더블클릭 시 OPEN 세션이 2개 생기는 경쟁을 막는다.
+        Course course = courseRepository.findByIdForUpdate(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
         assertHost(course, teacherUserId);
 
@@ -69,6 +71,21 @@ public class ClassroomService {
         ensureHostParticipant(session, teacherUserId);
 
         return ClassroomSessionResponse.from(session);
+    }
+
+    /**
+     * 신규 참가자 행 저장. 동시 더블클릭으로 두 요청이 동시에 insert하면
+     * unique(session,user) 제약 위반(DataIntegrityViolationException)이 날 수 있으므로,
+     * 그 경우 이미 생성된 행을 재조회해 멱등하게 반환한다(500 방지).
+     */
+    private ClassroomParticipant joinNewParticipant(ClassroomSession session, Long userId, boolean isHost) {
+        try {
+            User user = userRepository.getReferenceById(userId);
+            return participantRepository.save(ClassroomParticipant.join(session, user, isHost));
+        } catch (DataIntegrityViolationException e) {
+            return participantRepository.findBySessionIdAndUserId(session.getId(), userId)
+                    .orElseThrow(() -> e);
+        }
     }
 
     // 개설 선생님의 참가자 행을 보장(이미 있으면 그대로 둔다)
@@ -86,7 +103,7 @@ public class ClassroomService {
     public ClassroomCurrentResponse getCurrentSession(Long courseId, Long userId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
-        assertMember(course, userId);
+        verifyMemberAndIsHost(course, userId);
 
         ClassroomSession session = sessionRepository
                 .findTopByCourseIdAndStatusOrderByStartedAtDesc(courseId, ClassroomStatus.OPEN)
@@ -109,15 +126,11 @@ public class ClassroomService {
             throw new ClassroomNotOpenException("이미 종료된 강의실에는 참가할 수 없습니다.");
         }
 
-        boolean isHost = assertMember(session.getCourse(), userId);
+        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
 
         ClassroomParticipant participant = participantRepository
                 .findBySessionIdAndUserId(sessionId, userId)
-                .orElseGet(() -> {
-                    User user = userRepository.getReferenceById(userId);
-                    return participantRepository.save(
-                            ClassroomParticipant.join(session, user, isHost));
-                });
+                .orElseGet(() -> joinNewParticipant(session, userId, isHost));
 
         return ClassroomParticipantResponse.from(participant);
     }
@@ -137,6 +150,9 @@ public class ClassroomService {
         }
         session.close();
 
+        // TODO: 종료가 "실제 강제 퇴장"이 되도록 LiveKit RoomService.DeleteRoom 호출 필요.
+        //  현재는 DB status만 CLOSED로 바꾸므로, 이미 발급된 토큰(TTL 2h)을 든 클라이언트는
+        //  LiveKit 서버에 직접 재연결할 수 있다. (서버 API 연동 전까지 TTL 단축으로 완화)
         return ClassroomCloseResponse.from(session);
     }
 
@@ -169,7 +185,7 @@ public class ClassroomService {
             throw new ClassroomNotOpenException("종료된 강의실의 토큰은 발급할 수 없습니다.");
         }
 
-        boolean isHost = assertMember(session.getCourse(), userId);
+        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
 
         // 참가(22-3) 이력이 있으면 그 권한을, 없으면 호스트 여부로 기본 결정
         boolean canPublish = participantRepository.findBySessionIdAndUserId(sessionId, userId)
@@ -206,12 +222,13 @@ public class ClassroomService {
     }
 
     /**
-     * 수업 멤버(담당 선생님 또는 ACTIVE 수강생)인지 검증. 아니면 403.
+     * 수업 멤버(담당 선생님 또는 ACTIVE 수강생)인지 검증하고, 호스트 여부를 반환한다. 멤버가 아니면 403.
+     * 검증(실패 시 throw)과 분류(호스트 여부)를 함께 하므로 assertX가 아닌 verify...AndIsHost로 명명.
      * 채팅 등 다른 강의실 서비스에서도 재사용하므로 public.
      *
      * @return 담당 선생님(host)이면 true, ACTIVE 수강생이면 false
      */
-    public boolean assertMember(Course course, Long userId) {
+    public boolean verifyMemberAndIsHost(Course course, Long userId) {
         boolean isHost = teacherProfileRepository.findByUserId(userId)
                 .map(tp -> course.getTeacherProfile().getId().equals(tp.getId()))
                 .orElse(false);

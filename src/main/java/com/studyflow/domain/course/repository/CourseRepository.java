@@ -2,12 +2,14 @@ package com.studyflow.domain.course.repository;
 
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,6 +24,12 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
         Long getTeacherProfileId();
         Long getCount();
     }
+
+    // 강의실 열기 동시성 제어용 — course 행에 쓰기 락을 걸어 동일 수업의 OPEN 세션 중복 생성을 직렬화한다.
+    // (find→없으면 save 사이의 경쟁을 막음. 두 번째 요청은 첫 트랜잭션 커밋까지 대기 후 기존 OPEN 세션을 본다.)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Course c WHERE c.id = :courseId")
+    Optional<Course> findByIdForUpdate(@Param("courseId") Long courseId);
 
     // teacherProfile → user, subject 까지 한 번에 페치 — 수업별 페이지 진입마다 사용하므로 N+1 방지용으로 분리
     @Query("SELECT c FROM Course c " +

@@ -35,8 +35,10 @@ public class LiveKitTokenService {
     // 최초 발급 시 1회 생성 후 캐싱 (요청마다 키 재생성 방지)
     private volatile SecretKey cachedKey;
 
-    // 토큰 유효시간(수업 1회 기준 충분) — 6시간
-    private static final long TOKEN_TTL_MS = 6 * 60 * 60 * 1000L;
+    // 토큰 유효시간(수업 1회 기준) — 2시간.
+    // 종료(closeSession) 시 LiveKit 방을 실제로 닫지는 않으므로(서버 API 미연동), 발급된 토큰이
+    // 오래 살아있지 않도록 TTL을 짧게 유지하는 완화책. (TODO: 종료 시 RoomService.DeleteRoom 호출)
+    private static final long TOKEN_TTL_MS = 2 * 60 * 60 * 1000L;
 
     public LiveKitTokenService(
             @Value("${livekit.api-key:}") String apiKey,
@@ -78,7 +80,9 @@ public class LiveKitTokenService {
                 .claim("video", videoGrant)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + TOKEN_TTL_MS))
-                .signWith(key) // 키 길이에 따라 HS256 (LiveKit 호환)
+                // 알고리즘을 HS256으로 명시 고정. signWith(key)만 쓰면 jjwt가 키 길이에 따라
+                // HS384/HS512를 자동 선택하는데, LiveKit은 HS256 토큰만 검증하므로 긴 시크릿에서 전부 거부됨.
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 

@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * 강의실 채팅 서비스 (apidetail.md 23장).
  *
- * <p>멤버십 검증(담당 선생님·ACTIVE 수강생)은 {@link ClassroomService#assertMember}를 재사용한다.
+ * <p>멤버십 검증(담당 선생님·ACTIVE 수강생)은 {@link ClassroomService#verifyMemberAndIsHost}를 재사용한다.
  * 실시간 전송은 WebSocket 컨트롤러가, 이력 조회는 REST 컨트롤러가 이 서비스를 호출한다.</p>
  */
 @Service
@@ -47,7 +47,7 @@ public class ClassroomChatService {
         if (!session.isOpen()) {
             throw new ClassroomNotOpenException("종료된 강의실에는 메시지를 보낼 수 없습니다.");
         }
-        classroomService.assertMember(session.getCourse(), userId);
+        classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
 
         User sender = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND,
@@ -65,7 +65,7 @@ public class ClassroomChatService {
         ClassroomSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ClassroomSessionNotFoundException(
                         "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
-        classroomService.assertMember(session.getCourse(), userId);
+        classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
 
         return chatRepository.findBySessionIdWithSender(sessionId).stream()
                 .map(ClassroomChatResponse::from)

@@ -88,6 +88,8 @@ class ClassroomServiceTest {
         lenient().when(enrollmentRepository.existsByUserIdAndCourseIdAndStatus(STUDENT_USER_ID, COURSE_ID, EnrollmentStatus.ACTIVE)).thenReturn(true);
         lenient().when(enrollmentRepository.existsByUserIdAndCourseIdAndStatus(OUTSIDER_USER_ID, COURSE_ID, EnrollmentStatus.ACTIVE)).thenReturn(false);
         lenient().when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course));
+        // openSession은 동시성 제어를 위해 비관적 락 조회(findByIdForUpdate)를 사용한다.
+        lenient().when(courseRepository.findByIdForUpdate(COURSE_ID)).thenReturn(Optional.of(course));
         lenient().when(userRepository.getReferenceById(anyLong())).thenReturn(user);
     }
 
