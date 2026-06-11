@@ -100,6 +100,18 @@ public class FileService {
     }
 
     /**
+     * 프로필 이미지 업로드.
+     *
+     * <p>마이페이지 회원 정보에서 프로필 사진을 변경할 때 사용한다. 채팅 이미지와 동일한
+     * 검증/저장 흐름이며 저장 폴더만 {@code profile}로 분리한다. 응답의 fileUrl을
+     * 회원 정보 수정 API(PATCH /api/v1/users/me)의 profileImageUrl 필드에 전달한다.</p>
+     */
+    @Transactional
+    public FileUploadResponse uploadProfileImage(Long uploaderId, MultipartFile file) {
+        return uploadImage(uploaderId, file, "profile");
+    }
+
+    /**
      * 이미지 업로드 공통 로직. (저장 폴더만 {@code folder}로 분리)
      *
      * <p>허용 형식: JPEG/PNG/WEBP, 최대 10MB. Content-Type·확장자·매직바이트를 모두 검사한다.</p>
