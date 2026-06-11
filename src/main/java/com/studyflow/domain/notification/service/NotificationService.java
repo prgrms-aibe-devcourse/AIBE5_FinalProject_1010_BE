@@ -25,7 +25,7 @@ public class NotificationService {
 
     // 내 알림 목록 조회 (최신순, 페이징)
     public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable)
+        return notificationRepository.findByRecipientId(userId, pageable)
                 .map(NotificationResponse::from);
     }
 
@@ -57,6 +57,7 @@ public class NotificationService {
 
     // 알림 저장 — 커밋 이후 리스너가 별도 트랜잭션으로 호출 (REQUIRES_NEW)
     // 모든 값은 발행 시점에 원시값으로 담겨오므로 여기서는 수신자 프록시만 붙여 저장
+    // TODO: 알림 누적 정리 정책 미구현 — 장기적으로 "N일 경과 또는 읽음 처리된 알림 삭제" 배치 필요
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void create(Long recipientId, NotificationType type, String title, String message, Long relatedId) {
         User recipient = userRepository.getReferenceById(recipientId);

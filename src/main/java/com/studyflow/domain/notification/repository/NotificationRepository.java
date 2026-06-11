@@ -10,8 +10,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    // 내 알림 목록 (최신순)
-    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId, Pageable pageable);
+    // 내 알림 목록 — 정렬은 컨트롤러 @PageableDefault(sort="createdAt", direction=DESC)에 위임
+    Page<Notification> findByRecipientId(Long recipientId, Pageable pageable);
 
     // 안 읽은 알림 수 (벨 뱃지)
     long countByRecipientIdAndIsReadFalse(Long recipientId);
