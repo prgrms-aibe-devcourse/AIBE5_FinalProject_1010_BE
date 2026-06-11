@@ -1,5 +1,6 @@
 package com.studyflow.domain.admin.dto;
 
+import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.DocumentType;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
@@ -29,7 +30,7 @@ public class AdminVerificationDetailResponse {
     private String rejectedReason;
     private LocalDateTime reviewedAt;
 
-    public static AdminVerificationDetailResponse from(TeacherVerification v) {
+    public static AdminVerificationDetailResponse from(TeacherVerification v, TeacherProfile profile) {
         return AdminVerificationDetailResponse.builder()
                 .verificationId(v.getId())
                 .userId(v.getUser().getId())
@@ -37,9 +38,9 @@ public class AdminVerificationDetailResponse {
                 .status(v.getStatus())
                 .createdAt(v.getCreatedAt())
                 .description(v.getDescription())
-                .awards(v.getAwards())
-                .career(v.getCareer())
-                .education(v.getEducation())
+                .awards(v.getAwards() != null ? v.getAwards() : (profile != null ? profile.getAwards() : null))
+                .career(v.getCareer() != null ? v.getCareer() : (profile != null ? profile.getCareer() : null))
+                .education(v.getEducation() != null ? v.getEducation() : (profile != null ? profile.getEducation() : null))
                 .documentType(v.getDocumentType())
                 .documentUrl(v.getDocumentUrl())
                 .rejectedReason(v.getRejectedReason())

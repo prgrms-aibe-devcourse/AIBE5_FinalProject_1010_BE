@@ -1,6 +1,7 @@
 package com.studyflow.domain.admin.service;
 
 import com.studyflow.global.config.CacheConfig;
+import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
@@ -63,9 +64,13 @@ public class AdminService {
 
     // 선생님 인증 요청 상세 조회
     public AdminVerificationDetailResponse getTeacherVerificationDetail(Long verificationId) {
-        return teacherVerificationRepository.findByIdWithUser(verificationId)
-                .map(AdminVerificationDetailResponse::from)
+        TeacherVerification verification = teacherVerificationRepository.findByIdWithUser(verificationId)
                 .orElseThrow(() -> new VerificationNotFoundException(verificationId));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(verification.getUser().getId())
+                .orElse(null);
+
+        return AdminVerificationDetailResponse.from(verification, profile);
     }
 
     // 승인 대기 선생님 수 조회
