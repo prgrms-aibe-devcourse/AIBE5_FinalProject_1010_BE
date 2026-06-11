@@ -68,7 +68,7 @@ public class AdminService {
                 .orElseThrow(() -> new VerificationNotFoundException(verificationId));
 
         TeacherProfile profile = teacherProfileRepository.findByUserId(verification.getUser().getId())
-                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(verification.getUser().getId()));
+                .orElse(null);
 
         return AdminVerificationDetailResponse.from(verification, profile);
     }
