@@ -105,6 +105,9 @@ public class FileService {
      * <p>마이페이지 회원 정보에서 프로필 사진을 변경할 때 사용한다. 채팅 이미지와 동일한
      * 검증/저장 흐름이며 저장 폴더만 {@code profile}로 분리한다. 응답의 fileUrl을
      * 회원 정보 수정 API(PATCH /api/v1/users/me)의 profileImageUrl 필드에 전달한다.</p>
+     *
+     * <p>이전 프로필 이미지 파일은 별도로 삭제하지 않는다. 스토리지 용량이 충분한 MVP 단계에서는
+     * 파일 보관 정책보다 구현 단순성을 우선하며, 추후 배치 또는 교체 시점 삭제로 개선 예정이다.</p>
      */
     @Transactional
     public FileUploadResponse uploadProfileImage(Long uploaderId, MultipartFile file) {
