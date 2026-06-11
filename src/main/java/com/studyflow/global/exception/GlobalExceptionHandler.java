@@ -4,6 +4,7 @@ import com.studyflow.domain.ai.exception.AiQuestionNotFoundException;
 import com.studyflow.domain.ai.exception.AiServiceException;
 import com.studyflow.domain.ai.exception.ConversationNotFoundException;
 import com.studyflow.domain.enrollment.exception.*;
+import com.studyflow.domain.notification.exception.NotificationException;
 import com.studyflow.domain.student.exception.StudentProfileNotFoundException;
 import com.studyflow.domain.qna.exception.QnaAnswerNotFoundException;
 import com.studyflow.domain.qna.exception.QnaForbiddenException;
@@ -308,6 +309,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProcessEnrollmentRequestException.class)
     public ResponseEntity<Map<String, Object>> handleProcessEnrollmentRequestException(
             ProcessEnrollmentRequestException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    // ── 알림 도메인 예외 처리 ──────────────────────
+
+    @ExceptionHandler(NotificationException.class)
+    public ResponseEntity<Map<String, Object>> handleNotificationException(NotificationException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         Map<String, Object> body = errorCode.toBody(ex.getMessage());
         return ResponseEntity.status(errorCode.getStatus()).body(body);
