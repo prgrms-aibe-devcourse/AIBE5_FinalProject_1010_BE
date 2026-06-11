@@ -116,8 +116,7 @@ public class TeacherService {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
-        profile.update(request.getAddress(), request.getAwards(), request.getCareer(),
-                request.getEducation(), request.getIntroduction(), request.getTeachingStyle());
+        profile.update(request.getAddress(), request.getIntroduction(), request.getTeachingStyle());
 
         return new TeacherProfileResponse(profile);
     }
@@ -223,7 +222,10 @@ public class TeacherService {
                 user,
                 request.getDocumentType(),
                 fileAsset.getFileUrl(),
-                request.getDescription()
+                request.getDescription(),
+                request.getAwards(),
+                request.getCareer(),
+                request.getEducation()
         );
 
         try {
