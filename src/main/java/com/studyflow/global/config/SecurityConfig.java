@@ -78,6 +78,13 @@ public class SecurityConfig {
                         // 보호되지만, 추후 optionalAuth 추가 시 회귀를 막기 위해 명시한다.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/qna/answers/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/qna/answers/*").authenticated()
+                        // 강의실: 열기/종료/참가자 권한변경은 담당 선생님(TEACHER)만.
+                        // 그 외(현재 조회 GET /courses/*/classroom-sessions/current, 참가 POST /classroom-sessions/*/participants,
+                        // 토큰발급 POST /classroom-sessions/*/livekit-token)는 별도 역할 규칙 없이 기본 anyRequest().authenticated()에 의존하고,
+                        // "수업 멤버(담당교사·ACTIVE 수강생)" 여부는 ClassroomService에서 검증한다. (의도된 설계)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/classroom-sessions").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/classroom-sessions/*/close").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/classroom-participants/*/permissions").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // ── 공개 규칙: 역할 규칙 이후에 선언 ──
                         .requestMatchers(publicUrlProvider.getPublicUrls()).permitAll()
