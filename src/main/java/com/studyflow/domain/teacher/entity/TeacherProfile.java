@@ -70,11 +70,11 @@ public class TeacherProfile extends BaseTimeEntity {
         this.teachingStyle = teachingStyle;
     }
 
-    // 관리자 승인을 통한 인증 정보 반영
+    // 관리자 승인을 통한 인증 정보 반영 — null인 필드는 기존 값 유지
     public void updateVerifiedInfo(String awards, String career, String education) {
-        this.awards    = awards;
-        this.career    = career;
-        this.education = education;
+        if (awards    != null) this.awards    = awards;
+        if (career    != null) this.career    = career;
+        if (education != null) this.education = education;
     }
 
 }

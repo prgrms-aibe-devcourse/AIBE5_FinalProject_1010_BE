@@ -22,6 +22,7 @@ import com.studyflow.domain.admin.repository.UserCountStatisticsRepository;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
+import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.UserRole;
@@ -193,11 +194,12 @@ public class AdminService {
         verification.getUser().verify();
 
         teacherProfileRepository.findByUserId(verification.getUser().getId())
-                .ifPresent(profile -> profile.updateVerifiedInfo(
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(verification.getUser().getId()))
+                .updateVerifiedInfo(
                         verification.getAwards(),
                         verification.getCareer(),
                         verification.getEducation()
-                ));
+                );
     }
 
     // 선생님 인증 요청 거절
