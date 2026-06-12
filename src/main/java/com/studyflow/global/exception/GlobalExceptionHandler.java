@@ -139,6 +139,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    // 이메일 발송 레이트리밋 초과 (429)
+    @ExceptionHandler(EmailRateLimitException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailRateLimit(EmailRateLimitException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
     // 이메일 인증 코드 불일치 또는 만료 (400)
     @ExceptionHandler(EmailAuthCodeInvalidException.class)
     public ResponseEntity<Map<String, Object>> handleEmailAuthCodeInvalid(EmailAuthCodeInvalidException ex) {

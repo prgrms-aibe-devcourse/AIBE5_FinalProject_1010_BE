@@ -47,6 +47,9 @@ public class AuthService {
     private static final int EMAIL_AUTH_CODE_LENGTH = 6;
     private static final long EMAIL_AUTH_CODE_TTL_MINUTES = 5;
     private static final long EMAIL_VERIFIED_TOKEN_TTL_MINUTES = 10;
+    private static final long EMAIL_SEND_COOLDOWN_SECONDS = 60;
+    private static final long EMAIL_SEND_HOURLY_LIMIT = 5;
+    private static final int EMAIL_VERIFY_MAX_ATTEMPTS = 5;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -62,6 +65,26 @@ public class AuthService {
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
             throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
         });
+
+        // 60초 쿨다운 — 재발송 폭탄 방지
+        String cooldownKey = RedisPrefixProvider.emailSendCooldownKey(request.getEmail());
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
+            throw new EmailRateLimitException(ErrorCode.EMAIL_SEND_TOO_FREQUENT);
+        }
+
+        // 시간당 최대 발송 횟수 제한
+        String countKey = RedisPrefixProvider.emailSendCountKey(request.getEmail());
+        Long sendCount = redisTemplate.opsForValue().increment(countKey);
+        if (sendCount == 1) {
+            redisTemplate.expire(countKey, 1, TimeUnit.HOURS);
+        }
+        if (sendCount > EMAIL_SEND_HOURLY_LIMIT) {
+            throw new EmailRateLimitException(ErrorCode.EMAIL_SEND_LIMIT_EXCEEDED);
+        }
+
+        // 쿨다운 키 설정
+        redisTemplate.opsForValue().set(cooldownKey, "1", EMAIL_SEND_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+
         String code = String.format("%0" + EMAIL_AUTH_CODE_LENGTH + "d",
                 SECURE_RANDOM.nextInt((int) Math.pow(10, EMAIL_AUTH_CODE_LENGTH)));
 
@@ -88,14 +111,27 @@ public class AuthService {
     // 이메일 인증 코드 검증 — 성공 시 인증 완료 토큰을 Redis에 저장하고 반환
     public EmailVerifyResponse verifyAuthCode(EmailVerifyRequest request) {
         String key = RedisPrefixProvider.emailAuthCodeKey(request.getEmail());
-        String storedCode = redisTemplate.opsForValue().get(key);
+        String attemptKey = RedisPrefixProvider.emailVerifyAttemptKey(request.getEmail());
 
+        // 실패 횟수 초과 시 코드 자체를 폐기
+        Long attempts = redisTemplate.opsForValue().increment(attemptKey);
+        if (attempts == 1) {
+            redisTemplate.expire(attemptKey, EMAIL_AUTH_CODE_TTL_MINUTES, TimeUnit.MINUTES);
+        }
+        if (attempts > EMAIL_VERIFY_MAX_ATTEMPTS) {
+            redisTemplate.delete(key);
+            redisTemplate.delete(attemptKey);
+            throw new EmailRateLimitException(ErrorCode.EMAIL_VERIFY_ATTEMPT_EXCEEDED);
+        }
+
+        String storedCode = redisTemplate.opsForValue().get(key);
         if (storedCode == null || !storedCode.equals(request.getCode())) {
             throw new EmailAuthCodeInvalidException();
         }
 
-        // 코드 검증 성공 — 즉시 삭제해 재사용 방지
+        // 코드 검증 성공 — 코드·시도 카운터 즉시 삭제
         redisTemplate.delete(key);
+        redisTemplate.delete(attemptKey);
 
         // 단회용 검증 토큰 발급: email 정보를 값으로 저장해 회원가입 시 이메일 일치 여부 확인
         String verifiedToken = UUID.randomUUID().toString();
@@ -117,8 +153,6 @@ public class AuthService {
             throw new SignupRequestException(ErrorCode.EMAIL_VERIFIED_TOKEN_INVALID,
                     "이메일 인증이 완료되지 않았거나 만료되었습니다.");
         }
-        // 단회용 — 사용 즉시 삭제
-        redisTemplate.delete(tokenKey);
 
         boolean serviceAgreed = false;
         boolean privacyAgreed = false;
@@ -183,6 +217,8 @@ public class AuthService {
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
         userRepository.save(user);
+        // 회원 저장 성공 후 단회용 토큰 삭제 — 저장 전 삭제 시 이후 예외로 토큰만 소진되는 문제 방지
+        redisTemplate.delete(tokenKey);
 
         if(userRole == UserRole.STUDENT) {
             StudentProfile sp = StudentProfile.createForUser(user);

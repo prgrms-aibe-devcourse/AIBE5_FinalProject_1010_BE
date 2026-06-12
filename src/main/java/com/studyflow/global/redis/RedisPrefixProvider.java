@@ -33,6 +33,25 @@ public class RedisPrefixProvider {
         return EMAIL_VERIFIED_TOKEN_PREFIX + token;
     }
 
+    private static final String EMAIL_SEND_COOLDOWN_PREFIX = "email:cooldown:";
+    private static final String EMAIL_SEND_COUNT_PREFIX = "email:sendcount:";
+    private static final String EMAIL_VERIFY_ATTEMPT_PREFIX = "email:attempt:";
+
+    /** 이메일 발송 쿨다운 키 (TTL = 쿨다운 시간) */
+    public static String emailSendCooldownKey(String email) {
+        return EMAIL_SEND_COOLDOWN_PREFIX + email;
+    }
+
+    /** 시간당 이메일 발송 횟수 카운터 키 (TTL 1시간) */
+    public static String emailSendCountKey(String email) {
+        return EMAIL_SEND_COUNT_PREFIX + email;
+    }
+
+    /** 이메일 인증 코드 검증 실패 횟수 카운터 키 */
+    public static String emailVerifyAttemptKey(String email) {
+        return EMAIL_VERIFY_ATTEMPT_PREFIX + email;
+    }
+
     private static final String OAUTH2_CODE_PREFIX = "oauth2:code:";
 
     /** 소셜 로그인 성공 후 one-time code로 토큰을 교환할 때 사용하는 키 (TTL 30초) */
