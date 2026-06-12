@@ -141,5 +141,19 @@ public class User extends BaseTimeEntity {
     public void verify() {
         this.isVerified = true;
     }
+
+    // 테스트 전용 팩토리 — NOT NULL 최소 필드만 설정 (prod 코드에서 호출 금지)
+    public static User createForTest(String email, String name, UserRole role) {
+        User user = new User();
+        user.email = email;
+        user.name = name;
+        user.role = role;
+        user.socialProvider = SocialProvider.LOCAL;
+        user.gender = Gender.MALE;
+        user.birthDate = LocalDate.of(2000, 1, 1);
+        user.isActive = true;
+        user.isDeleted = 0L;
+        return user;
+    }
 }
 
