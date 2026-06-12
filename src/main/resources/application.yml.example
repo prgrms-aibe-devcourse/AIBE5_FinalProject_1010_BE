@@ -21,7 +21,7 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password: ${REDIS_PASSWORD}
+      password: ${REDIS_PASSWORD:}    # 로컬 무인증 Redis는 빈 값으로 두면 됨
   # Spring AI(OpenAI) 설정. AI 질문 호출은 Spring AI ChatClient로 처리한다.
   # ⚠️ spring-ai 종속성이 있으면 기동 시 API 키가 필요하다.
   #    application-secret.yml 에 spring.ai.openai.api-key 를 반드시 설정할 것
@@ -128,11 +128,6 @@ livekit:
   api-key: ${LIVEKIT_API_KEY}
   api-secret: ${LIVEKIT_API_SECRET}
   url: ${LIVEKIT_URL}
-
-openai:
-  base-url: https://api.openai.com/v1
-  model: gpt-4o-mini
-  timeout-seconds: 60
 
 server:
   port: 8080
