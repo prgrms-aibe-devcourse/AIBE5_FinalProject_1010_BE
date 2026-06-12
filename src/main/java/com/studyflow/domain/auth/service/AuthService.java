@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
-        private static final int EMAIL_AUTH_CODE_LENGTH = 6;
+    private static final int EMAIL_AUTH_CODE_LENGTH = 6;
     private static final long EMAIL_AUTH_CODE_TTL_MINUTES = 5;
     private static final long EMAIL_VERIFIED_TOKEN_TTL_MINUTES = 10;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
