@@ -55,6 +55,27 @@ public class NotificationService {
         notificationRepository.markAllReadByRecipientId(userId);
     }
 
+    // 단건 삭제 — 본인 알림인지 확인 후 삭제
+    @Transactional
+    public void delete(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new NotificationException(
+                        ErrorCode.NOTIFICATION_NOT_FOUND, ErrorCode.NOTIFICATION_NOT_FOUND.getMessage()));
+
+        if (!notification.getRecipientId().equals(userId)) {
+            throw new NotificationException(
+                    ErrorCode.NOTIFICATION_ACCESS_FORBIDDEN, ErrorCode.NOTIFICATION_ACCESS_FORBIDDEN.getMessage());
+        }
+
+        notificationRepository.delete(notification);
+    }
+
+    // 전체 삭제
+    @Transactional
+    public void deleteAll(Long userId) {
+        notificationRepository.deleteAllByRecipientId(userId);
+    }
+
     // AFTER_COMMIT 리스너가 호출하는 시점에는 원 트랜잭션이 커밋됐지만 cleanupAfterCompletion() 이전이라
     // TransactionSynchronizationManager에 구 트랜잭션이 아직 남아 있다.
     // REQUIRED 전파 시 "기존 트랜잭션 참여"로 처리돼 실제 저장이 안 되므로 REQUIRES_NEW 로 강제 신규 트랜잭션 개설.

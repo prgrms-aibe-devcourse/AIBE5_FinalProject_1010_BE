@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "알림", description = "알림 조회·읽음 처리 API")
+@Tag(name = "알림", description = "알림 조회·읽음·삭제 API")
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
@@ -48,6 +48,21 @@ public class NotificationController {
     @PatchMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal Long userId) {
         notificationService.markAllAsRead(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "단건 삭제", description = "본인 알림만 삭제 가능. 타인 알림 접근 시 403.")
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Void> delete(@PathVariable Long notificationId,
+                                       @AuthenticationPrincipal Long userId) {
+        notificationService.delete(userId, notificationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "전체 삭제", description = "본인의 알림을 모두 삭제.")
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAll(@AuthenticationPrincipal Long userId) {
+        notificationService.deleteAll(userId);
         return ResponseEntity.noContent().build();
     }
 }
