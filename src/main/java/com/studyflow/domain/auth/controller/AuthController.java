@@ -1,15 +1,12 @@
 package com.studyflow.domain.auth.controller;
 
-import com.studyflow.domain.auth.dto.LoginResponse;
-import com.studyflow.domain.auth.dto.ReissueResponse;
-import com.studyflow.domain.auth.dto.SignupRequest;
+import com.studyflow.domain.auth.dto.*;
 import com.studyflow.domain.auth.exception.SignupRequestException;
 import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
 import com.studyflow.global.auth.RefreshCookieCreator;
 import com.studyflow.global.exception.ErrorCode;
 import jakarta.validation.Valid;
-import com.studyflow.domain.auth.dto.LoginRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +27,19 @@ public class AuthController {
 
     @Value("${spring.profiles.active:local}")
     private String activeProfile;
+
+    // 이메일 인증 코드 발송
+    @PostMapping("/email/code/send")
+    public ResponseEntity<?> sendAuthCode(@Valid @RequestBody EmailAuthRequest request) {
+        authService.sendAuthCode(request);
+        return ResponseEntity.ok().build();
+    }
+
+    // 이메일 인증 코드 확인 — 성공 시 회원가입에 사용할 단회용 검증 토큰 반환
+    @PostMapping("/email/verify")
+    public ResponseEntity<EmailVerifyResponse> verifyAuthCode(@Valid @RequestBody EmailVerifyRequest request) {
+        return ResponseEntity.ok(authService.verifyAuthCode(request));
+    }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
