@@ -138,6 +138,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    // 이메일 인증 코드 불일치 또는 만료 (400)
+    @ExceptionHandler(EmailAuthCodeInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailAuthCodeInvalid(EmailAuthCodeInvalidException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    // 이메일 발송 실패 (500)
+    @ExceptionHandler(EmailSendException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailSendException(EmailSendException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
     // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우 (401)
     @ExceptionHandler(RefreshTokenNotInRedisException.class)
     public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {

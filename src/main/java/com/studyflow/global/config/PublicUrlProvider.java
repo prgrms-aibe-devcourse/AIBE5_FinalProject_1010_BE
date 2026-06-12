@@ -8,6 +8,8 @@ public class PublicUrlProvider {
     // 인증 정보 저장 및 인증 필터링 과정 전체를 생략하는 url 목록
     public String[] getPublicUrls() {
         return new String[] {
+                "/api/v1/auth/email/code/send",
+                "/api/v1/auth/email/verify",
                 "/api/v1/auth/signup",
                 "/api/v1/auth/login",
                 "/api/v1/auth/social-pending",  // 소셜 로그인 폼 pre-fill 데이터 조회 (POST)

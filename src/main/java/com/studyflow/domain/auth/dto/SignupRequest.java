@@ -62,6 +62,9 @@ public class SignupRequest {
 	@Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "birthDate must be in format yyyy-MM-dd")
 	private String birthDate;
 
+	@NotBlank(message = "이메일 인증 토큰은 필수입니다.")
+	private String verifiedToken;
+
 	@NotEmpty
 	private List<TermsAgreement> termsAgreements;
 
