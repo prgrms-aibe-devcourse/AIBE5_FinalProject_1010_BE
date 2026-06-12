@@ -5,8 +5,6 @@ import com.studyflow.domain.notification.enums.NotificationType;
 import com.studyflow.domain.notification.repository.NotificationRepository;
 import com.studyflow.domain.notification.service.NotificationService;
 import com.studyflow.domain.user.entity.User;
-import com.studyflow.domain.user.enums.Gender;
-import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.config.QuerydslConfig;
@@ -20,14 +18,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.lang.reflect.Constructor;
-import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -71,7 +65,7 @@ class NotificationEventListenerIntegrationTest {
     @Test
     @DisplayName("트랜잭션 커밋 후 AFTER_COMMIT 리스너가 알림 row를 저장한다 (REQUIRES_NEW 전파 회귀 방지)")
     @Transactional(propagation = Propagation.NOT_SUPPORTED) // @DataJpaTest 기본 롤백 트랜잭션 비활성화 → 실제 커밋 발생
-    void afterCommitListenerPersistsNotification() throws Exception {
+    void afterCommitListenerPersistsNotification() {
         // given: 알림 수신자 유저 (recipient_id 는 NOT NULL FK 이므로 먼저 영속화)
         User recipient = persistUser();
         long before = notificationRepository.count();
@@ -87,19 +81,7 @@ class NotificationEventListenerIntegrationTest {
         assertThat(notificationRepository.count()).isEqualTo(before + 1);
     }
 
-    // User 는 protected 기본 생성자라 리플렉션으로 인스턴스화 후 NOT NULL 필드만 채운다.
-    private User persistUser() throws Exception {
-        Constructor<User> ctor = User.class.getDeclaredConstructor();
-        ctor.setAccessible(true);
-        User user = ctor.newInstance();
-        ReflectionTestUtils.setField(user, "email", "recipient@test.com");
-        ReflectionTestUtils.setField(user, "name", "수신자");
-        ReflectionTestUtils.setField(user, "role", UserRole.STUDENT);
-        ReflectionTestUtils.setField(user, "socialProvider", SocialProvider.LOCAL);
-        ReflectionTestUtils.setField(user, "gender", Gender.MALE);
-        ReflectionTestUtils.setField(user, "birthDate", LocalDate.of(2000, 1, 1));
-        ReflectionTestUtils.setField(user, "isActive", true);
-        ReflectionTestUtils.setField(user, "isDeleted", 0L);
-        return userRepository.save(user);
+    private User persistUser() {
+        return userRepository.save(User.createForTest("recipient@test.com", "수신자", UserRole.STUDENT));
     }
 }
