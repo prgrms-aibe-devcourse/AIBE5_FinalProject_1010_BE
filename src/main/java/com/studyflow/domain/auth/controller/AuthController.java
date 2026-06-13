@@ -28,6 +28,20 @@ public class AuthController {
     @Value("${spring.profiles.active:local}")
     private String activeProfile;
 
+    // 비밀번호 재설정 링크 발송
+    @PostMapping("/password/reset/link")
+    public ResponseEntity<?> sendPasswordResetLink(@Valid @RequestBody PasswordResetLinkRequest request) {
+        authService.sendPasswordResetLink(request);
+        return ResponseEntity.ok().build();
+    }
+
+    // 비밀번호 재설정 적용
+    @PostMapping("/password/reset")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
     // 이메일 인증 코드 발송
     @PostMapping("/email/code/send")
     public ResponseEntity<?> sendAuthCode(@Valid @RequestBody EmailAuthRequest request) {

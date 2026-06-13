@@ -10,6 +10,8 @@ public class PublicUrlProvider {
         return new String[] {
                 "/api/v1/auth/email/code/send",
                 "/api/v1/auth/email/verify",
+                "/api/v1/auth/password/reset/link",
+                "/api/v1/auth/password/reset",
                 "/api/v1/auth/signup",
                 "/api/v1/auth/login",
                 "/api/v1/auth/social-pending",  // 소셜 로그인 폼 pre-fill 데이터 조회 (POST)

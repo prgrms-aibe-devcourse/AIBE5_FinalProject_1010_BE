@@ -162,6 +162,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatus()).body(body);
     }
 
+    // 비밀번호 재설정 토큰이 유효하지 않거나 만료된 경우, 또는 비밀번호 불일치 (400)
+    @ExceptionHandler(PasswordResetTokenInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handlePasswordResetTokenInvalid(PasswordResetTokenInvalidException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     // 토큰 재발급에 필요한 refresh token이 Redis에서 조회되지 않는 경우 (401)
     @ExceptionHandler(RefreshTokenNotInRedisException.class)
     public ResponseEntity<Map<String, Object>> handleRefreshTokenNotInRedisException(RefreshTokenNotInRedisException ex) {
