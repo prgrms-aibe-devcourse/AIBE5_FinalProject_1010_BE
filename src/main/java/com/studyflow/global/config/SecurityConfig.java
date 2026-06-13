@@ -64,8 +64,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/enrollment-requests/{requestId}/cancel").hasRole("STUDENT")
                         .requestMatchers("/api/v1/enrollment-requests/{requestId}/accept").hasRole("TEACHER")
                         .requestMatchers("/api/v1/enrollment-requests/{requestId}/reject").hasRole("TEACHER")
-                        .requestMatchers("/api/v1/auth/test/student").hasRole("STUDENT")
-                        .requestMatchers("/api/v1/auth/test/teacher").hasRole("TEACHER")
                         // QnA: 질문 작성/답변 채택은 STUDENT, 답변 작성은 TEACHER (GET은 optionalAuth로 공개)
                         .requestMatchers(HttpMethod.POST, "/api/v1/qna/questions").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/qna/questions/*/answers").hasRole("TEACHER")

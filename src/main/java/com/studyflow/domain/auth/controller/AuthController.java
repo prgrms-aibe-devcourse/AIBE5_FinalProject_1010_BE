@@ -154,25 +154,4 @@ public class AuthController {
                 .build();
     }
 
-    // tester: 학생 인증 테스트용 api
-    @GetMapping("/test/student")
-    public ResponseEntity<String> studentTest(@AuthenticationPrincipal Long userId) {
-        /*
-         Spring Security에서 인증/인가된 사용자의 userId를 @AuthenticationPrincipal로 꺼내 쓸 수 있음
-         비즈니스 로직에 필요한 추가적인 인증/인가(예: 게시글 수정/삭제 - 본인의 게시글인지 확인)는
-         추가적인 토큰 파싱 없이 이 userId 기반으로 직접 구현 가능
-        */
-        return ResponseEntity.ok("학생 인증 성공: userId = " + userId);
-    }
-
-    // tester: 선생님 인증 테스트용 api
-    @GetMapping("/test/teacher")
-    public ResponseEntity<String> teacherTest(@AuthenticationPrincipal Long userId) {
-        /*
-         Spring Security에서 인증/인가된 사용자의 userId를 @AuthenticationPrincipal로 꺼내 쓸 수 있음
-         비즈니스 로직에 필요한 추가적인 인증/인가(예: 게시글 수정/삭제 - 본인의 게시글인지 확인)는
-         추가적인 토큰 파싱 없이 이 userId 기반으로 직접 구현 가능
-        */
-        return ResponseEntity.ok("선생님 인증 성공: userId = " + userId);
-    }
 }
