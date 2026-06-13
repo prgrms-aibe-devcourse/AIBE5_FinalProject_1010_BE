@@ -360,7 +360,7 @@ public class AuthService {
                 TimeUnit.MINUTES
         );
 
-        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        String resetLink = frontendUrl + "/#/reset-password?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(request.getEmail());
