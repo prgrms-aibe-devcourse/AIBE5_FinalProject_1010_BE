@@ -2,6 +2,7 @@ package com.studyflow.domain.course.dto.create;
 
 import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
+import com.studyflow.domain.course.enums.TeachingMode;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -49,6 +50,11 @@ public class CourseCreateRequest {
     private LocalDate recruitDeadline;  // 모집 마감일
     private LocalDate startDate;        // 수업 시작일
     private LocalDate endDate;          // 수업 종료일
+
+    private TeachingMode teachingMode;  // 수업 방식: ONLINE(비대면) / OFFLINE(대면)
+    private String location;            // 대면 수업 장소 주소 (OFFLINE일 때만 의미 있음)
+    private Double locationLat;         // 위도
+    private Double locationLng;         // 경도
 
     // 날짜 순서 검증: recruitDeadline <= startDate <= endDate
     @AssertTrue(message = "모집 마감일은 수업 시작일보다 이전이어야 합니다.")
