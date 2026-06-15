@@ -50,9 +50,12 @@ public class WhiteboardStateStore {
     public long apply(Long sessionId, List<Map<String, Object>> ops) {
         Board b = board(sessionId);
         synchronized (b) {
-            if (ops != null) {
-                for (Map<String, Object> op : ops) applyOne(b, op);
+            // 변경할 op가 없으면 seq를 올리지 않는다 — 빈 메시지로 순번이 낭비되거나
+            // 수신측이 구멍으로 오인해 불필요한 resync를 하지 않도록 현재 seq를 그대로 돌려준다.
+            if (ops == null || ops.isEmpty()) {
+                return b.seq;
             }
+            for (Map<String, Object> op : ops) applyOne(b, op);
             return ++b.seq;
         }
     }
@@ -110,14 +113,19 @@ public class WhiteboardStateStore {
                 return;
             }
             case "update": {
-                Map<String, Object> shape = asMap(op.get("shape"));
-                if (shape == null) return;
-                Map<String, Object> existing = findShape(p, str(shape.get("id")));
-                if (existing != null) {
-                    // 부분 갱신: 들어온 필드만 덮어쓴다(없는 src 등 기존 값 보존).
-                    shape.forEach((k, v) -> { if (v != null) existing.put(k, v); });
+                Map<String, Object> patch = asMap(op.get("shape"));
+                if (patch == null) return;
+                int idx = indexOfShape(p, str(patch.get("id")));
+                if (idx >= 0) {
+                    // 부분 갱신: 기존 Map을 "제자리 수정"하지 않고 새 Map으로 교체한다.
+                    // snapshot()이 얕은 복사로 같은 Map 참조를 들고 직렬화하는 동안 이 Map을
+                    // 다른 스레드가 수정하면 ConcurrentModificationException이 날 수 있으므로,
+                    // 교체 방식으로 기존 Map을 불변으로 유지한다.
+                    Map<String, Object> merged = new LinkedHashMap<>(p.shapes.get(idx));
+                    patch.forEach((k, v) -> { if (v != null) merged.put(k, v); }); // 들어온 필드만(없는 src 등 보존)
+                    p.shapes.set(idx, merged);
                 } else {
-                    p.shapes.add(shape); // 없으면 추가(견고성)
+                    p.shapes.add(patch); // 없으면 추가(견고성)
                 }
                 return;
             }
@@ -159,6 +167,12 @@ public class WhiteboardStateStore {
         if (id == null) return null;
         for (Map<String, Object> s : p.shapes) if (id.equals(str(s.get("id")))) return s;
         return null;
+    }
+
+    private static int indexOfShape(Page p, String id) {
+        if (id == null) return -1;
+        for (int i = 0; i < p.shapes.size(); i++) if (id.equals(str(p.shapes.get(i).get("id")))) return i;
+        return -1;
     }
 
     private static String str(Object o) {

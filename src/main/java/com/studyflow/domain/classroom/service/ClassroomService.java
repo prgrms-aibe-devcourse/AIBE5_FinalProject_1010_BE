@@ -27,6 +27,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 /**
  * 강의실(실시간 화상수업) 세션 서비스.
  *
@@ -211,6 +213,19 @@ public class ClassroomService {
 
         return new LivekitTokenResponse(
                 liveKitTokenService.getUrl(), roomName, token, identity, displayName, role);
+    }
+
+    /**
+     * 화이트보드 현재 권위 상태 조회 — 수업 멤버(담당 선생님 또는 ACTIVE 수강생)만.
+     * 인증만 된 사용자가 임의 세션 보드를 들여다보지 못하도록 멤버십을 검증한다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getWhiteboardSnapshot(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        verifyMemberAndIsHost(session.getCourse(), userId);
+        return whiteboardStateStore.snapshot(sessionId);
     }
 
     // ── 권한 검증 헬퍼 ──

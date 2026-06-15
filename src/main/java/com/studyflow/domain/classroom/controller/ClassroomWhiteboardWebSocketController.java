@@ -44,9 +44,11 @@ public class ClassroomWhiteboardWebSocketController {
             @Payload Map<String, Object> message,
             Principal principal
     ) {
-        if (principal != null) {
-            message.put("senderId", Long.valueOf(principal.getName()));
+        // 인증된 연결만 처리(WebSocketAuthChannelInterceptor가 미인증을 막지만 방어적으로 한 번 더).
+        if (principal == null) {
+            return;
         }
+        message.put("senderId", Long.valueOf(principal.getName()));
 
         String type = String.valueOf(message.get("type"));
 
@@ -58,7 +60,11 @@ public class ClassroomWhiteboardWebSocketController {
 
         // 확정 변경: 서버 권위 상태에 반영하고 순번(seq)을 붙여 전원에게 재방송.
         if ("ops".equals(type)) {
-            long seq = stateStore.apply(sessionId, castOps(message.get("ops")));
+            List<Map<String, Object>> ops = castOps(message.get("ops"));
+            if (ops == null || ops.isEmpty()) {
+                return; // 변경 없는 메시지는 무시(상태/순번/브로드캐스트 모두 생략)
+            }
+            long seq = stateStore.apply(sessionId, ops);
             message.put("seq", seq);
             broadcast(sessionId, message);
             return;
