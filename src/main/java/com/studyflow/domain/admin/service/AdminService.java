@@ -203,7 +203,8 @@ public class AdminService {
                 .updateVerifiedInfo(
                         verification.getAwards(),
                         verification.getCareer(),
-                        verification.getEducation()
+                        verification.getMajor(),
+                        verification.getAdmissionYear()
                 );
     }
 

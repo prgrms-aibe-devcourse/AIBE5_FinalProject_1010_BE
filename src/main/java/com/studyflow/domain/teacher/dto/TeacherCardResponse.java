@@ -12,8 +12,9 @@ public class TeacherCardResponse {
     private Long id;                    // TeacherProfile.id
     private String name;                // User.name
     private String profileImageUrl;     // User.profileImageUrl
-    private String education;           // 학력 (예: "서울대 수학과 재학")
-    private String career;              // 경력 요약
+    private String career;              // 대학교
+    private String major;               // 전공
+    private String admissionYear;       // 학번
     private int naegongScore;           // 내공 점수
     private long courseCount;           // 현재 공개 중인 수업 수
 
@@ -24,8 +25,9 @@ public class TeacherCardResponse {
                 .id(profile.getId())
                 .name(profile.getUser().getName())
                 .profileImageUrl(profile.getUser().getProfileImageUrl())
-                .education(profile.getEducation())
                 .career(profile.getCareer())
+                .major(profile.getMajor())
+                .admissionYear(profile.getAdmissionYear())
                 .naegongScore(profile.getNaegongScore())
                 .courseCount(courseCount)
                 .build();

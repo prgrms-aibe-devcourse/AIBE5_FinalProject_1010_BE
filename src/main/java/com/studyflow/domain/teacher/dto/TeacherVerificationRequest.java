@@ -23,8 +23,12 @@ public class TeacherVerificationRequest {
     private String awards;
 
     @Size(max = 5000)
-    private String career;
+    private String career;          // 대학교
 
-    @Size(max = 300)
-    private String education;
+    @Size(max = 200)
+    private String major;           // 전공
+
+    @Size(max = 20)
+    private String admissionYear;   // 학번
+
 }

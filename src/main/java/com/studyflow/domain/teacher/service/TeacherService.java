@@ -1,6 +1,8 @@
 package com.studyflow.domain.teacher.service;
 
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.subject.entity.Subject;
+import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.dto.TeacherVerificationRequest;
 import com.studyflow.domain.teacher.dto.TeacherVerificationResponse;
 import com.studyflow.domain.teacher.entity.TeacherVerification;
@@ -54,6 +56,7 @@ public class TeacherService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherVerificationRepository teacherVerificationRepository;
     private final FileAssetRepository fileAssetRepository;
+    private final SubjectRepository subjectRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -117,6 +120,12 @@ public class TeacherService {
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
         profile.update(request.getAddress(), request.getIntroduction(), request.getTeachingStyle());
+
+        // 전문 과목 — null이면 미변경, 그 외(빈 배열 포함)는 전달된 과목으로 교체
+        if (request.getSpecialtySubjectIds() != null) {
+            List<Subject> subjects = subjectRepository.findAllById(request.getSpecialtySubjectIds());
+            profile.updateSpecialtySubjects(subjects);
+        }
 
         return new TeacherProfileResponse(profile);
     }
@@ -225,7 +234,8 @@ public class TeacherService {
                 request.getDescription(),
                 request.getAwards(),
                 request.getCareer(),
-                request.getEducation()
+                request.getMajor(),
+                request.getAdmissionYear()
         );
 
         try {
