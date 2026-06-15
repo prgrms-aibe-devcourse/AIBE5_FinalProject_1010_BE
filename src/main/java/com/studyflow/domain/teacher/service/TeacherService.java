@@ -27,6 +27,8 @@ import com.studyflow.domain.teacher.dto.TeacherCourseCardResponse;
 import com.studyflow.domain.teacher.dto.TeacherDetailResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileResponse;
 import com.studyflow.domain.teacher.dto.TeacherProfileUpdateRequest;
+import com.studyflow.domain.teacher.dto.TeacherSearchCondition;
+import com.studyflow.domain.user.enums.Gender;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.domain.user.exception.UserNotFoundException;
@@ -35,10 +37,14 @@ import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,14 +68,52 @@ public class TeacherService {
     private static final List<CourseStatus> VISIBLE_STATUSES =
             List.of(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS);
 
-    // 선생님 목록 조회 — keyword/minNaegong 필터 지원
-    // keyword, minNaegong이 null이면 해당 조건을 무시합니다
-    public Page<TeacherCardResponse> getTeacherList(String keyword, Integer minNaegong, Pageable pageable) {
+    // 선생님 목록 조회 — 이름/성별/나이/지역/대학교/과목 필터 + 최신·오래된순 정렬
+    // 비어 있는 조건은 무시됩니다 (TeacherSearchCondition 참고)
+    public Page<TeacherCardResponse> getTeacherList(TeacherSearchCondition condition, Pageable pageable) {
+
+        // 이름 검색어 — LIKE wildcard(%, _, !)를 escape 처리해 문자 그대로 검색
+        String kw = (condition.keyword() != null && !condition.keyword().isBlank())
+                ? escapeKeyword(condition.keyword().trim()) : null;
+
+        // 성별 — 유효한 enum 값만 적용, 그 외(null·오타)는 무시
+        Gender gender = null;
+        if (condition.gender() != null && !condition.gender().isBlank()) {
+            try {
+                gender = Gender.valueOf(condition.gender().trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // 알 수 없는 성별 값은 필터 미적용
+            }
+        }
+
+        // 만 나이 범위 → 출생일 범위 변환
+        //  · 만 minAge 이상  → 출생일 <= 오늘 - minAge년 (= birthTo)
+        //  · 만 maxAge 이하  → 출생일 >= 오늘 - (maxAge+1)년 + 1일 (= birthFrom)
+        LocalDate today = LocalDate.now();
+        LocalDate birthTo   = (condition.minAge() != null) ? today.minusYears(condition.minAge()) : null;
+        LocalDate birthFrom = (condition.maxAge() != null) ? today.minusYears(condition.maxAge() + 1L).plusDays(1) : null;
+
+        // 빈/null 목록은 더미 값 + Empty 플래그로 IN 절을 무력화 (빈 컬렉션 IN 바인딩 오류 방지)
+        boolean regionsEmpty      = isEmpty(condition.regions());
+        boolean universitiesEmpty = isEmpty(condition.universities());
+        boolean subjectsEmpty     = isEmpty(condition.subjectIds());
+        List<String> regions      = regionsEmpty      ? List.of("")  : condition.regions();
+        List<String> universities = universitiesEmpty ? List.of("")  : condition.universities();
+        List<Long> subjectIds     = subjectsEmpty     ? List.of(-1L) : condition.subjectIds();
+
+        // 정렬 — OLDEST면 createdAt 오름차순, 그 외(LATEST 기본)는 내림차순
+        Sort sort = "OLDEST".equalsIgnoreCase(condition.sort())
+                ? Sort.by(Sort.Direction.ASC, "createdAt")
+                : Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
         // 1단계: 선생님 목록 + user JOIN FETCH (필터 적용)
-        // LIKE wildcard(%, _, !)를 escape 처리해 문자 그대로 검색
-        String kw = (keyword != null && !keyword.isBlank()) ? escapeKeyword(keyword.trim()) : null;
-        Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUserFiltered(kw, minNaegong, pageable);
+        Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUserFiltered(
+                kw, gender, birthFrom, birthTo,
+                regionsEmpty, regions,
+                universitiesEmpty, universities,
+                subjectsEmpty, subjectIds,
+                sortedPageable);
 
         List<Long> teacherProfileIds = profiles.getContent().stream()
                 .map(TeacherProfile::getId)
@@ -97,6 +141,11 @@ public class TeacherService {
     // LIKE escape 문자('!')를 먼저 escape한 뒤 %, _ 순으로 처리
     private String escapeKeyword(String raw) {
         return raw.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
+
+    // null이거나 비어 있는 컬렉션인지 — 필터 조건 무시 여부 판단용
+    private boolean isEmpty(Collection<?> c) {
+        return c == null || c.isEmpty();
     }
 
     // 로그인한 선생님 본인의 프로필 조회
