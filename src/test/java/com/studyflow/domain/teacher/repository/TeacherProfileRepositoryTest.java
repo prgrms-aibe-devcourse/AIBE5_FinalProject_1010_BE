@@ -1,5 +1,7 @@
 package com.studyflow.domain.teacher.repository;
 
+import com.studyflow.domain.subject.entity.Subject;
+import com.studyflow.domain.subject.enums.SubjectCategory;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.Gender;
@@ -46,6 +48,10 @@ class TeacherProfileRepositoryTest {
     @Autowired
     private TestEntityManager em;
 
+    // 과목 필터 테스트에서 참조할 subject ID
+    private Long mathSubjectId;
+    private Long englishSubjectId;
+
     @BeforeEach
     void setUp() throws Exception {
         User hong    = makeUser("hong@test.com",    "홍길동", Gender.MALE,   LocalDate.of(1990, 1, 1), true,  0L);
@@ -56,9 +62,21 @@ class TeacherProfileRepositoryTest {
         em.persist(kim);
         em.persist(deleted);
 
-        em.persist(makeProfile(hong, 800, "서울 강남구", "서울대학교"));
-        em.persist(makeProfile(kim,  300, "경기 성남시", "연세대학교"));
+        // 과목 시딩 (SubjectDataInitializer 역할을 테스트에서 직접 수행)
+        Subject math    = em.persist(Subject.ofCategory(SubjectCategory.MATH));
+        Subject english = em.persist(Subject.ofCategory(SubjectCategory.ENGLISH));
+        mathSubjectId    = math.getId();
+        englishSubjectId = english.getId();
+
+        // 홍길동 → 수학 전문, 김영희 → 영어 전문
+        TeacherProfile hongProfile = makeProfile(hong, 800, "서울 강남구", "서울대학교");
+        TeacherProfile kimProfile  = makeProfile(kim,  300, "경기 성남시", "연세대학교");
+        em.persist(hongProfile);
+        em.persist(kimProfile);
         em.persist(TeacherProfile.createForUser(deleted));
+
+        hongProfile.updateSpecialtySubjects(List.of(math));
+        kimProfile.updateSpecialtySubjects(List.of(english));
 
         em.flush();
         em.clear();
@@ -135,6 +153,30 @@ class TeacherProfileRepositoryTest {
                 List.of("연세대학교"), null);
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).getUser().getName()).isEqualTo("김영희");
+    }
+
+    @Test
+    @DisplayName("subjectIds → 해당 전문 과목을 가진 선생님만 반환 (ManyToMany + DISTINCT + IN)")
+    void subjectIds_returnsMatchingTeacher() {
+        Page<TeacherProfile> result = search(null, null, null, null, null, null,
+                List.of(mathSubjectId));
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).getUser().getName()).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("subjectIds 다중 → OR 매칭으로 해당 과목 보유 선생님 모두 반환")
+    void subjectIds_multiple_returnsAll() {
+        Page<TeacherProfile> result = search(null, null, null, null, null, null,
+                List.of(mathSubjectId, englishSubjectId));
+        assertThat(result.getTotalElements()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("subjectIds 빈 목록 → 과목 필터 무시, 전체 반환")
+    void subjectIds_empty_returnsAll() {
+        Page<TeacherProfile> result = search(null, null, null, null, null, null, List.of());
+        assertThat(result.getTotalElements()).isEqualTo(2);
     }
 
     @Test
