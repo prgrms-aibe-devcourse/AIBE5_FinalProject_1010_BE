@@ -130,7 +130,7 @@ public class Course extends BaseTimeEntity {
         this.recruitDeadline = recruitDeadline;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.teachingMode = teachingMode != null ? teachingMode : TeachingMode.ONLINE;
+        if (teachingMode != null) this.teachingMode = teachingMode;
         this.location = location;
         this.locationLat = locationLat;
         this.locationLng = locationLng;

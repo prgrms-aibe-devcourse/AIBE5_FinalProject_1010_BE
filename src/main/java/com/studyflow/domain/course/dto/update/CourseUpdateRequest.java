@@ -4,9 +4,12 @@ import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
 import com.studyflow.domain.course.enums.TeachingMode;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -52,8 +55,16 @@ public class CourseUpdateRequest {
     private LocalDate endDate;
 
     private TeachingMode teachingMode;
+
+    @Size(max = 300, message = "수업 장소는 300자 이내여야 합니다.")
     private String location;
+
+    @DecimalMin(value = "-90.0",  message = "위도는 -90 이상이어야 합니다.")
+    @DecimalMax(value = "90.0",   message = "위도는 90 이하이어야 합니다.")
     private Double locationLat;
+
+    @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
+    @DecimalMax(value = "180.0",  message = "경도는 180 이하이어야 합니다.")
     private Double locationLng;
 
     // 날짜 순서 검증: recruitDeadline <= startDate <= endDate
@@ -67,5 +78,11 @@ public class CourseUpdateRequest {
     public boolean isStartDateBeforeEndDate() {
         if (startDate == null || endDate == null) return true;
         return !startDate.isAfter(endDate);
+    }
+
+    @AssertTrue(message = "대면 수업은 장소 주소를 입력해야 합니다.")
+    public boolean isLocationRequiredForOffline() {
+        return teachingMode != TeachingMode.OFFLINE
+                || (location != null && !location.isBlank());
     }
 }
