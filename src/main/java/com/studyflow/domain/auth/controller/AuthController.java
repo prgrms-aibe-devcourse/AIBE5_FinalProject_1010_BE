@@ -30,9 +30,9 @@ public class AuthController {
 
     // 비밀번호 재설정 링크 발송
     @PostMapping("/password/reset/link")
-    public ResponseEntity<?> sendPasswordResetLink(@Valid @RequestBody PasswordResetLinkRequest request) {
-        authService.sendPasswordResetLink(request);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> sendPasswordResetLink(@Valid @RequestBody PasswordResetLinkRequest request) {
+        String message = authService.sendPasswordResetLink(request);
+        return ResponseEntity.ok(Map.of("message", message));
     }
 
     // 비밀번호 재설정 적용

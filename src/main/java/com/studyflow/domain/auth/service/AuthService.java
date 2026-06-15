@@ -34,6 +34,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -69,6 +70,7 @@ public class AuthService {
     private final JavaMailSender mailSender;
 
     // 이메일 인증 코드 발송 — 6자리 숫자 코드를 생성해 Redis에 5분간 저장 후 발송
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void sendAuthCode(EmailAuthRequest request) {
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
             throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
@@ -329,12 +331,14 @@ public class AuthService {
 
         user.changePassword(passwordEncoder.encode(request.getNewPassword()));
         redisTemplate.delete(tokenKey);
+        redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(user.getId()));
     }
 
-    public void sendPasswordResetLink(PasswordResetLinkRequest request) {
-        userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL)
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND,
-                        "해당 이메일로 가입된 계정을 찾을 수 없습니다: " + request.getEmail()));
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public String sendPasswordResetLink(PasswordResetLinkRequest request) {
+        if (userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).isEmpty()) {
+            return "해당 이메일로 가입된 계정을 찾을 수 없습니다.";
+        }
 
         String cooldownKey = RedisPrefixProvider.passwordResetCooldownKey(request.getEmail());
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
@@ -374,5 +378,7 @@ public class AuthService {
             log.error("비밀번호 재설정 이메일 발송 실패: {}", request.getEmail(), e);
             throw new EmailSendException(ErrorCode.EMAIL_SEND_FAILED, "이메일 발송에 실패했습니다.");
         }
+
+        return "비밀번호 재설정 링크를 발송했습니다.";
     }
 }
