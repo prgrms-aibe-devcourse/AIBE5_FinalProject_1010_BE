@@ -58,4 +58,23 @@ public class RedisPrefixProvider {
     public static String oauth2CodeKey(String code) {
         return OAUTH2_CODE_PREFIX + code;
     }
+
+    private static final String PASSWORD_RESET_TOKEN_PREFIX = "password:reset:";
+    private static final String PASSWORD_RESET_COOLDOWN_PREFIX = "password:reset:cooldown:";
+    private static final String PASSWORD_RESET_SEND_COUNT_PREFIX = "password:reset:sendcount:";
+
+    /** 비밀번호 재설정 링크에 포함되는 UUID 토큰 키 (TTL 15분) */
+    public static String passwordResetTokenKey(String token) {
+        return PASSWORD_RESET_TOKEN_PREFIX + token;
+    }
+
+    /** 비밀번호 재설정 링크 발송 쿨다운 키 (TTL = 쿨다운 시간) */
+    public static String passwordResetCooldownKey(String email) {
+        return PASSWORD_RESET_COOLDOWN_PREFIX + email;
+    }
+
+    /** 비밀번호 재설정 링크 시간당 발송 횟수 카운터 키 (TTL 1시간) */
+    public static String passwordResetSendCountKey(String email) {
+        return PASSWORD_RESET_SEND_COUNT_PREFIX + email;
+    }
 }

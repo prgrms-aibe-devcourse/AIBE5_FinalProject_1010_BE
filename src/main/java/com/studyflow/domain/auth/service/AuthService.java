@@ -5,6 +5,9 @@ import com.studyflow.domain.auth.dto.EmailVerifyRequest;
 import com.studyflow.domain.auth.dto.EmailVerifyResponse;
 import com.studyflow.domain.auth.dto.LoginRequest;
 import com.studyflow.domain.auth.dto.LoginResponse;
+import com.studyflow.domain.auth.dto.PasswordResetLinkRequest;
+import com.studyflow.domain.auth.dto.PasswordResetRequest;
+import com.studyflow.domain.auth.exception.PasswordResetTokenInvalidException;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
 import com.studyflow.domain.auth.exception.*;
@@ -24,12 +27,14 @@ import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -50,7 +55,11 @@ public class AuthService {
     private static final long EMAIL_SEND_COOLDOWN_SECONDS = 60;
     private static final long EMAIL_SEND_HOURLY_LIMIT = 5;
     private static final int EMAIL_VERIFY_MAX_ATTEMPTS = 5;
+    private static final long PASSWORD_RESET_TOKEN_TTL_MINUTES = 15;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -61,6 +70,7 @@ public class AuthService {
     private final JavaMailSender mailSender;
 
     // 이메일 인증 코드 발송 — 6자리 숫자 코드를 생성해 Redis에 5분간 저장 후 발송
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void sendAuthCode(EmailAuthRequest request) {
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
             throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
@@ -300,5 +310,75 @@ public class AuthService {
     public void logout(Long userId) {
         // Redis에서 refresh token 삭제: key = rt:{userId}
         redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(userId));
+    }
+
+    public void resetPassword(PasswordResetRequest request) {
+        if (!request.getNewPassword().equals(request.getNewPasswordConfirm())) {
+            throw new PasswordResetTokenInvalidException(ErrorCode.VALIDATION_ERROR,
+                    "새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+        }
+
+        String tokenKey = RedisPrefixProvider.passwordResetTokenKey(request.getToken());
+        String email = redisTemplate.opsForValue().get(tokenKey);
+        if (email == null) {
+            throw new PasswordResetTokenInvalidException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID,
+                    "비밀번호 재설정 링크가 유효하지 않거나 만료되었습니다.");
+        }
+
+        User user = userRepository.findActiveByEmailAndSocialProvider(email, SocialProvider.LOCAL)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."));
+
+        user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+        redisTemplate.delete(tokenKey);
+        redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(user.getId()));
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public String sendPasswordResetLink(PasswordResetLinkRequest request) {
+        if (userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).isEmpty()) {
+            return "해당 이메일로 가입된 계정을 찾을 수 없습니다.";
+        }
+
+        String cooldownKey = RedisPrefixProvider.passwordResetCooldownKey(request.getEmail());
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
+            throw new EmailRateLimitException(ErrorCode.EMAIL_SEND_TOO_FREQUENT);
+        }
+
+        String countKey = RedisPrefixProvider.passwordResetSendCountKey(request.getEmail());
+        Long sendCount = redisTemplate.opsForValue().increment(countKey);
+        if (sendCount == 1) {
+            redisTemplate.expire(countKey, 1, TimeUnit.HOURS);
+        }
+        if (sendCount > EMAIL_SEND_HOURLY_LIMIT) {
+            throw new EmailRateLimitException(ErrorCode.EMAIL_SEND_LIMIT_EXCEEDED);
+        }
+
+        redisTemplate.opsForValue().set(cooldownKey, "1", EMAIL_SEND_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+
+        String token = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(
+                RedisPrefixProvider.passwordResetTokenKey(token),
+                request.getEmail(),
+                PASSWORD_RESET_TOKEN_TTL_MINUTES,
+                TimeUnit.MINUTES
+        );
+
+        String resetLink = frontendUrl + "/#/reset-password?token=" + token;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(request.getEmail());
+        message.setSubject("[StudyFlow] 비밀번호 재설정");
+        message.setText("아래 링크를 클릭하여 비밀번호를 재설정하세요.\n\n" + resetLink
+                + "\n\n링크는 15분간 유효합니다.");
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error("비밀번호 재설정 이메일 발송 실패: {}", request.getEmail(), e);
+            throw new EmailSendException(ErrorCode.EMAIL_SEND_FAILED, "이메일 발송에 실패했습니다.");
+        }
+
+        return "비밀번호 재설정 링크를 발송했습니다.";
     }
 }
