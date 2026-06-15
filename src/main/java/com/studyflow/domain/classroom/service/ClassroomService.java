@@ -27,6 +27,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 /**
  * 강의실(실시간 화상수업) 세션 서비스.
  *
@@ -49,6 +51,7 @@ public class ClassroomService {
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
+    private final WhiteboardStateStore whiteboardStateStore;
 
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
@@ -150,6 +153,9 @@ public class ClassroomService {
         }
         session.close();
 
+        // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
+        whiteboardStateStore.clear(sessionId);
+
         // TODO: 종료가 "실제 강제 퇴장"이 되도록 LiveKit RoomService.DeleteRoom 호출 필요.
         //  현재는 DB status만 CLOSED로 바꾸므로, 이미 발급된 토큰(TTL 2h)을 든 클라이언트는
         //  LiveKit 서버에 직접 재연결할 수 있다. (서버 API 연동 전까지 TTL 단축으로 완화)
@@ -207,6 +213,19 @@ public class ClassroomService {
 
         return new LivekitTokenResponse(
                 liveKitTokenService.getUrl(), roomName, token, identity, displayName, role);
+    }
+
+    /**
+     * 화이트보드 현재 권위 상태 조회 — 수업 멤버(담당 선생님 또는 ACTIVE 수강생)만.
+     * 인증만 된 사용자가 임의 세션 보드를 들여다보지 못하도록 멤버십을 검증한다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getWhiteboardSnapshot(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        verifyMemberAndIsHost(session.getCourse(), userId);
+        return whiteboardStateStore.snapshot(sessionId);
     }
 
     // ── 권한 검증 헬퍼 ──
