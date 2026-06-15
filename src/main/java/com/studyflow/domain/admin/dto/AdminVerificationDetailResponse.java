@@ -24,7 +24,8 @@ public class AdminVerificationDetailResponse {
     private String description;
     private String awards;
     private String career;
-    private String education;
+    private String major;
+    private String admissionYear;
     private DocumentType documentType;
     private String documentUrl;
     private String rejectedReason;
@@ -40,7 +41,8 @@ public class AdminVerificationDetailResponse {
                 .description(v.getDescription())
                 .awards(v.getAwards() != null ? v.getAwards() : (profile != null ? profile.getAwards() : null))
                 .career(v.getCareer() != null ? v.getCareer() : (profile != null ? profile.getCareer() : null))
-                .education(v.getEducation() != null ? v.getEducation() : (profile != null ? profile.getEducation() : null))
+                .major(v.getMajor() != null ? v.getMajor() : (profile != null ? profile.getMajor() : null))
+                .admissionYear(v.getAdmissionYear() != null ? v.getAdmissionYear() : (profile != null ? profile.getAdmissionYear() : null))
                 .documentType(v.getDocumentType())
                 .documentUrl(v.getDocumentUrl())
                 .rejectedReason(v.getRejectedReason())

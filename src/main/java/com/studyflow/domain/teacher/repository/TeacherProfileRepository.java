@@ -1,36 +1,63 @@
 package com.studyflow.domain.teacher.repository;
 
 import com.studyflow.domain.teacher.entity.TeacherProfile;
+import com.studyflow.domain.user.enums.Gender;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, Long> {
 
-    // 선생님 목록 검색/필터 — keyword(이름 포함), minNaegong(내공 점수 하한)
-    // null 파라미터는 조건에서 제외됩니다 (:param IS NULL OR ...)
-    // 주의: Hibernate + MySQL 환경에서 :param IS NULL 패턴은 실제 동작 검증 필요
-    // 향후 검색 대상 확장 시(소개글 등) LIKE 절 추가 필요
-    // keyword는 서비스에서 !, %, _ escape 처리 후 전달됩니다 (ESCAPE '!')
+    // 선생님 목록 검색/필터 — 선생님 찾기 페이지용
+    //  · keyword     : 이름 부분 일치 (서비스에서 !, %, _ escape 처리 후 전달, ESCAPE '!')
+    //  · gender      : 성별 (null이면 무시)
+    //  · birthFrom/To: 만 나이 범위를 출생일 범위로 변환한 값 (null이면 해당 경계 무시)
+    //  · regions     : 활동 지역(address) 정확 일치 — 빈 목록이면 regionsEmpty=true로 무시
+    //  · universities: 대학교(career) 정확 일치 — 빈 목록이면 universitiesEmpty=true로 무시
+    //  · subjectIds  : 전문 과목 중 하나라도 포함하면 노출(OR) — 빈 목록이면 subjectsEmpty=true로 무시
+    // null/빈 목록 파라미터는 (:xxxEmpty = true OR ...) 패턴으로 조건에서 제외됩니다.
+    // 과목은 컬렉션 조인이라 DISTINCT로 중복 행을 제거합니다 (specialtySubjects는 fetch하지 않아 페이지네이션 안전).
     @Query(value =
-           "SELECT tp FROM TeacherProfile tp " +
+           "SELECT DISTINCT tp FROM TeacherProfile tp " +
            "JOIN FETCH tp.user u " +
+           "LEFT JOIN tp.specialtySubjects s " +
            "WHERE u.isDeleted = 0 AND u.isActive = true " +
            "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
-           "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)",
+           "AND (:gender IS NULL OR u.gender = :gender) " +
+           "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +
+           "AND (:birthTo IS NULL OR u.birthDate <= :birthTo) " +
+           "AND (:regionsEmpty = true OR tp.address IN :regions) " +
+           "AND (:universitiesEmpty = true OR tp.career IN :universities) " +
+           "AND (:subjectsEmpty = true OR s.id IN :subjectIds)",
            countQuery =
-           "SELECT COUNT(tp) FROM TeacherProfile tp " +
+           "SELECT COUNT(DISTINCT tp) FROM TeacherProfile tp " +
            "JOIN tp.user u " +
+           "LEFT JOIN tp.specialtySubjects s " +
            "WHERE u.isDeleted = 0 AND u.isActive = true " +
            "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
-           "AND (:minNaegong IS NULL OR tp.naegongScore >= :minNaegong)")
+           "AND (:gender IS NULL OR u.gender = :gender) " +
+           "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +
+           "AND (:birthTo IS NULL OR u.birthDate <= :birthTo) " +
+           "AND (:regionsEmpty = true OR tp.address IN :regions) " +
+           "AND (:universitiesEmpty = true OR tp.career IN :universities) " +
+           "AND (:subjectsEmpty = true OR s.id IN :subjectIds)")
     Page<TeacherProfile> findAllWithUserFiltered(
             @Param("keyword") String keyword,
-            @Param("minNaegong") Integer minNaegong,
+            @Param("gender") Gender gender,
+            @Param("birthFrom") LocalDate birthFrom,
+            @Param("birthTo") LocalDate birthTo,
+            @Param("regionsEmpty") boolean regionsEmpty,
+            @Param("regions") List<String> regions,
+            @Param("universitiesEmpty") boolean universitiesEmpty,
+            @Param("universities") List<String> universities,
+            @Param("subjectsEmpty") boolean subjectsEmpty,
+            @Param("subjectIds") List<Long> subjectIds,
             Pageable pageable);
 
     // 선생님 상세 조회 — user JOIN FETCH

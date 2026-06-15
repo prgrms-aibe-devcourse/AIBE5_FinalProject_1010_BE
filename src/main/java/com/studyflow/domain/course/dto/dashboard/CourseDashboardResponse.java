@@ -25,7 +25,7 @@ public class CourseDashboardResponse {
     private Long teacherProfileId;
     private String teacherName;
     private String teacherProfileImageUrl;
-    private String teacherEducation;
+
     private int teacherNaegongScore;
 
     public static CourseDashboardResponse of(Course course, long enrolledCount) {
@@ -44,7 +44,6 @@ public class CourseDashboardResponse {
                 .teacherProfileId(tp.getId())
                 .teacherName(teacher.getName())
                 .teacherProfileImageUrl(teacher.getProfileImageUrl())
-                .teacherEducation(tp.getEducation())
                 .teacherNaegongScore(tp.getNaegongScore())
                 .build();
     }

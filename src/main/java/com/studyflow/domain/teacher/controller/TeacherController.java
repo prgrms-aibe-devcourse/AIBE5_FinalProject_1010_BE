@@ -2,6 +2,7 @@ package com.studyflow.domain.teacher.controller;
 
 import com.studyflow.domain.teacher.dto.*;
 
+import java.util.List;
 import java.util.Map;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
@@ -32,15 +33,26 @@ public class TeacherController {
 
     private final TeacherService teacherService;
 
-    // 선생님 목록 — 검색/필터 지원
-    // 예시: GET /api/v1/teachers?keyword=홍길동&minNaegong=500&page=0&size=12
+    // 선생님 목록 — 검색/필터 지원 (이름·성별·나이·지역·대학교·과목 + 최신/오래된순)
+    // 예시: GET /api/v1/teachers?keyword=홍길동&gender=MALE&minAge=20&maxAge=39
+    //              &regions=서울 강남구&regions=경기 성남시&universities=서울대학교
+    //              &subjectIds=1&subjectIds=3&sort=LATEST&page=0&size=12
     @GetMapping
     public ResponseEntity<Page<TeacherCardResponse>> getTeacherList(
             @RequestParam(required = false) String keyword,
-            @PositiveOrZero(message = "내공 점수 하한은 0 이상이어야 합니다.")
-            @RequestParam(required = false) Integer minNaegong,
-            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(teacherService.getTeacherList(keyword, minNaegong, pageable));
+            @RequestParam(required = false) String gender,
+            @PositiveOrZero(message = "최소 나이는 0 이상이어야 합니다.")
+            @RequestParam(required = false) Integer minAge,
+            @PositiveOrZero(message = "최대 나이는 0 이상이어야 합니다.")
+            @RequestParam(required = false) Integer maxAge,
+            @RequestParam(required = false) List<String> regions,
+            @RequestParam(required = false) List<String> universities,
+            @RequestParam(required = false) List<Long> subjectIds,
+            @RequestParam(required = false, defaultValue = "LATEST") String sort,
+            @PageableDefault(size = 12) Pageable pageable) {
+        TeacherSearchCondition condition = new TeacherSearchCondition(
+                keyword, gender, minAge, maxAge, regions, universities, subjectIds, sort);
+        return ResponseEntity.ok(teacherService.getTeacherList(condition, pageable));
     }
 
     // 선생님 상세 페이지
