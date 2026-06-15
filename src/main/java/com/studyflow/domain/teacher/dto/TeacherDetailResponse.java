@@ -17,8 +17,9 @@ public class TeacherDetailResponse {
     private String name;                // User.name
     private String profileImageUrl;     // User.profileImageUrl
     private Gender gender;              // User.gender
-    private String education;           // 학력 (전공 포함)
-    private String career;              // 경력
+    private String career;              // 대학교
+    private String major;               // 전공
+    private String admissionYear;       // 학번
     private String awards;              // 수상내역
     private String address;             // 활동 지역
     private String teachingStyle;       // 수업 방식
@@ -37,8 +38,9 @@ public class TeacherDetailResponse {
                 .name(profile.getUser().getName())
                 .profileImageUrl(profile.getUser().getProfileImageUrl())
                 .gender(profile.getUser().getGender())
-                .education(profile.getEducation())
                 .career(profile.getCareer())
+                .major(profile.getMajor())
+                .admissionYear(profile.getAdmissionYear())
                 .awards(profile.getAwards())
                 .address(profile.getAddress())
                 .teachingStyle(profile.getTeachingStyle())

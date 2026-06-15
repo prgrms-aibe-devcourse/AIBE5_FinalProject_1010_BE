@@ -58,8 +58,9 @@ public class CourseDetailResponse {
         private Long userId;
         private String name;
         private String profileImageUrl;
-        private String education;
         private String career;
+        private String major;
+        private String admissionYear;
         private int naegongScore;
         private BigDecimal totalTeachingHours;
         private long totalEnrolledStudents;  // 이 선생님의 전체 누적 수강생 수
@@ -102,8 +103,9 @@ public class CourseDetailResponse {
                         .userId(teacherUser.getId())
                         .name(teacherUser.getName())
                         .profileImageUrl(teacherUser.getProfileImageUrl())
-                        .education(tp.getEducation())
                         .career(tp.getCareer())
+                        .major(tp.getMajor())
+                        .admissionYear(tp.getAdmissionYear())
                         .naegongScore(tp.getNaegongScore())
                         .totalTeachingHours(tp.getTotalTeachingHours())
                         .totalEnrolledStudents(totalEnrolledStudents)

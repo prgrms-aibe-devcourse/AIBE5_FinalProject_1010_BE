@@ -60,11 +60,17 @@ public class TeacherVerification extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String awards;
 
+    // 대학교 (학교명) — 컬럼명은 career 유지, 용도만 대학교로 사용
     @Column(columnDefinition = "TEXT")
     private String career;
 
-    @Column(length = 300)
-    private String education;
+    // 전공
+    @Column(length = 200)
+    private String major;
+
+    // 학번 (예: "20학번")
+    @Column(length = 20)
+    private String admissionYear;
 
     @Column(columnDefinition = "TEXT")
     private String rejectedReason;
@@ -80,7 +86,8 @@ public class TeacherVerification extends BaseTimeEntity {
     }
 
     public static TeacherVerification create(User user, DocumentType documentType, String documentUrl,
-                                             String description, String awards, String career, String education) {
+                                             String description, String awards, String career,
+                                             String major, String admissionYear) {
         TeacherVerification v = new TeacherVerification();
         v.user = user;
         v.documentType = documentType;
@@ -88,7 +95,8 @@ public class TeacherVerification extends BaseTimeEntity {
         v.description = description;
         v.awards = awards;
         v.career = career;
-        v.education = education;
+        v.major = major;
+        v.admissionYear = admissionYear;
         return v;
     }
 }
