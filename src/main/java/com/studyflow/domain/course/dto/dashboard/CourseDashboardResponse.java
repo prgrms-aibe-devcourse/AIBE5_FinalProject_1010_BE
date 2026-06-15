@@ -44,7 +44,6 @@ public class CourseDashboardResponse {
                 .teacherProfileId(tp.getId())
                 .teacherName(teacher.getName())
                 .teacherProfileImageUrl(teacher.getProfileImageUrl())
-
                 .teacherNaegongScore(tp.getNaegongScore())
                 .build();
     }

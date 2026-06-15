@@ -2,6 +2,7 @@ package com.studyflow.domain.teacher.service;
 
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.subject.entity.Subject;
+import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.dto.TeacherVerificationRequest;
 import com.studyflow.domain.teacher.dto.TeacherVerificationResponse;
@@ -172,8 +173,21 @@ public class TeacherService {
 
         // 전문 과목 — null이면 미변경, 그 외(빈 배열 포함)는 전달된 과목으로 교체
         if (request.getSpecialtySubjectIds() != null) {
-            List<Subject> subjects = subjectRepository.findAllById(request.getSpecialtySubjectIds());
-            profile.updateSpecialtySubjects(subjects);
+            Set<Long> uniqueIds = request.getSpecialtySubjectIds().stream()
+                    .collect(Collectors.toSet());
+            if (!uniqueIds.isEmpty()) {
+                List<Subject> subjects = subjectRepository.findAllById(uniqueIds);
+                if (subjects.size() != uniqueIds.size()) {
+                    Set<Long> foundIds = subjects.stream()
+                            .map(Subject::getId).collect(Collectors.toSet());
+                    Long missingId = uniqueIds.stream()
+                            .filter(id -> !foundIds.contains(id)).findFirst().orElseThrow();
+                    throw new SubjectNotFoundException(missingId);
+                }
+                profile.updateSpecialtySubjects(subjects);
+            } else {
+                profile.updateSpecialtySubjects(List.of());
+            }
         }
 
         return new TeacherProfileResponse(profile);
