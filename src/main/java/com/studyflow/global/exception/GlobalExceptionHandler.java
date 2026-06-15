@@ -101,9 +101,8 @@ public class GlobalExceptionHandler {
      * 사유 메시지를 함께 전달한다.
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, String> body = new HashMap<>();
-        body.put("message", ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        Map<String, Object> body = ErrorCode.VALIDATION_ERROR.toBody(ex.getMessage());
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -211,54 +210,62 @@ public class GlobalExceptionHandler {
 
     // 존재하지 않는 수업 조회 (404)
     @ExceptionHandler(CourseNotFoundException.class)
-    public ResponseEntity<String> handleCourseNotFound(CourseNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleCourseNotFound(CourseNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.COURSE_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 존재하지 않거나 삭제된 공지 조회 (404)
     @ExceptionHandler(CourseNoticeNotFoundException.class)
-    public ResponseEntity<String> handleCourseNoticeNotFound(CourseNoticeNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleCourseNoticeNotFound(CourseNoticeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.COURSE_NOTICE_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 존재하지 않거나 삭제된 게시글 조회 (404)
     @ExceptionHandler(CoursePostNotFoundException.class)
-    public ResponseEntity<String> handleCoursePostNotFound(CoursePostNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleCoursePostNotFound(CoursePostNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.COURSE_POST_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 존재하지 않거나 삭제된 댓글 조회 (404)
     @ExceptionHandler(CoursePostCommentNotFoundException.class)
-    public ResponseEntity<String> handleCoursePostCommentNotFound(CoursePostCommentNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleCoursePostCommentNotFound(CoursePostCommentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.COURSE_POST_COMMENT_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 수업 참여자(선생님·수강생)가 아닌 사용자 접근 (403)
     @ExceptionHandler(NotCourseParticipantException.class)
-    public ResponseEntity<String> handleNotCourseParticipant(NotCourseParticipantException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleNotCourseParticipant(NotCourseParticipantException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorCode.COURSE_NOT_PARTICIPANT.toBody(ex.getMessage()));
     }
 
     // 선생님 전용 기능이거나 본인 게시물이 아닌 경우 (403)
     @ExceptionHandler(CourseAccessForbiddenException.class)
-    public ResponseEntity<String> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleCourseAccessForbidden(CourseAccessForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorCode.COURSE_ACCESS_FORBIDDEN.toBody(ex.getMessage()));
     }
 
     // ── 학생 도메인 예외 처리 ──────────────────────
 
     // 존재하지 않는 학생 프로필 조회 (404)
     @ExceptionHandler(StudentProfileNotFoundException.class)
-    public ResponseEntity<String> handleStudentProfileNotFound(StudentProfileNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleStudentProfileNotFound(StudentProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.STUDENT_PROFILE_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // ── 선생님 도메인 예외 처리 ──────────────────────
 
     // 존재하지 않는 선생님 프로필 조회 (404)
     @ExceptionHandler(TeacherProfileNotFoundException.class)
-    public ResponseEntity<String> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.TEACHER_PROFILE_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)
