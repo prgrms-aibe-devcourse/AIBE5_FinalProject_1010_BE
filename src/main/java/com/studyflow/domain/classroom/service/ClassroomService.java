@@ -49,6 +49,7 @@ public class ClassroomService {
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
+    private final WhiteboardStateStore whiteboardStateStore;
 
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
@@ -149,6 +150,9 @@ public class ClassroomService {
             throw new ClassroomNotOpenException("이미 종료된 강의실입니다.");
         }
         session.close();
+
+        // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
+        whiteboardStateStore.clear(sessionId);
 
         // TODO: 종료가 "실제 강제 퇴장"이 되도록 LiveKit RoomService.DeleteRoom 호출 필요.
         //  현재는 DB status만 CLOSED로 바꾸므로, 이미 발급된 토큰(TTL 2h)을 든 클라이언트는
