@@ -1,6 +1,9 @@
 spring:
   application:
     name: studyflow
+  jackson:
+    parser:
+      strict-duplicate-detection: true
   # 비밀 값(OpenAI 키 등)은 application-secret.yml 에서 불러온다. (git 미커밋, optional)
   config:
     import: "optional:classpath:application-secret.yml"
