@@ -47,7 +47,8 @@ public class CourseDashboardService {
 
     // 출석 현황 — CLOSED 세션 기준으로 수강생별 입장 횟수 집계
     public List<AttendanceResponse> getAttendance(Long courseId, Long userId) {
-        accessValidator.validateParticipantAndGetCourse(courseId, userId);
+        Course course = accessValidator.validateParticipantAndGetCourse(courseId, userId);
+        accessValidator.validateTeacher(course, userId);
 
         List<Long> sessionIds = sessionRepository.findSessionIdsByCourseIdAndStatus(courseId, ClassroomStatus.CLOSED);
         long totalSessions = sessionIds.size();

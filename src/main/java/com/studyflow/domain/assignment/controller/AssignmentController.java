@@ -5,6 +5,7 @@ import com.studyflow.domain.assignment.dto.AssignmentResponse;
 import com.studyflow.domain.assignment.service.AssignmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,8 @@ public class AssignmentController {
             @PathVariable Long courseId,
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody AssignmentRequest req) {
-        return ResponseEntity.ok(assignmentService.createAssignment(courseId, userId, req));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(assignmentService.createAssignment(courseId, userId, req));
     }
 
     @PutMapping("/{assignmentId}")

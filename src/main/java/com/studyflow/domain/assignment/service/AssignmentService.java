@@ -40,6 +40,9 @@ public class AssignmentService {
         accessValidator.validateTeacher(course, userId);
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new IllegalArgumentException("과제를 찾을 수 없습니다."));
+        if (!assignment.getCourse().getId().equals(courseId)) {
+            throw new IllegalArgumentException("해당 수업의 과제가 아닙니다.");
+        }
         assignment.update(req.getTitle(), req.getContent(), req.getDueDate());
         return AssignmentResponse.of(assignment);
     }
@@ -48,6 +51,11 @@ public class AssignmentService {
     public void deleteAssignment(Long courseId, Long assignmentId, Long userId) {
         Course course = accessValidator.validateParticipantAndGetCourse(courseId, userId);
         accessValidator.validateTeacher(course, userId);
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new IllegalArgumentException("과제를 찾을 수 없습니다."));
+        if (!assignment.getCourse().getId().equals(courseId)) {
+            throw new IllegalArgumentException("해당 수업의 과제가 아닙니다.");
+        }
         assignmentRepository.deleteById(assignmentId);
     }
 }
