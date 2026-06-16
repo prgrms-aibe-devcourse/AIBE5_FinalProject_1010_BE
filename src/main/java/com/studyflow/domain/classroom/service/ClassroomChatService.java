@@ -2,12 +2,15 @@ package com.studyflow.domain.classroom.service;
 
 import com.studyflow.domain.chat.enums.ChatMessageType;
 import com.studyflow.domain.classroom.dto.request.ClassroomChatSendRequest;
+import com.studyflow.domain.classroom.dto.response.ClassroomChatLikeResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomChatResponse;
 import com.studyflow.domain.classroom.entity.ClassroomChat;
 import com.studyflow.domain.classroom.entity.ClassroomChatAttachment;
+import com.studyflow.domain.classroom.entity.ClassroomChatLike;
 import com.studyflow.domain.classroom.entity.ClassroomSession;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
+import com.studyflow.domain.classroom.repository.ClassroomChatLikeRepository;
 import com.studyflow.domain.classroom.repository.ClassroomChatRepository;
 import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
 import com.studyflow.domain.file.entity.FileAsset;
@@ -20,8 +23,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -38,6 +44,7 @@ public class ClassroomChatService {
 
     private final ClassroomSessionRepository sessionRepository;
     private final ClassroomChatRepository chatRepository;
+    private final ClassroomChatLikeRepository chatLikeRepository;
     private final ClassroomService classroomService;
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
@@ -116,8 +123,41 @@ public class ClassroomChatService {
                         "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
         classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
 
+        // 좋아요 수/내가 좋아요 여부를 일괄 조회(N+1 회피)
+        Map<Long, Long> countMap = new HashMap<>();
+        for (Object[] row : chatLikeRepository.countLikesBySession(sessionId)) {
+            countMap.put((Long) row[0], (Long) row[1]);
+        }
+        Set<Long> likedByMe = new HashSet<>(chatLikeRepository.findLikedChatIdsBySessionAndUser(sessionId, userId));
+
         return chatRepository.findBySessionIdWithSender(sessionId).stream()
-                .map(ClassroomChatResponse::from)
+                .map(c -> ClassroomChatResponse.from(c,
+                        countMap.getOrDefault(c.getId(), 0L),
+                        likedByMe.contains(c.getId())))
                 .toList();
+    }
+
+    /**
+     * 강의실 채팅 좋아요 토글 — 수업 멤버만. 이미 눌렀으면 취소, 아니면 추가. 변경 후 좋아요 수 반환.
+     */
+    @Transactional
+    public ClassroomChatLikeResponse toggleLike(Long sessionId, Long userId, Long chatId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
+
+        ClassroomChat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다. (chatId: " + chatId + ")"));
+        if (!chat.getSession().getId().equals(sessionId)) {
+            throw new IllegalArgumentException("이 강의실의 메시지가 아닙니다.");
+        }
+
+        if (chatLikeRepository.existsByClassroomChatIdAndUserId(chatId, userId)) {
+            chatLikeRepository.deleteByClassroomChatIdAndUserId(chatId, userId);
+        } else {
+            chatLikeRepository.save(ClassroomChatLike.of(chat, userRepository.getReferenceById(userId)));
+        }
+        return new ClassroomChatLikeResponse(chatId, chatLikeRepository.countByClassroomChatId(chatId));
     }
 }

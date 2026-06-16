@@ -21,9 +21,16 @@ public record ClassroomChatResponse(
         ChatMessageType messageType,
         String content,
         List<ChatAttachmentResponse> attachments,
+        long likeCount,
+        boolean likedByMe,
         LocalDateTime createdAt
 ) {
+    /** 새 메시지(아직 좋아요 없음) 기본값 */
     public static ClassroomChatResponse from(ClassroomChat c) {
+        return from(c, 0L, false);
+    }
+
+    public static ClassroomChatResponse from(ClassroomChat c, long likeCount, boolean likedByMe) {
         List<ChatAttachmentResponse> attachments = c.getAttachments().stream()
                 .sorted(Comparator.comparingInt(a -> a.getSortOrder() == null ? 0 : a.getSortOrder()))
                 .map(a -> {
@@ -41,6 +48,8 @@ public record ClassroomChatResponse(
                 c.getMessageType() == null ? ChatMessageType.TEXT : c.getMessageType(),
                 c.getContent(),
                 attachments,
+                likeCount,
+                likedByMe,
                 c.getCreatedAt()
         );
     }

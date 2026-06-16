@@ -1,7 +1,9 @@
 package com.studyflow.domain.classroom.controller;
 
 import com.studyflow.domain.chat.dto.response.ChatErrorResponse;
+import com.studyflow.domain.classroom.dto.request.ClassroomChatLikeRequest;
 import com.studyflow.domain.classroom.dto.request.ClassroomChatSendRequest;
+import com.studyflow.domain.classroom.dto.response.ClassroomChatLikeResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomChatResponse;
 import com.studyflow.domain.classroom.service.ClassroomChatService;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,21 @@ public class ClassroomChatWebSocketController {
 
         messagingTemplate.convertAndSend(
                 "/sub/classroom-sessions/" + sessionId + "/chats",
+                response
+        );
+    }
+
+    /** 채팅 메시지 좋아요 토글 — 변경된 좋아요 수를 전원에게 브로드캐스트. */
+    @MessageMapping("/classroom-sessions/{sessionId}/chat-likes")
+    public void toggleLike(
+            @DestinationVariable Long sessionId,
+            ClassroomChatLikeRequest request,
+            Principal principal
+    ) {
+        Long userId = extractUserId(principal);
+        ClassroomChatLikeResponse response = classroomChatService.toggleLike(sessionId, userId, request.chatId());
+        messagingTemplate.convertAndSend(
+                "/sub/classroom-sessions/" + sessionId + "/chat-likes",
                 response
         );
     }
