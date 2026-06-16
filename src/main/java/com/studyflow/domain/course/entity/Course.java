@@ -97,6 +97,12 @@ public class Course extends BaseTimeEntity {
 
     private Double locationLng;    // 경도
 
+    private java.time.LocalDateTime nextClassAt; // 선생님이 설정하는 다음 수업 일시
+
+    public void updateNextClassAt(java.time.LocalDateTime nextClassAt) {
+        this.nextClassAt = nextClassAt;
+    }
+
     // 수업 비공개 처리 (soft delete) — hard delete 대신 사용
     // 관련 Enrollment, ChatRoom, 게시글 등 FK 참조가 많아 hard delete 시 오류 위험
     public void close() {
