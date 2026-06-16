@@ -43,7 +43,7 @@ public class TeacherDetailResponse {
                                            List<TeacherCourseCardResponse> courses,
                                            long answerCount, long acceptedCount) {
         Integer acceptRate = answerCount > 0
-                ? (int) Math.round(acceptedCount * 100.0 / answerCount)
+                ? (int) Math.min(100, Math.round(acceptedCount * 100.0 / answerCount))
                 : null;
 
         List<String> specialtySubjects = profile.getSpecialtySubjects().stream()
