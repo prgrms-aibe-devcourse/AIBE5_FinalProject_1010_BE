@@ -172,7 +172,11 @@ public class ClassroomService {
                 .orElseThrow(() -> new ClassroomParticipantNotFoundException(participantId));
         assertHost(participant.getSession().getCourse(), teacherUserId);
 
-        // canPublish는 선택값 — null이면 기존 값 유지
+        // canPublish는 선택값 — null이면 기존 값 유지.
+        // ⚠️ 주의: 현재 issueLivekitToken이 멤버 전원 canPublish=true로 발급하므로(양방향 과외 정책),
+        //   여기서 저장하는 isCanPublish는 LiveKit 송출 권한에 반영되지 않는다(저장만 됨).
+        //   웨비나형 송출 제한을 다시 도입할 때 issueLivekitToken이 isCanPublish를 읽도록 되돌리면
+        //   이 API가 곧바로 효력을 갖는다. canDraw/canShareScreen/canChat은 정상 동작.
         boolean canPublish = request.canPublish() != null ? request.canPublish() : participant.isCanPublish();
         participant.updatePermissions(request.canDraw(), request.canShareScreen(), request.canChat(), canPublish);
         return ParticipantPermissionResponse.from(participant);
@@ -197,6 +201,8 @@ public class ClassroomService {
         verifyMemberAndIsHost(session.getCourse(), userId);
 
         // 전원 송출 허용 — 멤버이면 누구나 카메라/마이크 발행 가능.
+        // TODO(웨비나 모드): 송출 제한이 필요해지면 아래를 participant.isCanPublish 기반으로 되돌릴 것.
+        //   그 전까지 22-5(updatePermissions)의 canPublish 변경은 토큰에 반영되지 않는다(저장만 됨).
         boolean canPublish = true;
 
         // 인증된 userId 기반이라 보통 존재하지만, 정합성 위해 404로 처리
