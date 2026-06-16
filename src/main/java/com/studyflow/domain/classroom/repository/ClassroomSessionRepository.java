@@ -6,12 +6,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ClassroomSessionRepository extends JpaRepository<ClassroomSession, Long> {
 
     Optional<ClassroomSession> findTopByCourseIdAndStatusOrderByStartedAtDesc(Long courseId, ClassroomStatus status);
+
+    // 자동종료 스윕 — 호스트 하트비트가 cutoff보다 오래된 OPEN 세션(부재 의심)
+    List<ClassroomSession> findByStatusAndLastHostSeenAtBefore(ClassroomStatus status, LocalDateTime cutoff);
 
     // 출석 집계용 — 수업의 종료된 세션 ID 목록
     @Query("SELECT s.id FROM ClassroomSession s WHERE s.course.id = :courseId AND s.status = :status")
