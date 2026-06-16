@@ -45,7 +45,7 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(length = 200)
     private String address;
 
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String teachingStyle;
 
     @Column(columnDefinition = "TEXT")

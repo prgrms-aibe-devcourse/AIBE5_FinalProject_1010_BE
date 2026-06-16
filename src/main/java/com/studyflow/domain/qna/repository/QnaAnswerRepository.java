@@ -9,5 +9,10 @@ public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, Qna
 
     boolean existsByQuestionIdAndAccepted(Long questionId, boolean accepted);
 
+    // 선생님 상세 페이지 활동 통계 — 작성자(author=User) 기준 답변 수 / 채택된 답변 수
+    long countByAuthorId(Long authorId);
+
+    long countByAuthorIdAndAcceptedTrue(Long authorId);
+
     // fetch join/집계 쿼리는 QnaAnswerRepositoryCustom(QueryDSL)에 정의되어 있다.
 }
