@@ -3,6 +3,8 @@ package com.studyflow.domain.assignment.service;
 import com.studyflow.domain.assignment.dto.AssignmentRequest;
 import com.studyflow.domain.assignment.dto.AssignmentResponse;
 import com.studyflow.domain.assignment.entity.Assignment;
+import com.studyflow.domain.assignment.exception.AssignmentAccessForbiddenException;
+import com.studyflow.domain.assignment.exception.AssignmentNotFoundException;
 import com.studyflow.domain.assignment.repository.AssignmentRepository;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.service.CourseAccessValidator;
@@ -39,9 +41,9 @@ public class AssignmentService {
         Course course = accessValidator.validateParticipantAndGetCourse(courseId, userId);
         accessValidator.validateTeacher(course, userId);
         Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new IllegalArgumentException("과제를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AssignmentNotFoundException(assignmentId));
         if (!assignment.getCourse().getId().equals(courseId)) {
-            throw new IllegalArgumentException("해당 수업의 과제가 아닙니다.");
+            throw new AssignmentAccessForbiddenException();
         }
         assignment.update(req.getTitle(), req.getContent(), req.getDueDate());
         return AssignmentResponse.of(assignment);
@@ -52,10 +54,10 @@ public class AssignmentService {
         Course course = accessValidator.validateParticipantAndGetCourse(courseId, userId);
         accessValidator.validateTeacher(course, userId);
         Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new IllegalArgumentException("과제를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AssignmentNotFoundException(assignmentId));
         if (!assignment.getCourse().getId().equals(courseId)) {
-            throw new IllegalArgumentException("해당 수업의 과제가 아닙니다.");
+            throw new AssignmentAccessForbiddenException();
         }
-        assignmentRepository.deleteById(assignmentId);
+        assignmentRepository.delete(assignment);
     }
 }

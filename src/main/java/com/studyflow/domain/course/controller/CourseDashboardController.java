@@ -5,6 +5,7 @@ import com.studyflow.domain.course.dto.dashboard.CourseDashboardResponse;
 import com.studyflow.domain.course.dto.dashboard.NextClassRequest;
 import com.studyflow.domain.course.service.CourseDashboardService;
 import com.studyflow.domain.enrollment.dto.EnrolledStudentResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +35,7 @@ public class CourseDashboardController {
     public ResponseEntity<CourseDashboardResponse> updateNextClass(
             @PathVariable Long courseId,
             @AuthenticationPrincipal Long userId,
-            @RequestBody NextClassRequest req) {
+            @Valid @RequestBody NextClassRequest req) {
         return ResponseEntity.ok(dashboardService.updateNextClass(courseId, userId, req));
     }
 
