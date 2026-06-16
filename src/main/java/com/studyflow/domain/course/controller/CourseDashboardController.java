@@ -1,8 +1,11 @@
 package com.studyflow.domain.course.controller;
 
+import com.studyflow.domain.course.dto.dashboard.AttendanceResponse;
 import com.studyflow.domain.course.dto.dashboard.CourseDashboardResponse;
+import com.studyflow.domain.course.dto.dashboard.NextClassRequest;
 import com.studyflow.domain.course.service.CourseDashboardService;
 import com.studyflow.domain.enrollment.dto.EnrolledStudentResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +28,23 @@ public class CourseDashboardController {
             @PathVariable Long courseId,
             @AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(dashboardService.getDashboard(courseId, userId));
+    }
+
+    // 다음 수업 일시 설정 — 선생님 전용
+    @PatchMapping("/next-class")
+    public ResponseEntity<CourseDashboardResponse> updateNextClass(
+            @PathVariable Long courseId,
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody NextClassRequest req) {
+        return ResponseEntity.ok(dashboardService.updateNextClass(courseId, userId, req));
+    }
+
+    // 출석 현황 — 실시간 강의실 입장 기록 기반
+    @GetMapping("/attendance")
+    public ResponseEntity<List<AttendanceResponse>> getAttendance(
+            @PathVariable Long courseId,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(dashboardService.getAttendance(courseId, userId));
     }
 
     // 수강생 목록 — ACTIVE 상태 수강생만 반환

@@ -3,6 +3,7 @@ package com.studyflow.domain.course.entity;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
+import com.studyflow.domain.course.enums.TeachingMode;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.global.audit.BaseTimeEntity;
@@ -85,6 +86,23 @@ public class Course extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isPublicAudit = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10, nullable = false)
+    private TeachingMode teachingMode = TeachingMode.ONLINE;
+
+    @Column(length = 300)
+    private String location;       // 대면 수업 장소 주소
+
+    private Double locationLat;    // 위도
+
+    private Double locationLng;    // 경도
+
+    private java.time.LocalDateTime nextClassAt; // 선생님이 설정하는 다음 수업 일시
+
+    public void updateNextClassAt(java.time.LocalDateTime nextClassAt) {
+        this.nextClassAt = nextClassAt;
+    }
+
     // 수업 비공개 처리 (soft delete) — hard delete 대신 사용
     // 관련 Enrollment, ChatRoom, 게시글 등 FK 참조가 많아 hard delete 시 오류 위험
     public void close() {
@@ -99,7 +117,8 @@ public class Course extends BaseTimeEntity {
             int maxStudents, int durationMinutes, int pricePerSession,
             String textbook, CurriculumType curriculumType, String curriculumDetail,
             String availableSchedule, String firstClassDate, String thumbnailUrl,
-            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate
+            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate,
+            TeachingMode teachingMode, String location, Double locationLat, Double locationLng
     ) {
         this.subject = subject;
         this.title = title;
@@ -117,6 +136,10 @@ public class Course extends BaseTimeEntity {
         this.recruitDeadline = recruitDeadline;
         this.startDate = startDate;
         this.endDate = endDate;
+        if (teachingMode != null) this.teachingMode = teachingMode;
+        this.location = location;
+        this.locationLat = locationLat;
+        this.locationLng = locationLng;
     }
 
     // 수업 생성 팩토리 메서드 — 기본값: status=RECRUITING, isListed=true
@@ -127,7 +150,8 @@ public class Course extends BaseTimeEntity {
             int maxStudents, int durationMinutes, int pricePerSession,
             String textbook, CurriculumType curriculumType, String curriculumDetail,
             String availableSchedule, String firstClassDate, String thumbnailUrl,
-            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate
+            LocalDate recruitDeadline, LocalDate startDate, LocalDate endDate,
+            TeachingMode teachingMode, String location, Double locationLat, Double locationLng
     ) {
         Course c = new Course();
         c.teacherProfile = teacherProfile;
@@ -147,6 +171,10 @@ public class Course extends BaseTimeEntity {
         c.recruitDeadline = recruitDeadline;
         c.startDate = startDate;
         c.endDate = endDate;
+        c.teachingMode = teachingMode != null ? teachingMode : TeachingMode.ONLINE;
+        c.location = location;
+        c.locationLat = locationLat;
+        c.locationLng = locationLng;
         c.status = CourseStatus.RECRUITING;
         c.isListed = true;
         c.isPublicAudit = false;

@@ -59,7 +59,9 @@ public class CourseUpdateService {
                 maxStudents, request.getDurationMinutes(), request.getPricePerSession(),
                 request.getTextbook(), request.getCurriculumType(), request.getCurriculumDetail(),
                 request.getAvailableSchedule(), request.getFirstClassDate(), request.getThumbnailUrl(),
-                request.getRecruitDeadline(), request.getStartDate(), request.getEndDate()
+                request.getRecruitDeadline(), request.getStartDate(), request.getEndDate(),
+                request.getTeachingMode(), request.getLocation(),
+                request.getLocationLat(), request.getLocationLng()
         );
 
         // @Transactional이라 별도 save 없이 변경사항 자동 반영 (dirty checking)

@@ -4,6 +4,7 @@ import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.CurriculumType;
 import com.studyflow.domain.course.enums.TargetGrade;
+import com.studyflow.domain.course.enums.TeachingMode;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.user.entity.User;
 import lombok.Builder;
@@ -44,6 +45,11 @@ public class CourseDetailResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDateTime createdAt;
+
+    private TeachingMode teachingMode;
+    private String location;
+    private Double locationLat;
+    private Double locationLng;
 
     private TeacherSummary teacher;
 
@@ -98,6 +104,10 @@ public class CourseDetailResponse {
                 .startDate(course.getStartDate())
                 .endDate(course.getEndDate())
                 .createdAt(course.getCreatedAt())
+                .teachingMode(course.getTeachingMode())
+                .location(course.getLocation())
+                .locationLat(course.getLocationLat())
+                .locationLng(course.getLocationLng())
                 .teacher(TeacherSummary.builder()
                         .teacherProfileId(tp.getId())
                         .userId(teacherUser.getId())

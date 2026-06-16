@@ -43,7 +43,9 @@ public class CourseCreateService {
                 maxStudents, request.getDurationMinutes(), request.getPricePerSession(),
                 request.getTextbook(), request.getCurriculumType(), request.getCurriculumDetail(),
                 request.getAvailableSchedule(), request.getFirstClassDate(), request.getThumbnailUrl(),
-                request.getRecruitDeadline(), request.getStartDate(), request.getEndDate()
+                request.getRecruitDeadline(), request.getStartDate(), request.getEndDate(),
+                request.getTeachingMode(), request.getLocation(),
+                request.getLocationLat(), request.getLocationLng()
         );
 
         Course saved = courseRepository.save(course);

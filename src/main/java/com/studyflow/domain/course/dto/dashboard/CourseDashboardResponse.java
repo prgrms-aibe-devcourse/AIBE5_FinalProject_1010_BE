@@ -6,6 +6,8 @@ import com.studyflow.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 // 수업별 페이지 상단 정보 — 수업 기본 정보 + 선생님 요약 + 현재 수강 인원
 @Getter
 @Builder
@@ -28,6 +30,8 @@ public class CourseDashboardResponse {
 
     private int teacherNaegongScore;
 
+    private LocalDateTime nextClassAt;
+
     public static CourseDashboardResponse of(Course course, long enrolledCount) {
         TeacherProfile tp = course.getTeacherProfile();
         User teacher = tp.getUser();
@@ -45,6 +49,7 @@ public class CourseDashboardResponse {
                 .teacherName(teacher.getName())
                 .teacherProfileImageUrl(teacher.getProfileImageUrl())
                 .teacherNaegongScore(tp.getNaegongScore())
+                .nextClassAt(course.getNextClassAt())
                 .build();
     }
 }
