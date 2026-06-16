@@ -40,7 +40,7 @@ public class ClassroomChatWebSocketController {
         Long userId = extractUserId(principal);
 
         ClassroomChatResponse response = classroomChatService.sendMessage(
-                sessionId, userId, request.content());
+                sessionId, userId, request);
 
         messagingTemplate.convertAndSend(
                 "/sub/classroom-sessions/" + sessionId + "/chats",
