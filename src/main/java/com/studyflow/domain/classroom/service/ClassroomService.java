@@ -180,7 +180,9 @@ public class ClassroomService {
 
     /**
      * LiveKit 토큰 발급 (22-4) — 수업 멤버만.
-     * 송출 게이팅: 참가자의 canPublish(선생님 기본 true, 학생 기본 false)를 토큰에 반영.
+     * 양방향 과외이므로 멤버(담당 선생님·ACTIVE 수강생)는 전원 송출(canPublish=true) 가능하다.
+     * — 학생이 실제로 수업에 참여 중인지(카메라·마이크) 서로 확인할 수 있어야 하므로 전원 발행 허용.
+     * (대규모 웨비나처럼 송출을 제한해야 하면 canPublish 권한 필드로 다시 게이팅 가능: 22-5 권한변경.)
      */
     @Transactional(readOnly = true)
     public LivekitTokenResponse issueLivekitToken(Long sessionId, Long userId, LivekitTokenRequest request) {
@@ -191,12 +193,11 @@ public class ClassroomService {
             throw new ClassroomNotOpenException("종료된 강의실의 토큰은 발급할 수 없습니다.");
         }
 
-        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
+        // 멤버십 검증(비멤버 403). 호스트 여부는 식별용으로만 사용.
+        verifyMemberAndIsHost(session.getCourse(), userId);
 
-        // 참가(22-3) 이력이 있으면 그 권한을, 없으면 호스트 여부로 기본 결정
-        boolean canPublish = participantRepository.findBySessionIdAndUserId(sessionId, userId)
-                .map(ClassroomParticipant::isCanPublish)
-                .orElse(isHost);
+        // 전원 송출 허용 — 멤버이면 누구나 카메라/마이크 발행 가능.
+        boolean canPublish = true;
 
         // 인증된 userId 기반이라 보통 존재하지만, 정합성 위해 404로 처리
         User user = userRepository.findById(userId)
