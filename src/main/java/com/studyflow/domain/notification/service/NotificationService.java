@@ -16,6 +16,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -88,11 +90,28 @@ public class NotificationService {
     public void create(Long recipientId, NotificationType type, String title, String message, Long relatedId) {
         User recipient = userRepository.getReferenceById(recipientId);
         Notification saved = notificationRepository.save(Notification.create(recipient, type, title, message, relatedId));
-        // 실시간 push — 수신자에게만(STOMP /user/{userId}/sub/notifications). 클라는 /user/sub/notifications 구독.
-        // 실패해도 영속 알림은 남으므로(REST로 받음) 흐름 끊지 않게 예외를 삼킨다.
+        NotificationResponse payload = NotificationResponse.from(saved); // 커밋 후 lazy 접근 없도록 미리 DTO 변환
+
+        // 실시간 push는 "이 트랜잭션이 커밋된 뒤"에 보낸다.
+        // save 직후(커밋 전) 보내면, push를 받은 클라가 곧바로 알림 ID로 read/delete를 호출할 때
+        // DB에 아직 커밋 전이라 404가 날 수 있다. afterCommit 콜백으로 순서를 보장한다.
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    push(recipientId, payload);
+                }
+            });
+        } else {
+            push(recipientId, payload); // 트랜잭션 동기화가 없는 경우(예외적) 즉시 전송
+        }
+    }
+
+    // 실시간 push — 수신자에게만(STOMP /user/{userId}/sub/notifications). 클라는 /user/sub/notifications 구독.
+    // 실패해도 영속 알림은 남으므로(REST로 받음) 흐름 끊지 않게 예외를 삼킨다.
+    private void push(Long recipientId, NotificationResponse payload) {
         try {
-            messagingTemplate.convertAndSendToUser(
-                    String.valueOf(recipientId), "/sub/notifications", NotificationResponse.from(saved));
+            messagingTemplate.convertAndSendToUser(String.valueOf(recipientId), "/sub/notifications", payload);
         } catch (Exception e) {
             log.warn("알림 실시간 push 실패 (recipientId={}): {}", recipientId, e.getMessage());
         }
