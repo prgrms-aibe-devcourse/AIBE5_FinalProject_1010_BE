@@ -15,8 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-// 수업 등록 / 수정 / 삭제 API — 선생님(TEACHER) 전용 (SecurityConfig hasRole 설정)
-@Tag(name = "수업 관리", description = "선생님 수업 등록·수정·삭제 API")
+// 수업 등록 / 수정 / 종료 API — 선생님(TEACHER) 전용 (SecurityConfig hasRole 설정)
+@Tag(name = "수업 관리", description = "선생님 수업 등록·수정·종료 API")
 @RestController
 @RequestMapping("/api/v1/courses")
 @RequiredArgsConstructor
@@ -47,8 +47,19 @@ public class CourseCreateController {
         return ResponseEntity.ok(courseUpdateService.updateCourse(courseId, userId, request));
     }
 
-    // 수업 삭제 — 본인 수업만 가능, 수강 중인 학생이 있으면 삭제 불가
-    @Operation(summary = "수업 삭제", description = "선생님 전용. 수강 중인 학생이 있으면 삭제할 수 없습니다.")
+    // 수업 종료 — CLOSED 상태로 변경, isListed=false, PENDING 신청 일괄 거절
+    @Operation(summary = "수업 종료", description = "선생님 전용. 수강 중인 학생이 있으면 종료할 수 없습니다.")
+    @PatchMapping("/{courseId}/close")
+    public ResponseEntity<Void> closeCourse(
+            @PathVariable Long courseId,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId
+    ) {
+        courseUpdateService.closeCourse(courseId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 수업 삭제 (하위 호환) — 물리 삭제가 아닌 CLOSED 처리. PATCH /{courseId}/close 사용 권장
+    @Operation(summary = "수업 삭제", description = "선생님 전용. 실제로는 물리 삭제가 아닌 CLOSED 처리입니다. PATCH /{courseId}/close 사용을 권장합니다.")
     @DeleteMapping("/{courseId}")
     public ResponseEntity<Void> deleteCourse(
             @PathVariable Long courseId,
