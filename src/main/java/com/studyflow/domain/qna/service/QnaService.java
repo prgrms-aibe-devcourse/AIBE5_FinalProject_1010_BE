@@ -312,6 +312,15 @@ public class QnaService {
         int teacherNaegongScore = naegongService.addScore(
                 teacher, ACCEPT_ANSWER_NAEGONG_SCORE, NaegongReason.ANSWER_ACCEPTED, answer.getId());
 
+        // 채택된 답변 작성 선생님에게 알림(클릭 시 /qna/{questionId} 이동). 본인 채택 자기알림 방지.
+        if (!teacher.getId().equals(userId)) {
+            eventPublisher.publishEvent(new NotificationCreatedEvent(
+                    teacher.getId(), NotificationType.QNA_ANSWER_ACCEPTED,
+                    "답변이 채택되었어요",
+                    "'" + question.getTitle() + "' 질문에서 회원님의 답변이 채택되었어요.",
+                    question.getId()));
+        }
+
         return new QnaAnswerAcceptResponse(
                 answer.getId(),
                 question.getId(),
