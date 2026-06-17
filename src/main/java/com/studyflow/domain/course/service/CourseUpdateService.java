@@ -11,6 +11,7 @@ import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotDeletableException;
+import org.springframework.dao.DataIntegrityViolationException;
 import com.studyflow.domain.course.repository.CourseNoticeRepository;
 import com.studyflow.domain.course.repository.CoursePostRepository;
 import com.studyflow.domain.course.repository.CourseRepository;
@@ -87,10 +88,7 @@ public class CourseUpdateService {
         Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
 
-        // 본인 수업인지 확인
-        if (!course.getTeacherProfile().getUser().getId().equals(teacherUserId)) {
-            throw new CourseAccessForbiddenException();
-        }
+        assertTeacherOwner(course, teacherUserId);
 
         // 수강 중인 학생이 있으면 종료 불가
         long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
@@ -114,10 +112,7 @@ public class CourseUpdateService {
         Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
 
-        // 소유권 확인
-        if (!course.getTeacherProfile().getUser().getId().equals(teacherUserId)) {
-            throw new CourseAccessForbiddenException();
-        }
+        assertTeacherOwner(course, teacherUserId);
 
         // RECRUITING 상태만 삭제 허용
         if (course.getStatus() != CourseStatus.RECRUITING) {
@@ -135,6 +130,16 @@ public class CourseUpdateService {
             throw new CourseNotDeletableException();
         }
 
-        courseRepository.delete(course);
+        try {
+            courseRepository.delete(course);
+        } catch (DataIntegrityViolationException e) {
+            throw new CourseNotDeletableException();
+        }
+    }
+
+    private void assertTeacherOwner(Course course, Long teacherUserId) {
+        if (!course.getTeacherProfile().getUser().getId().equals(teacherUserId)) {
+            throw new CourseAccessForbiddenException();
+        }
     }
 }
