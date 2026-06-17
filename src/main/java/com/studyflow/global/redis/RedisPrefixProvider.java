@@ -60,12 +60,18 @@ public class RedisPrefixProvider {
     }
 
     private static final String PASSWORD_RESET_TOKEN_PREFIX = "password:reset:";
+    private static final String PASSWORD_RESET_LATEST_PREFIX = "password:reset:latest:";
     private static final String PASSWORD_RESET_COOLDOWN_PREFIX = "password:reset:cooldown:";
     private static final String PASSWORD_RESET_SEND_COUNT_PREFIX = "password:reset:sendcount:";
 
     /** 비밀번호 재설정 링크에 포함되는 UUID 토큰 키 (TTL 15분) */
     public static String passwordResetTokenKey(String token) {
         return PASSWORD_RESET_TOKEN_PREFIX + token;
+    }
+
+    /** 이메일별 최신 비밀번호 재설정 토큰 역방향 인덱스 키 (TTL 15분) */
+    public static String passwordResetLatestKey(String email) {
+        return PASSWORD_RESET_LATEST_PREFIX + email;
     }
 
     /** 비밀번호 재설정 링크 발송 쿨다운 키 (TTL = 쿨다운 시간) */
