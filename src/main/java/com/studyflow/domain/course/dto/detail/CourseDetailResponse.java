@@ -68,6 +68,7 @@ public class CourseDetailResponse {
         private String major;
         private String admissionYear;
         private int naegongScore;
+        private boolean verified;             // 관리자 인증 완료 여부 (User.isVerified)
         private BigDecimal totalTeachingHours;
         private long totalEnrolledStudents;  // 이 선생님의 전체 누적 수강생 수
     }
@@ -117,6 +118,7 @@ public class CourseDetailResponse {
                         .major(tp.getMajor())
                         .admissionYear(tp.getAdmissionYear())
                         .naegongScore(tp.getNaegongScore())
+                        .verified(teacherUser.isVerified())
                         .totalTeachingHours(tp.getTotalTeachingHours())
                         .totalEnrolledStudents(totalEnrolledStudents)
                         .build())

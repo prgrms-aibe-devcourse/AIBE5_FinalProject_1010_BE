@@ -23,6 +23,7 @@ public class TeacherCardResponse {
     private String address;             // 활동 지역
     private BigDecimal totalTeachingHours; // 누적 수업 시간
     private List<String> specialtySubjects; // 전문 과목명 목록
+    private boolean verified;           // 관리자 인증 완료 여부 (User.isVerified)
 
     // TeacherProfile + 수업 수 + 전문 과목명을 조합해 카드 응답 생성
     // user는 JOIN FETCH 후 전달해야 LazyInitializationException 방지
@@ -40,6 +41,7 @@ public class TeacherCardResponse {
                 .address(profile.getAddress())
                 .totalTeachingHours(profile.getTotalTeachingHours())
                 .specialtySubjects(specialtySubjects)
+                .verified(profile.getUser().isVerified())
                 .build();
     }
 }

@@ -22,6 +22,9 @@ public class CourseCardResponse {
     // 선생님 프로필 사진 URL (TeacherProfile → User)
     private String teacherProfileImageUrl;
 
+    // 선생님 관리자 인증 완료 여부 (TeacherProfile → User.isVerified)
+    private boolean teacherVerified;
+
     // 과목명 (Subject)
     private String subjectName;
 
@@ -59,6 +62,7 @@ public class CourseCardResponse {
                 .title(course.getTitle())
                 .teacherName(course.getTeacherProfile().getUser().getName())
                 .teacherProfileImageUrl(course.getTeacherProfile().getUser().getProfileImageUrl())
+                .teacherVerified(course.getTeacherProfile().getUser().isVerified())
                 .subjectName(course.getSubject().getName())
                 .targetGrade(course.getTargetGrade())
                 .teachingMode(course.getTeachingMode())

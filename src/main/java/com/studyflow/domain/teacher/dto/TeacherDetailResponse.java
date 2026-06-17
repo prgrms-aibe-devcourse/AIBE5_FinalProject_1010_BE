@@ -27,6 +27,7 @@ public class TeacherDetailResponse {
     private String teachingStyle;       // 수업 방식
     private String introduction;        // 자기소개 본문
     private int naegongScore;           // 내공 점수
+    private boolean verified;           // 관리자 인증 완료 여부 (User.isVerified)
     private BigDecimal totalTeachingHours;       // 누적 수업 시간
     private List<String> specialtySubjects;      // 전문 과목명 목록
 
@@ -64,6 +65,7 @@ public class TeacherDetailResponse {
                 .teachingStyle(profile.getTeachingStyle())
                 .introduction(profile.getIntroduction())
                 .naegongScore(profile.getNaegongScore())
+                .verified(profile.getUser().isVerified())
                 .totalTeachingHours(profile.getTotalTeachingHours())
                 .specialtySubjects(specialtySubjects)
                 .answerCount(answerCount)
