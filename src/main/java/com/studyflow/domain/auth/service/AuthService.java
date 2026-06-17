@@ -226,7 +226,12 @@ public class AuthService {
         });
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
-        userRepository.save(user);
+        try {
+            // saveAndFlush로 즉시 INSERT — 동시 요청 시 DB 유니크 제약 위반을 이 자리에서 잡기 위함
+            userRepository.saveAndFlush(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
+        }
         // 회원 저장 성공 후 단회용 토큰 삭제 — 저장 전 삭제 시 이후 예외로 토큰만 소진되는 문제 방지
         redisTemplate.delete(tokenKey);
 
