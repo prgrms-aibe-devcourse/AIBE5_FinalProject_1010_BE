@@ -1,5 +1,6 @@
 package com.studyflow.domain.classroom.controller;
 
+import com.studyflow.domain.classroom.service.WhiteboardDrawPermissionStore;
 import com.studyflow.domain.classroom.service.WhiteboardStateStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,9 @@ import java.util.Map;
  *   <li>type == "live": 그리는 중 미리보기 — 상태 변경/순번 없이 그대로 중계(휘발성).</li>
  * </ul>
  * 인증은 STOMP CONNECT 시 WebSocketAuthChannelInterceptor가 Principal에 userId를 넣어둔다.
- * op는 고빈도라 메시지마다 DB 멤버십 검증은 하지 않고 CONNECT 인증으로 게이팅한다(권한 세분화는 후속).</p>
+ * op는 고빈도라 메시지마다 DB 멤버십 검증은 하지 않고 CONNECT 인증으로 1차 게이팅한다.
+ * 추가로 "판서 권한"(이슈 #162)은 메모리 캐시({@link WhiteboardDrawPermissionStore})로 검사한다
+ * — 기본적으로 선생님만 그릴 수 있고, 권한 없는 학생의 ops/live는 무시한다.</p>
  */
 @Slf4j
 @Controller
@@ -37,6 +40,7 @@ public class ClassroomWhiteboardWebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final WhiteboardStateStore stateStore;
+    private final WhiteboardDrawPermissionStore drawPermissionStore;
 
     @MessageMapping("/classroom-sessions/{sessionId}/whiteboard")
     public void relay(
@@ -48,9 +52,16 @@ public class ClassroomWhiteboardWebSocketController {
         if (principal == null) {
             return;
         }
-        message.put("senderId", Long.valueOf(principal.getName()));
+        Long senderId = Long.valueOf(principal.getName());
+        message.put("senderId", senderId);
 
         String type = String.valueOf(message.get("type"));
+
+        // 판서 권한 게이팅(이슈 #162) — 권한 없는 참가자(기본: 학생)의 변경(ops)·미리보기(live)는 조용히 무시.
+        // 선생님(호스트)은 입장 시 canDraw=true. 권한자 집합은 인메모리 캐시로 검사(고빈도 메시지라 DB 미조회).
+        if (("ops".equals(type) || "live".equals(type)) && !drawPermissionStore.canDraw(sessionId, senderId)) {
+            return;
+        }
 
         // 그리는 중 미리보기: 상태를 바꾸지 않는 휘발성 메시지. 순번 없이 그대로 중계.
         if ("live".equals(type)) {

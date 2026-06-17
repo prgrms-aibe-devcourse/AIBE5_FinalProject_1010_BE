@@ -60,6 +60,7 @@ public class ClassroomService {
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
+    private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -125,6 +126,8 @@ public class ClassroomService {
         participantRepository.findBySessionIdAndUserId(session.getId(), teacherUserId)
                 .orElseGet(() -> participantRepository.save(
                         ClassroomParticipant.join(session, userRepository.getReferenceById(teacherUserId), true)));
+        // 호스트(선생님)는 판서 권한 보장 — 화이트보드 권한 캐시에 등록(이슈 #162)
+        whiteboardDrawPermissionStore.grant(session.getId(), teacherUserId);
     }
 
     /**
@@ -164,6 +167,12 @@ public class ClassroomService {
                 .findBySessionIdAndUserId(sessionId, userId)
                 .orElseGet(() -> joinNewParticipant(session, userId, isHost));
 
+        // 판서 권한이 있는 참가자(기본: 선생님)는 화이트보드 권한 캐시에 등록(이슈 #162).
+        // 학생은 canDraw=false라 등록되지 않아 그릴 수 없다(선생님이 권한을 줘야 함).
+        if (participant.isCanDraw()) {
+            whiteboardDrawPermissionStore.grant(sessionId, userId);
+        }
+
         return ClassroomParticipantResponse.from(participant);
     }
 
@@ -194,6 +203,8 @@ public class ClassroomService {
         session.close();
         // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
         whiteboardStateStore.clear(session.getId());
+        // 화이트보드 판서 권한 캐시도 함께 정리(이슈 #162).
+        whiteboardDrawPermissionStore.clear(session.getId());
         // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
         messagingTemplate.convertAndSend(
                 "/sub/classroom-sessions/" + session.getId() + "/events",
@@ -253,6 +264,28 @@ public class ClassroomService {
         //   이 API가 곧바로 효력을 갖는다. canDraw/canShareScreen/canChat은 정상 동작.
         boolean canPublish = request.canPublish() != null ? request.canPublish() : participant.isCanPublish();
         participant.updatePermissions(request.canDraw(), request.canShareScreen(), request.canChat(), canPublish);
+
+        // 화이트보드 판서 권한 캐시 동기화 + 대상에게 실시간 통지(이슈 #162).
+        // (session/user 는 LAZY지만 id getter는 프록시 초기화 없이 FK를 반환 → 추가 쿼리 없음)
+        Long sessionId = participant.getSession().getId();
+        Long targetUserId = participant.getUser().getId();
+        if (participant.isCanDraw()) {
+            whiteboardDrawPermissionStore.grant(sessionId, targetUserId);
+        } else {
+            whiteboardDrawPermissionStore.revoke(sessionId, targetUserId);
+        }
+        // 권한 변경 토픽 브로드캐스트 — 대상 클라가 새로고침 없이 즉시 도구 활성/비활성 반영.
+        messagingTemplate.convertAndSend(
+                "/sub/classroom-sessions/" + sessionId + "/permissions",
+                Map.of(
+                        "participantId", participant.getId(),
+                        "userId", targetUserId,
+                        "canDraw", participant.isCanDraw(),
+                        "canShareScreen", participant.isCanShareScreen(),
+                        "canChat", participant.isCanChat(),
+                        "canPublish", participant.isCanPublish()
+                ));
+
         return ParticipantPermissionResponse.from(participant);
     }
 
