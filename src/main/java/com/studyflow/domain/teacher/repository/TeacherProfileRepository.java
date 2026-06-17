@@ -60,6 +60,19 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
             @Param("subjectIds") List<Long> subjectIds,
             Pageable pageable);
 
+    // 여러 선생님의 전문 과목명 일괄 조회 — 목록 카드에서 N+1 방지
+    // 반환: TeacherSpecialty{ teacherProfileId, subjectName } (선생님당 과목 수만큼 행)
+    interface TeacherSpecialty {
+        Long getTeacherProfileId();
+        String getSubjectName();
+    }
+
+    @Query("SELECT tp.id AS teacherProfileId, s.name AS subjectName " +
+           "FROM TeacherProfile tp JOIN tp.specialtySubjects s " +
+           "WHERE tp.id IN :teacherProfileIds")
+    List<TeacherSpecialty> findSpecialtySubjectsByTeacherProfileIds(
+            @Param("teacherProfileIds") List<Long> teacherProfileIds);
+
     // 선생님 상세 조회 — user JOIN FETCH
     @Query("SELECT tp FROM TeacherProfile tp " +
            "JOIN FETCH tp.user u " +

@@ -135,9 +135,23 @@ public class TeacherService {
                         TeacherCourseCount::getCount
                 ));
 
-        // 3단계: TeacherProfile → TeacherCardResponse 변환
+        // 3단계: 전문 과목명 일괄 조회 (N+1 방지) — teacherProfileId → 과목명 목록 Map으로 변환
+        Map<Long, List<String>> specialtyMap = teacherProfileRepository
+                .findSpecialtySubjectsByTeacherProfileIds(teacherProfileIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        TeacherProfileRepository.TeacherSpecialty::getTeacherProfileId,
+                        Collectors.mapping(
+                                TeacherProfileRepository.TeacherSpecialty::getSubjectName,
+                                Collectors.toList())
+                ));
+
+        // 4단계: TeacherProfile → TeacherCardResponse 변환
         return profiles.map(profile ->
-                TeacherCardResponse.of(profile, courseCounts.getOrDefault(profile.getId(), 0L))
+                TeacherCardResponse.of(
+                        profile,
+                        courseCounts.getOrDefault(profile.getId(), 0L),
+                        specialtyMap.getOrDefault(profile.getId(), List.of()))
         );
     }
 

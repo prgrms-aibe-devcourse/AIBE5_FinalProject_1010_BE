@@ -7,7 +7,6 @@ import com.studyflow.domain.course.enums.CourseSort;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.course.specification.CourseSpecification;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
-import com.studyflow.domain.enrollment.repository.EnrollmentRepository.CourseEnrollmentCount;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,17 +38,20 @@ public class CourseSearchService {
                 .and(CourseSpecification.hasKeyword(request.getKeyword()))
                 .and(CourseSpecification.hasSubjects(request.getSubjectIds()))
                 .and(CourseSpecification.hasTargetGrades(request.getTargetGrades()))
+                .and(CourseSpecification.hasTeachingMode(request.getTeachingMode()))
+                .and(CourseSpecification.hasRegions(request.getRegions()))
                 .and(CourseSpecification.hasMinPrice(request.getMinPrice()))
                 .and(CourseSpecification.hasMaxPrice(request.getMaxPrice()))
                 .and(CourseSpecification.hasMinGroupSize(request.getMinGroupSize()))
                 .and(CourseSpecification.hasMaxGroupSize(request.getMaxGroupSize()));
 
+        CourseSort sortType = request.getSort() != null ? request.getSort() : CourseSort.LATEST;
+
         // 2단계: 요청의 sort 필드로 정렬 기준 생성 후 Pageable에 반영
-        // 컨트롤러에서 넘어온 Pageable의 sort는 무시하고 request.sort를 우선 사용
         Pageable sortedPageable = PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
-                buildSort(request.getSort())
+                buildSort(sortType)
         );
 
         // 3단계: 필터 + 정렬 + 페이지네이션으로 수업 목록 조회
@@ -76,13 +78,12 @@ public class CourseSearchService {
         ));
     }
 
-    // request.sort 값을 Spring Data Sort 객체로 변환
+    // request.sort 값을 Spring Data Sort 객체로 변환 — 호출부에서 항상 non-null로 전달됨
     private Sort buildSort(CourseSort sort) {
-        if (sort == null) return Sort.by(Sort.Direction.DESC, "createdAt");
         return switch (sort) {
-            case PRICE_ASC -> Sort.by(Sort.Direction.ASC, "pricePerSession");
+            case PRICE_ASC  -> Sort.by(Sort.Direction.ASC,  "pricePerSession");
             case PRICE_DESC -> Sort.by(Sort.Direction.DESC, "pricePerSession");
-            case LATEST -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case LATEST     -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
     }
 

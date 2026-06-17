@@ -3,8 +3,11 @@ package com.studyflow.domain.course.dto.search;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.TargetGrade;
+import com.studyflow.domain.course.enums.TeachingMode;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.time.LocalDate;
 
 @Getter
 @Builder
@@ -23,6 +26,18 @@ public class CourseCardResponse {
     private String subjectName;
 
     private TargetGrade targetGrade;
+
+    // 수업 방식 (ONLINE / OFFLINE) — 카드 칩 표시 + 지역 필터 맥락
+    private TeachingMode teachingMode;
+
+    // 대면 수업 장소 (전체 주소) — OFFLINE일 때만 값 존재
+    private String location;
+
+    // 회당 수업 시간(분)
+    private int durationMinutes;
+
+    // 모집 마감일 — 카드 D-day 배지용 (null이면 마감 미설정)
+    private LocalDate recruitDeadline;
 
     // 회당 수업료 (원)
     private int pricePerSession;
@@ -46,6 +61,10 @@ public class CourseCardResponse {
                 .teacherProfileImageUrl(course.getTeacherProfile().getUser().getProfileImageUrl())
                 .subjectName(course.getSubject().getName())
                 .targetGrade(course.getTargetGrade())
+                .teachingMode(course.getTeachingMode())
+                .location(course.getLocation())
+                .durationMinutes(course.getDurationMinutes())
+                .recruitDeadline(course.getRecruitDeadline())
                 .pricePerSession(course.getPricePerSession())
                 .maxStudents(course.getMaxStudents())
                 .currentStudents(currentStudents)
