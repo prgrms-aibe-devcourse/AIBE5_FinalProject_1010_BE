@@ -17,6 +17,9 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     // 특정 상태의 신청 존재 여부 확인 — 주로 PENDING 중복 신청 방지에 사용
     boolean existsByUserIdAndCourseIdAndStatus(Long userId, Long courseId, EnrollmentRequestStatus status);
 
+    // 수업 삭제 가능 여부 확인 — 신청 이력이 한 건이라도 있으면 삭제 불가
+    boolean existsByCourseId(Long courseId);
+
     // 수업 삭제 시 해당 수업의 PENDING 신청을 일괄 REJECTED 처리
     @Transactional
     @Modifying(clearAutomatically = true)

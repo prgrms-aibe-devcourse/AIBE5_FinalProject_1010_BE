@@ -18,6 +18,9 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
      */
     Optional<ChatRoom> findByRoomKey(String roomKey);
 
+    // 수업 삭제 가능 여부 확인 — 채팅방이 하나라도 있으면 삭제 불가
+    boolean existsByCourseId(Long courseId);
+
     /**
      * 내가 참여 중인 채팅방 목록을 조회한다.
      *
