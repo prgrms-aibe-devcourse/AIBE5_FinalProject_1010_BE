@@ -21,6 +21,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     // 특정 사용자가 특정 수업에 해당 상태로 수강 중인지 빠르게 확인
     boolean existsByUserIdAndCourseIdAndStatus(Long userId, Long courseId, EnrollmentStatus status);
 
+    // 수업 삭제 가능 여부 확인 — 수강 이력이 한 건이라도 있으면 삭제 불가
+    boolean existsByCourseId(Long courseId);
+
     // 특정 수업의 수강생 목록 (User 정보 포함 페치 — N+1 방지)
     @Query("SELECT e FROM Enrollment e JOIN FETCH e.user WHERE e.course.id = :courseId AND e.status = :status")
     List<Enrollment> findWithUserByCourseIdAndStatus(

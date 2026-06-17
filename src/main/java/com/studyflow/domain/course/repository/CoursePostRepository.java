@@ -15,6 +15,9 @@ public interface CoursePostRepository extends JpaRepository<CoursePost, Long> {
     // 삭제되지 않은 게시글 목록 (페이징)
     Page<CoursePost> findByCourseIdAndDeletedAtIsNull(Long courseId, Pageable pageable);
 
+    // 수업 삭제 가능 여부 확인 — soft-deleted 포함 게시글이 한 건이라도 있으면 삭제 불가
+    boolean existsByCourseId(Long courseId);
+
     // 수업 범위 안에서 단건 조회 (삭제된 게시글 제외)
     Optional<CoursePost> findByIdAndCourseIdAndDeletedAtIsNull(Long id, Long courseId);
 

@@ -17,6 +17,7 @@ import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundExceptio
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
+import com.studyflow.domain.course.exception.CourseNotDeletableException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -280,6 +281,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
+    }
+
+    @ExceptionHandler(CourseNotDeletableException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseNotDeletable(CourseNotDeletableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorCode.COURSE_NOT_DELETABLE.toBody(ex.getMessage()));
     }
 
     // 선생님 인증 파일이 유효하지 않은 경우 (존재하지 않는 파일(404), 본인 파일이 아님(403))
