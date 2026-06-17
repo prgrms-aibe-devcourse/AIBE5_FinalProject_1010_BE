@@ -37,6 +37,10 @@ public class SignupRequest {
 	@NotBlank
 	private String email;
 
+	public String getEmail() {
+		return email != null ? email.toLowerCase() : null;
+	}
+
 	@NotBlank
 	@Size(min = 8, max = 128)
 	private String password;
