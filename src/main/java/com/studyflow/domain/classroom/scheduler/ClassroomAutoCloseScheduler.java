@@ -20,7 +20,11 @@ public class ClassroomAutoCloseScheduler {
 
     private final ClassroomService classroomService;
 
-    /** 1분마다 호스트 부재 세션 스윕(이전 실행 종료 후 60초). */
+    /**
+     * 1분마다 호스트 부재 세션 스윕(이전 실행 종료 후 60초).
+     * ⚠️ 다중 인스턴스 수평 확장 시에는 모든 인스턴스가 동시에 돌아 같은 세션을 중복 종료(종료 이벤트 중복 송신)할 수 있다.
+     *   그때는 ShedLock 등 분산 락을 도입할 것(현재 단일 인스턴스 기준이라 미적용).
+     */
     @Scheduled(fixedDelay = 60_000L)
     public void sweepIdleSessions() {
         try {

@@ -48,8 +48,8 @@ public class ClassroomChat extends BaseTimeEntity {
     @Column(length = 16)
     private ChatMessageType messageType = ChatMessageType.TEXT;
 
-    /** 메시지 본문(IMAGE면 캡션이거나 null) */
-    @Column(columnDefinition = "TEXT")
+    /** 메시지 본문(IMAGE면 캡션, 캡션 없으면 ""). 항상 non-null로 저장해 기존 NOT NULL 제약과 일치(마이그레이션 불필요). */
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
     /** 이미지 첨부(여러 장) */
