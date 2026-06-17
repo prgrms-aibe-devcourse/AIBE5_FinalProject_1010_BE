@@ -331,6 +331,7 @@ public class AuthService {
 
         user.changePassword(passwordEncoder.encode(request.getNewPassword()));
         redisTemplate.delete(tokenKey);
+        redisTemplate.delete(RedisPrefixProvider.passwordResetLatestKey(email));
         redisTemplate.delete(RedisPrefixProvider.refreshTokenKey(user.getId()));
     }
 
@@ -357,9 +358,23 @@ public class AuthService {
         redisTemplate.opsForValue().set(cooldownKey, "1", EMAIL_SEND_COOLDOWN_SECONDS, TimeUnit.SECONDS);
 
         String token = UUID.randomUUID().toString();
+
+        // 이전에 발급된 토큰이 있으면 명시적으로 무효화
+        String latestKey = RedisPrefixProvider.passwordResetLatestKey(request.getEmail());
+        String prevToken = redisTemplate.opsForValue().get(latestKey);
+        if (prevToken != null) {
+            redisTemplate.delete(RedisPrefixProvider.passwordResetTokenKey(prevToken));
+        }
+
         redisTemplate.opsForValue().set(
                 RedisPrefixProvider.passwordResetTokenKey(token),
                 request.getEmail(),
+                PASSWORD_RESET_TOKEN_TTL_MINUTES,
+                TimeUnit.MINUTES
+        );
+        redisTemplate.opsForValue().set(
+                latestKey,
+                token,
                 PASSWORD_RESET_TOKEN_TTL_MINUTES,
                 TimeUnit.MINUTES
         );
