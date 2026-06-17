@@ -163,10 +163,12 @@ public class CourseSpecification {
         return sb.append('%').toString();
     }
 
-    // LIKE 패턴 내 와일드카드 문자(%, _) 이스케이프
+    // LIKE 패턴 내 와일드카드 문자(%, _) 이스케이프.
+    // 처리 순서가 중요: 백슬래시(이스케이프 문자 자체)를 반드시 먼저 치환해야 한다.
+    // 순서가 바뀌면 % → \% 변환 후 다시 \ → \\ 로 치환되어 \\% 가 되는 이중 이스케이프 버그 발생.
     private static String escapeLike(String token) {
-        return token.replace("\\", "\\\\")
-                    .replace("%", ESCAPE_CHAR + "%")
+        return token.replace("\\", "\\\\")   // 1) 이스케이프 문자 자체를 먼저 처리
+                    .replace("%", ESCAPE_CHAR + "%")  // 2) 그 다음 와일드카드 처리
                     .replace("_", ESCAPE_CHAR + "_");
     }
 

@@ -78,9 +78,8 @@ public class CourseSearchService {
         ));
     }
 
-    // request.sort 값을 Spring Data Sort 객체로 변환
+    // request.sort 값을 Spring Data Sort 객체로 변환 — 호출부에서 항상 non-null로 전달됨
     private Sort buildSort(CourseSort sort) {
-        if (sort == null) return Sort.by(Sort.Direction.DESC, "createdAt");
         return switch (sort) {
             case PRICE_ASC  -> Sort.by(Sort.Direction.ASC,  "pricePerSession");
             case PRICE_DESC -> Sort.by(Sort.Direction.DESC, "pricePerSession");
