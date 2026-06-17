@@ -90,5 +90,6 @@ public class CourseUpdateService {
 
         // hard delete 대신 soft delete — Enrollment, ChatRoom 등 FK 참조로 인한 오류 방지
         course.close();
+        courseRepository.save(course);
     }
 }
