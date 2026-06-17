@@ -15,14 +15,18 @@ import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
+import com.studyflow.domain.notification.enums.NotificationType;
+import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 강의실(실시간 화상수업) 세션 서비스.
@@ -56,6 +61,7 @@ public class ClassroomService {
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 호스트(선생님)가 이 시간 동안 하트비트가 없으면 강의실을 자동 종료한다. */
     private static final long HOST_ABSENCE_LIMIT_SECONDS = 5 * 60; // 5분
@@ -73,14 +79,30 @@ public class ClassroomService {
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
         assertHost(course, teacherUserId);
 
-        ClassroomSession session = sessionRepository
-                .findTopByCourseIdAndStatusOrderByStartedAtDesc(courseId, ClassroomStatus.OPEN)
+        Optional<ClassroomSession> existing = sessionRepository
+                .findTopByCourseIdAndStatusOrderByStartedAtDesc(courseId, ClassroomStatus.OPEN);
+        ClassroomSession session = existing
                 .orElseGet(() -> sessionRepository.save(ClassroomSession.open(course)));
 
         // 선생님을 호스트 참가자로 등록(멱등) — canPublish=true
         ensureHostParticipant(session, teacherUserId);
 
+        // "새로" 연 경우에만 ACTIVE 수강생에게 강의실 열림 알림(멱등 재오픈 시 중복 알림 방지)
+        if (existing.isEmpty()) {
+            notifyClassroomOpened(course);
+        }
+
         return ClassroomSessionResponse.from(session);
+    }
+
+    /** 강의실 열림 → 그 수업의 ACTIVE 수강생에게 알림 발행(클릭 시 /classroom/{courseId}로 이동). */
+    private void notifyClassroomOpened(Course course) {
+        String title = "강의실이 열렸어요";
+        String message = "'" + course.getTitle() + "' 강의실이 열렸어요. 지금 입장해 보세요.";
+        for (Enrollment e : enrollmentRepository.findWithUserByCourseIdAndStatus(course.getId(), EnrollmentStatus.ACTIVE)) {
+            eventPublisher.publishEvent(new NotificationCreatedEvent(
+                    e.getUser().getId(), NotificationType.CLASSROOM_OPENED, title, message, course.getId()));
+        }
     }
 
     /**

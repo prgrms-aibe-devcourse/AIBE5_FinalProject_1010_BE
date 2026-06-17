@@ -9,12 +9,15 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -22,6 +25,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // 내 알림 목록 조회 (최신순, 페이징)
     public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
@@ -83,6 +87,14 @@ public class NotificationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void create(Long recipientId, NotificationType type, String title, String message, Long relatedId) {
         User recipient = userRepository.getReferenceById(recipientId);
-        notificationRepository.save(Notification.create(recipient, type, title, message, relatedId));
+        Notification saved = notificationRepository.save(Notification.create(recipient, type, title, message, relatedId));
+        // 실시간 push — 수신자에게만(STOMP /user/{userId}/sub/notifications). 클라는 /user/sub/notifications 구독.
+        // 실패해도 영속 알림은 남으므로(REST로 받음) 흐름 끊지 않게 예외를 삼킨다.
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(recipientId), "/sub/notifications", NotificationResponse.from(saved));
+        } catch (Exception e) {
+            log.warn("알림 실시간 push 실패 (recipientId={}): {}", recipientId, e.getMessage());
+        }
     }
 }
