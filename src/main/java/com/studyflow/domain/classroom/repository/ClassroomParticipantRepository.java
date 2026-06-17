@@ -12,6 +12,9 @@ public interface ClassroomParticipantRepository extends JpaRepository<ClassroomP
 
     Optional<ClassroomParticipant> findBySessionIdAndUserId(Long sessionId, Long userId);
 
+    // 세션 참가자 목록(권한 포함) — 선생님 권한 토글 UI용 roster (이슈 #99/#162).
+    List<ClassroomParticipant> findBySessionIdOrderByJoinedAtAsc(Long sessionId);
+
     // 판서 권한이 있는 참가자의 userId 목록 — 화이트보드 인메모리 권한 캐시 로딩용(이슈 #162).
     // p.user.id 는 FK 컬럼을 그대로 읽어 user 테이블 조인이 발생하지 않는다.
     @Query("SELECT p.user.id FROM ClassroomParticipant p WHERE p.session.id = :sessionId AND p.canDraw = true")

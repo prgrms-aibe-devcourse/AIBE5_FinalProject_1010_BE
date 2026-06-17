@@ -177,6 +177,22 @@ public class ClassroomService {
     }
 
     /**
+     * 세션 참가자 목록 조회 — 수업 멤버만. 선생님의 판서 권한 토글 UI(roster)에서 사용한다(이슈 #99/#162).
+     * 참가자별 participantId·userId·권한(canDraw 등)을 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassroomParticipantResponse> getParticipants(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        verifyMemberAndIsHost(session.getCourse(), userId); // 멤버 아니면 403
+        return participantRepository.findBySessionIdOrderByJoinedAtAsc(sessionId)
+                .stream()
+                .map(ClassroomParticipantResponse::from)
+                .toList();
+    }
+
+    /**
      * 강의실 종료 (22-6) — 담당 선생님만.
      */
     @Transactional
