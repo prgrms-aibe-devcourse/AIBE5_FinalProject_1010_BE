@@ -11,6 +11,7 @@ import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.enrollment.entity.EnrollmentRequest;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
+import com.studyflow.domain.qna.repository.QnaAnswerRepository;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
@@ -64,6 +65,7 @@ public class TeacherService {
     private final TeacherVerificationRepository teacherVerificationRepository;
     private final FileAssetRepository fileAssetRepository;
     private final SubjectRepository subjectRepository;
+    private final QnaAnswerRepository qnaAnswerRepository;
 
     // 검색 노출 기준 상태 — RECRUITING(모집 중) + IN_PROGRESS(수강 중)
     private static final List<CourseStatus> VISIBLE_STATUSES =
@@ -246,7 +248,12 @@ public class TeacherService {
                 .map(TeacherCourseCardResponse::from)
                 .toList();
 
-        return TeacherDetailResponse.of(profile, courses);
+        // 3단계: 질문게시판 활동 통계 (작성 답변 수 / 채택된 답변 수)
+        Long teacherUserId = profile.getUser().getId();
+        long answerCount   = qnaAnswerRepository.countByAuthorId(teacherUserId);
+        long acceptedCount = qnaAnswerRepository.countByAuthorIdAndAcceptedTrue(teacherUserId);
+
+        return TeacherDetailResponse.of(profile, courses, answerCount, acceptedCount);
     }
 
     // 선생님 본인 인증 신청 목록 조회 — 최신순 페이지네이션

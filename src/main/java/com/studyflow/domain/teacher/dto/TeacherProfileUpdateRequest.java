@@ -16,7 +16,7 @@ public class TeacherProfileUpdateRequest {
     @Size(max = 5000)
     private String introduction;
 
-    @Size(max = 500)
+    @Size(max = 5000)
     private String teachingStyle;
 
     // 전문 과목 id 목록 — null이면 미변경, 빈 배열이면 전체 해제
