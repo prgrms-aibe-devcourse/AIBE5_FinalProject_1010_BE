@@ -95,7 +95,6 @@ public class CourseUpdateService {
     }
 
     // 수업 삭제 (하위 호환 유지) — 실제로는 물리 삭제가 아닌 CLOSED 처리
-    @Transactional
     public void deleteCourse(Long courseId, Long teacherUserId) {
         closeCourse(courseId, teacherUserId);
     }
