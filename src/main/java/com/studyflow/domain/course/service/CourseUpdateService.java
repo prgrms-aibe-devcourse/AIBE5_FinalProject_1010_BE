@@ -68,9 +68,10 @@ public class CourseUpdateService {
         return CourseCreateResponse.from(course);
     }
 
-    // 수업 삭제
+    // 수업 종료 — PATCH /api/v1/courses/{courseId}/close 전용 메서드
+    // 소유권 검증, ACTIVE 수강생 확인, PENDING 일괄 거절, status=CLOSED 처리
     @Transactional
-    public void deleteCourse(Long courseId, Long teacherUserId) {
+    public void closeCourse(Long courseId, Long teacherUserId) {
         Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
 
@@ -79,17 +80,23 @@ public class CourseUpdateService {
             throw new CourseAccessForbiddenException();
         }
 
-        // 수강 중인 학생이 있으면 삭제 불가
+        // 수강 중인 학생이 있으면 종료 불가
         long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
         if (activeStudents > 0) {
             throw new CourseHasActiveStudentsException();
         }
 
-        // 수업 닫기 전 PENDING 신청 일괄 거절 — 학생 신청 내역에 "대기 중"이 남지 않도록
+        // 종료 전 PENDING 신청 일괄 거절 — 학생 신청 내역에 "대기 중"이 남지 않도록
         enrollmentRequestRepository.bulkRejectPendingByCourseId(courseId);
 
         // hard delete 대신 soft delete — Enrollment, ChatRoom 등 FK 참조로 인한 오류 방지
         course.close();
         courseRepository.save(course);
+    }
+
+    // 수업 삭제 (하위 호환 유지) — 실제로는 물리 삭제가 아닌 CLOSED 처리
+    @Transactional
+    public void deleteCourse(Long courseId, Long teacherUserId) {
+        closeCourse(courseId, teacherUserId);
     }
 }

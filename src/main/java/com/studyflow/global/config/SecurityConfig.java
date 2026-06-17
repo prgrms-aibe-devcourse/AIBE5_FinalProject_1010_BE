@@ -58,6 +58,7 @@ public class SecurityConfig {
                         // Spring Security는 첫 번째 매칭 규칙을 적용하므로,
                         // publicUrls의 permitAll이 앞에 오면 같은 경로의 역할 규칙이 가려집니다.
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*/close").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/courses/*").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enrollment-requests").hasRole("STUDENT")
