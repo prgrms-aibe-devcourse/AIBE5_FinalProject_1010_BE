@@ -24,9 +24,12 @@ import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,6 +55,10 @@ public class ClassroomService {
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    /** 호스트(선생님)가 이 시간 동안 하트비트가 없으면 강의실을 자동 종료한다. */
+    private static final long HOST_ABSENCE_LIMIT_SECONDS = 5 * 60; // 5분
 
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
@@ -151,15 +158,60 @@ public class ClassroomService {
         if (!session.isOpen()) {
             throw new ClassroomNotOpenException("이미 종료된 강의실입니다.");
         }
-        session.close();
-
-        // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
-        whiteboardStateStore.clear(sessionId);
-
-        // TODO: 종료가 "실제 강제 퇴장"이 되도록 LiveKit RoomService.DeleteRoom 호출 필요.
-        //  현재는 DB status만 CLOSED로 바꾸므로, 이미 발급된 토큰(TTL 2h)을 든 클라이언트는
-        //  LiveKit 서버에 직접 재연결할 수 있다. (서버 API 연동 전까지 TTL 단축으로 완화)
+        endSession(session, "host");
         return ClassroomCloseResponse.from(session);
+    }
+
+    /**
+     * 세션을 실제로 종료하는 공통 처리(수동 종료 / 호스트 부재 자동종료 공용).
+     * 1) status=CLOSED, 2) 화이트보드 메모리 정리, 3) 종료 이벤트 브로드캐스트(모든 참가자 자동 퇴장).
+     *
+     * @param reason "host"(선생님 수동 종료) | "host-absent"(호스트 5분 부재 자동종료)
+     */
+    private void endSession(ClassroomSession session, String reason) {
+        session.close();
+        // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
+        whiteboardStateStore.clear(session.getId());
+        // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
+        messagingTemplate.convertAndSend(
+                "/sub/classroom-sessions/" + session.getId() + "/events",
+                Map.of("type", "closed", "reason", reason));
+        // TODO: LiveKit RoomService.DeleteRoom로 미디어 룸도 강제 종료(서버 SDK 연동 전까지는
+        //  클라이언트가 종료 이벤트를 받아 스스로 연결을 끊는 방식).
+    }
+
+    /**
+     * 호스트(선생님) 하트비트 — 강의실에 접속해 있는 동안 주기적으로 호출.
+     * 호스트가 호출하면 lastHostSeenAt을 갱신해 자동종료 타이머를 리셋한다.
+     * 이미 종료된 세션이면 응답의 status=CLOSED로 알려 클라가 나가게 한다.
+     *
+     * @return 현재 세션 상태(OPEN/CLOSED) 문자열
+     */
+    @Transactional
+    public String heartbeat(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
+        if (isHost && session.isOpen()) {
+            session.touchHost();
+        }
+        return session.getStatus().name();
+    }
+
+    /**
+     * 호스트 부재 자동종료 스윕 — 스케줄러가 주기적으로 호출.
+     * 호스트 하트비트가 5분 넘게 끊긴 OPEN 세션을 강제 종료한다(선생님이 종료 버튼 없이 나가거나
+     * 새로고침/크롬 종료/재부팅 등으로 사라진 경우 학생들도 자동 퇴장).
+     */
+    @Transactional
+    public void autoCloseIdleSessions() {
+        LocalDateTime cutoff = LocalDateTime.now().minusSeconds(HOST_ABSENCE_LIMIT_SECONDS);
+        List<ClassroomSession> idle =
+                sessionRepository.findByStatusAndLastHostSeenAtBefore(ClassroomStatus.OPEN, cutoff);
+        for (ClassroomSession session : idle) {
+            endSession(session, "host-absent");
+        }
     }
 
     /**

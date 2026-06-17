@@ -82,4 +82,15 @@ public class ClassroomSessionController {
     ) {
         return ResponseEntity.ok(classroomService.closeSession(sessionId, userId));
     }
+
+    // 호스트 하트비트 — 선생님 FE가 강의실에 있는 동안 주기적으로 호출(부재 자동종료 타이머 리셋).
+    // 응답 status가 CLOSED면 이미 종료된 것이므로 클라가 강의실에서 나간다.
+    @Operation(summary = "강의실 하트비트", description = "호스트가 접속 중임을 알려 자동종료 타이머를 리셋. 응답 status=OPEN/CLOSED.")
+    @PostMapping("/classroom-sessions/{sessionId}/heartbeat")
+    public ResponseEntity<java.util.Map<String, String>> heartbeat(
+            @PathVariable Long sessionId,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(java.util.Map.of("status", classroomService.heartbeat(sessionId, userId)));
+    }
 }

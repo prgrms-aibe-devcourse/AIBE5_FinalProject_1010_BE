@@ -48,16 +48,26 @@ public class ClassroomSession extends BaseTimeEntity {
     @Column
     private Long durationSeconds;
 
+    /** 호스트(선생님)가 마지막으로 살아있다고 알린(하트비트) 시각 — 부재 자동종료 판단용 */
+    @Column
+    private LocalDateTime lastHostSeenAt;
+
     public static ClassroomSession open(Course course) {
         ClassroomSession session = new ClassroomSession();
         session.course = course;
         session.status = ClassroomStatus.OPEN;
         session.startedAt = LocalDateTime.now();
+        session.lastHostSeenAt = session.startedAt; // 연 직후엔 호스트 접속으로 간주
         return session;
     }
 
     public boolean isOpen() {
         return this.status == ClassroomStatus.OPEN;
+    }
+
+    /** 호스트 하트비트 — "지금 접속해 있음"을 갱신 */
+    public void touchHost() {
+        this.lastHostSeenAt = LocalDateTime.now();
     }
 
     public void close() {
