@@ -2,6 +2,7 @@ package com.studyflow.domain.auth.controller;
 
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
+import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.redis.RedisPrefixProvider;
 import org.junit.jupiter.api.AfterEach;
@@ -12,7 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -82,10 +86,8 @@ class AuthSignupConcurrencyTest {
         // Redis에 남아있는 테스트용 토큰 정리 (성공 스레드가 삭제했을 수도 있음)
         redisTemplate.delete(RedisPrefixProvider.emailVerifiedTokenKey(sharedToken));
         // FK 참조 순서: StudentProfile / TeacherProfile 먼저 삭제 후 User 삭제
-        userRepository.findActiveByEmailAndSocialProvider(
-                TEST_EMAIL,
-                com.studyflow.domain.user.enums.SocialProvider.LOCAL
-        ).ifPresent(user -> {
+        userRepository.findActiveByEmailAndSocialProvider(TEST_EMAIL, SocialProvider.LOCAL)
+        .ifPresent(user -> {
             studentProfileRepository.findByUserId(user.getId()).ifPresent(studentProfileRepository::delete);
             teacherProfileRepository.findByUserId(user.getId()).ifPresent(teacherProfileRepository::delete);
             userRepository.delete(user);
@@ -152,12 +154,9 @@ class AuthSignupConcurrencyTest {
                 .isEqualTo(THREAD_COUNT - 1);
 
         // DB에 해당 이메일로 가입된 계정이 정확히 1개인지 확인
-        assertThat(
-                userRepository.findActiveByEmailAndSocialProvider(
-                        TEST_EMAIL,
-                        com.studyflow.domain.user.enums.SocialProvider.LOCAL
-                )
-        ).as("DB에 동일 이메일 계정은 정확히 1개여야 합니다").isPresent();
+        assertThat(userRepository.findActiveByEmailAndSocialProvider(TEST_EMAIL, SocialProvider.LOCAL))
+                .as("DB에 동일 이메일 계정은 정확히 1개여야 합니다")
+                .isPresent();
     }
 
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
@@ -183,9 +182,9 @@ class AuthSignupConcurrencyTest {
                 """.formatted(email, verifiedToken);
     }
 
-    private org.springframework.http.HttpEntity<String> buildHttpEntity(String body) {
-        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-        return new org.springframework.http.HttpEntity<>(body, headers);
+    private HttpEntity<String> buildHttpEntity(String body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return new HttpEntity<>(body, headers);
     }
 }
