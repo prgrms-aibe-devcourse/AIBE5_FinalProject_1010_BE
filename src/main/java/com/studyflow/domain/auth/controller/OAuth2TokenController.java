@@ -3,10 +3,14 @@ package com.studyflow.domain.auth.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.auth.dto.OAuth2TokenRequest;
+import com.studyflow.domain.auth.entity.LoginHistory;
 import com.studyflow.domain.auth.exception.SignupRequestException;
+import com.studyflow.domain.auth.repository.LoginHistoryRepository;
 import com.studyflow.global.auth.RefreshCookieCreator;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
+import com.studyflow.global.util.UserAgentParser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +45,11 @@ public class OAuth2TokenController {
     private final StringRedisTemplate redisTemplate;
     private final RefreshCookieCreator refreshCookieCreator;
     private final ObjectMapper objectMapper;
+    private final LoginHistoryRepository loginHistoryRepository;
 
     @PostMapping("/oauth2/token")
-    public ResponseEntity<?> exchangeCode(@Valid @RequestBody OAuth2TokenRequest request) {
+    public ResponseEntity<?> exchangeCode(@Valid @RequestBody OAuth2TokenRequest request,
+                                          HttpServletRequest httpRequest) {
         String key = RedisPrefixProvider.oauth2CodeKey(request.getCode());
 
         // getAndDelete: 조회와 동시에 삭제 (one-time 보장)
@@ -74,6 +80,13 @@ public class OAuth2TokenController {
         String refreshToken   = (String) data.get("refreshToken");
         long refreshExpiresIn = ((Number) data.get("refreshExpiresIn")).longValue();
         long accessExpiresIn  = ((Number) data.get("accessExpiresIn")).longValue();
+
+        loginHistoryRepository.save(LoginHistory.of(
+                userId,
+                UserAgentParser.extractClientIp(httpRequest),
+                UserAgentParser.extractDeviceInfo(httpRequest.getHeader("User-Agent")),
+                UserAgentParser.extractBrowser(httpRequest.getHeader("User-Agent"))
+        ));
 
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(refreshToken, refreshExpiresIn);
 

@@ -5,6 +5,8 @@ import com.studyflow.domain.auth.dto.SocialPendingInfoResponse;
 import com.studyflow.domain.auth.dto.SocialSignupRequest;
 import com.studyflow.domain.auth.service.SocialSignupService;
 import com.studyflow.global.auth.RefreshCookieCreator;
+import com.studyflow.global.util.UserAgentParser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -44,8 +46,11 @@ public class SocialSignupController {
     }
 
     @PostMapping("/social-signup")
-    public ResponseEntity<?> socialSignup(@Valid @RequestBody SocialSignupRequest request) {
-        LoginResponse resp = socialSignupService.completeSocialSignup(request);
+    public ResponseEntity<?> socialSignup(@Valid @RequestBody SocialSignupRequest request,
+                                          HttpServletRequest httpRequest) {
+        String ipAddress = UserAgentParser.extractClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        LoginResponse resp = socialSignupService.completeSocialSignup(request, ipAddress, userAgent);
 
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(
                 resp.getRefreshToken(), resp.getRefreshExpiresIn());

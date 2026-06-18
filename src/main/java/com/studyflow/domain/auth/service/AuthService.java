@@ -10,7 +10,10 @@ import com.studyflow.domain.auth.dto.PasswordResetRequest;
 import com.studyflow.domain.auth.exception.PasswordResetTokenInvalidException;
 import com.studyflow.domain.auth.dto.ReissueResponse;
 import com.studyflow.domain.auth.dto.SignupRequest;
+import com.studyflow.domain.auth.entity.LoginHistory;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.auth.repository.LoginHistoryRepository;
+import com.studyflow.global.util.UserAgentParser;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -68,6 +71,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
     private final JavaMailSender mailSender;
+    private final LoginHistoryRepository loginHistoryRepository;
 
     // 이메일 인증 코드 발송 — 6자리 숫자 코드를 생성해 Redis에 5분간 저장 후 발송
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -244,7 +248,7 @@ public class AuthService {
         }
     }
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user = userRepository.findActiveByEmailAndSocialProvider(request.getEmail(),SocialProvider.LOCAL)
                 .orElseThrow(() -> new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다."));
 
@@ -273,6 +277,17 @@ public class AuthService {
                 jwtTokenProvider.getRefreshTokenExpiration(),
                 java.util.concurrent.TimeUnit.MILLISECONDS
         );
+
+        try {
+            loginHistoryRepository.save(LoginHistory.of(
+                    user.getId(),
+                    ipAddress,
+                    UserAgentParser.extractDeviceInfo(userAgent),
+                    UserAgentParser.extractBrowser(userAgent)
+            ));
+        } catch (Exception e) {
+            log.error("로그인 기록 저장 실패 — userId={}, cause={}", user.getId(), e.getMessage(), e);
+        }
 
         return new LoginResponse(user.getId(), user.getName(), user.getRole(),
                 accessToken, refreshToken,
