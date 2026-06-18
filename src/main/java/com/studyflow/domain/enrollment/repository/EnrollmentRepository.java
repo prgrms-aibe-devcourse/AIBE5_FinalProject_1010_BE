@@ -58,6 +58,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
                                                       @Param("status") EnrollmentStatus status,
                                                       Pageable pageable);
 
+    // 중도 포기 처리용 — 알림 발행에 필요한 course→teacherProfile→user, user 한 번에 페치
+    @Query("SELECT e FROM Enrollment e " +
+           "JOIN FETCH e.user " +
+           "JOIN FETCH e.course c " +
+           "JOIN FETCH c.teacherProfile tp " +
+           "JOIN FETCH tp.user " +
+           "WHERE e.id = :id")
+    java.util.Optional<Enrollment> findByIdWithCourseAndUser(@Param("id") Long id);
+
     // 특정 선생님의 전체 누적 수강생 수 — 상태 무관하게 전체 집계 (수업 상세 페이지 선생님 통계용)
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.teacherProfile.id = :teacherProfileId")
     long countByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId);
