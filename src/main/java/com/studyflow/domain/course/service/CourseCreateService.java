@@ -51,6 +51,7 @@ public class CourseCreateService {
         Course saved = courseRepository.save(course);
 
         // 첫 수업 등록 시 선생님 찾기 목록에 자동 노출 — 이미 노출 중이면 변화 없음
+        // @Transactional dirty checking으로 자동 반영되므로 별도 save 불필요
         if (!teacherProfile.isListed()) {
             teacherProfile.updateListed(true);
         }
