@@ -11,6 +11,7 @@ import lombok.Getter;
 @Builder
 public class StudentEnrolledCourseResponse {
 
+    private Long enrollmentId;
     private Long courseId;
     private String title;
     private String subjectName;
@@ -26,6 +27,7 @@ public class StudentEnrolledCourseResponse {
 
     public static StudentEnrolledCourseResponse from(Enrollment enrollment) {
         return StudentEnrolledCourseResponse.builder()
+                .enrollmentId(enrollment.getId())
                 .courseId(enrollment.getCourse().getId())
                 .title(enrollment.getCourse().getTitle())
                 .subjectName(enrollment.getCourse().getSubject().getName())

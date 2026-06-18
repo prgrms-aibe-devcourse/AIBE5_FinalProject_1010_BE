@@ -45,6 +45,7 @@ public class SocialSignupService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginHistoryService loginHistoryService;
 
     /**
      * Redis 임시 데이터에서 폼 pre-fill용 정보를 조회합니다.
@@ -72,7 +73,7 @@ public class SocialSignupService {
         }
     }
 
-    public LoginResponse completeSocialSignup(SocialSignupRequest request) {
+    public LoginResponse completeSocialSignup(SocialSignupRequest request, String ipAddress, String userAgent) {
 
         // 1. 필수 필드 null 검증 — Redis 조회 전에 먼저 수행
         if (request.getToken() == null || request.getToken().isBlank()) {
@@ -184,6 +185,8 @@ public class SocialSignupService {
                 jwtTokenProvider.getRefreshTokenExpiration(),
                 TimeUnit.MILLISECONDS
         );
+
+        loginHistoryService.record(user.getId(), ipAddress, userAgent);
 
         return new LoginResponse(user.getId(), user.getName(), user.getRole(),
                 accessToken, refreshToken,
