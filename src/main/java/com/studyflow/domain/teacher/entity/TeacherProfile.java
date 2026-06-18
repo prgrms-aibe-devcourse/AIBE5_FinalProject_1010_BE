@@ -54,6 +54,11 @@ public class TeacherProfile extends BaseTimeEntity {
     @Column(nullable = false)
     private Integer naegongScore = 0;
 
+    // 선생님 찾기 목록 노출 여부 — 본인이 토글로 제어. 기본값 false(미노출),
+    // 첫 수업 등록 시 자동으로 true로 전환된다.
+    @Column(name = "is_listed", nullable = false)
+    private boolean isListed = false;
+
     // DECIMAL(10,1) 매핑을 위해 BigDecimal 사용
     @Column(nullable = false, precision = 10, scale = 1)
     private BigDecimal totalTeachingHours = BigDecimal.ZERO;
@@ -87,6 +92,11 @@ public class TeacherProfile extends BaseTimeEntity {
         this.address       = address;
         this.introduction  = introduction;
         this.teachingStyle = teachingStyle;
+    }
+
+    // 선생님 찾기 목록 노출 여부 변경 — 마이페이지 토글
+    public void updateListed(boolean listed) {
+        this.isListed = listed;
     }
 
     // 전문 과목 전체 교체 — 전달된 과목 집합으로 갱신

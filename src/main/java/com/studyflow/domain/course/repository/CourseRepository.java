@@ -71,6 +71,14 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     List<TeacherCourseCount> countCoursesByTeacherProfileIds(@Param("teacherProfileIds") List<Long> teacherProfileIds,
                                                              @Param("statuses") List<CourseStatus> statuses);
 
+    // 선생님 찾기 노출 토글 OFF 차단용 — 검색에 노출 중인(공개 + 모집중) 수업 수
+    @Query("SELECT COUNT(c) FROM Course c " +
+           "WHERE c.teacherProfile.id = :teacherProfileId " +
+           "AND c.isListed = true " +
+           "AND c.status = :status")
+    long countSearchableByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId,
+                                           @Param("status") CourseStatus status);
+
     // 관리자 대시보드 — status별 수업 수 (전체는 JpaRepository#count() 사용)
     long countByStatus(CourseStatus status);
 

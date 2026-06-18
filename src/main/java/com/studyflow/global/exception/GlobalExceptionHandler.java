@@ -26,6 +26,7 @@ import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
 import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.teacher.exception.TeacherHasListedCoursesException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
 import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
 import com.studyflow.domain.admin.exception.VerificationNotFoundException;
@@ -267,6 +268,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleTeacherProfileNotFound(TeacherProfileNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorCode.TEACHER_PROFILE_NOT_FOUND.toBody(ex.getMessage()));
+    }
+
+    // 노출 중인 수업이 있는데 선생님 찾기 노출을 끄려 할 때 (400)
+    @ExceptionHandler(TeacherHasListedCoursesException.class)
+    public ResponseEntity<Map<String, Object>> handleTeacherHasListedCourses(TeacherHasListedCoursesException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)

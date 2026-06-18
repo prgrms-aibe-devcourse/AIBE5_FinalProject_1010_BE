@@ -31,6 +31,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     STUDENT_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "학생 프로필을 찾을 수 없습니다."),
     TEACHER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "선생님 프로필을 찾을 수 없습니다."),
+    TEACHER_HAS_LISTED_COURSES(HttpStatus.BAD_REQUEST, "수업 찾기에 노출 중인 수업이 있어 선생님 찾기 노출을 끌 수 없습니다. 먼저 수업을 종료해주세요."),
 
     // 선생님 인증
     VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
