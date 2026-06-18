@@ -59,7 +59,7 @@ public class ClassroomSessionController {
             @Parameter(hidden = true) @AuthenticationPrincipal Long userId
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(classroomService.joinSession(sessionId, userId));
+                .body(classroomService.joinSessionSafe(sessionId, userId));
     }
 
     // 세션 참가자 목록 — 수업 멤버. 선생님 판서 권한 토글 UI(roster)용 (이슈 #99/#162).
