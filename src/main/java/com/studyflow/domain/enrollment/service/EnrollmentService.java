@@ -3,11 +3,10 @@ package com.studyflow.domain.enrollment.service;
 import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.exception.EnrollmentDropException;
+import com.studyflow.domain.enrollment.exception.EnrollmentNotFoundException;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.notification.enums.NotificationType;
 import com.studyflow.domain.notification.event.NotificationCreatedEvent;
-import com.studyflow.domain.user.exception.UserNotFoundException;
-import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,16 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
-    private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void dropEnrollment(Long enrollmentId, Long userId) {
-        userRepository.findActiveById(userId)
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
-
         Enrollment enrollment = enrollmentRepository.findByIdWithCourseAndUser(enrollmentId)
-                .orElseThrow(() -> new EnrollmentDropException(
+                .orElseThrow(() -> new EnrollmentNotFoundException(
                         ErrorCode.ENROLLMENT_NOT_FOUND,
                         ErrorCode.ENROLLMENT_NOT_FOUND.getMessage()));
 
