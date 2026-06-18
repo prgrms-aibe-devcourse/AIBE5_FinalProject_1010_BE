@@ -370,6 +370,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatus()).body(body);
     }
 
+    @ExceptionHandler(EnrollmentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEnrollmentNotFoundException(EnrollmentNotFoundException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
+    @ExceptionHandler(EnrollmentDropException.class)
+    public ResponseEntity<Map<String, Object>> handleEnrollmentDropException(EnrollmentDropException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        Map<String, Object> body = errorCode.toBody(ex.getMessage());
+        return ResponseEntity.status(errorCode.getStatus()).body(body);
+    }
+
     // ── 알림 도메인 예외 처리 ──────────────────────
 
     @ExceptionHandler(NotificationException.class)

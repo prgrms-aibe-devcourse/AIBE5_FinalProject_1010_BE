@@ -64,6 +64,9 @@ public enum ErrorCode {
     CANNOT_CANCEL_ENROLLMENT_REQUEST(HttpStatus.BAD_REQUEST, "취소할 수 없는 상태의 수강 신청입니다."),
     NOT_MY_COURSE_ENROLLMENT_REQUEST(HttpStatus.FORBIDDEN, "본인 수업의 수강 신청이 아닙니다."),
     CANNOT_PROCESS_ENROLLMENT_REQUEST(HttpStatus.BAD_REQUEST, "처리할 수 없는 상태의 수강 신청입니다."),
+    ENROLLMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "수강 기록을 찾을 수 없습니다."),
+    NOT_MY_ENROLLMENT(HttpStatus.FORBIDDEN, "본인의 수강 기록이 아닙니다."),
+    CANNOT_DROP_ENROLLMENT(HttpStatus.BAD_REQUEST, "수강 중인 상태에서만 중도 포기할 수 있습니다."),
 
     // AI 질문
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 과목입니다."),
