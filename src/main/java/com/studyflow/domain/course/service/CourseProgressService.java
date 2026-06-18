@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * 수업 진도 CRUD (이슈 #173).
@@ -46,12 +47,23 @@ public class CourseProgressService {
     }
 
     // 진도 작성 — 담당 선생님 전용. progressDate 미지정 시 오늘 날짜.
+    // 하나의 수업당 같은 날짜 진도는 1건만 둔다 — 같은 날짜가 이미 있으면 새로 만들지 않고
+    // 그 항목 내용에 이어붙여 수정한다(이슈).
     public CourseProgressResponse createProgress(Long courseId, Long userId, CourseProgressCreateRequest request) {
         Course course = accessValidator.validateParticipantAndGetCourse(courseId, userId);
         accessValidator.validateTeacher(course, userId);
 
-        User author = course.getTeacherProfile().getUser(); // JOIN FETCH 된 teacher user 재활용
         LocalDate date = request.getProgressDate() != null ? request.getProgressDate() : LocalDate.now();
+
+        Optional<CourseProgress> sameDate =
+                progressRepository.findByCourseIdAndProgressDateAndDeletedAtIsNull(courseId, date);
+        if (sameDate.isPresent()) {
+            CourseProgress existing = sameDate.get();
+            existing.appendContent(request.getContent()); // 같은 날짜 → 내용 이어붙임(dirty checking 저장)
+            return CourseProgressResponse.from(existing);
+        }
+
+        User author = course.getTeacherProfile().getUser(); // JOIN FETCH 된 teacher user 재활용
         CourseProgress progress = CourseProgress.create(author, course, date, request.getContent());
         return CourseProgressResponse.from(progressRepository.save(progress));
     }

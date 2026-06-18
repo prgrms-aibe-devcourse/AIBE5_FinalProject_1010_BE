@@ -45,8 +45,8 @@ public class CourseProgress extends BaseTimeEntity {
     @Column(name = "progress_date", nullable = false)
     private LocalDate progressDate;
 
-    // 짤막한 진도 내용 ("3단원 함수 ~ 4단원 미분 도입" 등)
-    @Column(length = 1000, nullable = false)
+    // 진도 내용 ("3단원 함수 ~ 4단원 미분 도입" 등). 같은 날짜에 추가하면 이어붙으므로 TEXT.
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
     // null이면 정상, 값이 있으면 소프트 딜리트
@@ -65,6 +65,12 @@ public class CourseProgress extends BaseTimeEntity {
     public void update(LocalDate progressDate, String content) {
         this.progressDate = progressDate;
         this.content = content;
+    }
+
+    // 같은 날짜에 진도를 또 추가할 때 — 기존 내용 아래에 줄바꿈으로 이어붙인다(이슈).
+    public void appendContent(String more) {
+        if (more == null || more.isBlank()) return;
+        this.content = this.content + "\n" + more;
     }
 
     public void delete() {

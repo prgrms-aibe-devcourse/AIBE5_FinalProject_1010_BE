@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 public interface CourseProgressRepository extends JpaRepository<CourseProgress, Long> {
@@ -14,4 +15,7 @@ public interface CourseProgressRepository extends JpaRepository<CourseProgress, 
 
     // 수업 범위 안에서 단건 조회 (삭제된 진도 제외)
     Optional<CourseProgress> findByIdAndCourseIdAndDeletedAtIsNull(Long id, Long courseId);
+
+    // 같은 수업·같은 날짜의 진도(삭제 제외) — 하나의 수업당 날짜별 1건 유지(있으면 이어붙임)
+    Optional<CourseProgress> findByCourseIdAndProgressDateAndDeletedAtIsNull(Long courseId, LocalDate progressDate);
 }

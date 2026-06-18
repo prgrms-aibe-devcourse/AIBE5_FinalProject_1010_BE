@@ -31,8 +31,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +76,9 @@ class CourseProgressServiceTest {
         when(accessValidator.validateParticipantAndGetCourse(COURSE_ID, STUDENT_USER_ID)).thenReturn(course);
         // save는 전달한 엔티티를 그대로 반환
         when(progressRepository.save(any(CourseProgress.class))).thenAnswer(inv -> inv.getArgument(0));
+        // 기본: 같은 날짜 진도 없음(신규 생성 경로)
+        when(progressRepository.findByCourseIdAndProgressDateAndDeletedAtIsNull(eq(COURSE_ID), any()))
+                .thenReturn(Optional.empty());
     }
 
     // ── 작성 ──────────────────────────────────────────────
@@ -98,6 +104,20 @@ class CourseProgressServiceTest {
         CourseProgressResponse res = service.createProgress(COURSE_ID, TEACHER_USER_ID, req);
 
         assertThat(res.getProgressDate()).isEqualTo(LocalDate.of(2026, 6, 10));
+    }
+
+    @Test
+    @DisplayName("같은 수업·같은 날짜 진도가 이미 있으면 새로 만들지 않고 내용을 이어붙인다")
+    void createProgress_같은날짜_이어붙임() {
+        CourseProgress existing = CourseProgress.create(teacherUser, course, LocalDate.of(2026, 6, 18), "1교시 함수");
+        when(progressRepository.findByCourseIdAndProgressDateAndDeletedAtIsNull(COURSE_ID, LocalDate.of(2026, 6, 18)))
+                .thenReturn(Optional.of(existing));
+
+        CourseProgressResponse res = service.createProgress(
+                COURSE_ID, TEACHER_USER_ID, newCreateRequest("2교시 합성함수", LocalDate.of(2026, 6, 18)));
+
+        assertThat(res.getContent()).isEqualTo("1교시 함수\n2교시 합성함수"); // 이어붙음
+        verify(progressRepository, never()).save(any(CourseProgress.class)); // 신규 저장 안 함
     }
 
     @Test
