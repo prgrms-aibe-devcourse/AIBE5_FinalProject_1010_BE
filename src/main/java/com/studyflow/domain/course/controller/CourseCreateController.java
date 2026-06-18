@@ -58,8 +58,8 @@ public class CourseCreateController {
         return ResponseEntity.noContent().build();
     }
 
-    // 수업 삭제 (하위 호환) — 물리 삭제가 아닌 CLOSED 처리. PATCH /{courseId}/close 사용 권장
-    @Operation(summary = "수업 삭제", description = "선생님 전용. 실제로는 물리 삭제가 아닌 CLOSED 처리입니다. PATCH /{courseId}/close 사용을 권장합니다.")
+    // 수업 삭제 — 아무도 사용하지 않은 모집중 수업만 삭제 가능 (실제 DB 삭제)
+    @Operation(summary = "수업 삭제", description = "선생님 전용. 아무도 사용하지 않은 모집중 수업만 삭제할 수 있습니다. 수강 신청·게시글·공지·과제·강의실·채팅방 중 하나라도 있으면 삭제할 수 없습니다. 이미 사용된 수업은 PATCH /{courseId}/close 를 사용하세요.")
     @DeleteMapping("/{courseId}")
     public ResponseEntity<Void> deleteCourse(
             @PathVariable Long courseId,

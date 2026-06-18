@@ -26,6 +26,7 @@ import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -60,8 +61,10 @@ public class ClassroomService {
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
+    private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectProvider<ClassroomService> selfProvider; // 프록시 경유 self 호출(@Transactional 재시도용)
 
     /** 호스트(선생님)가 이 시간 동안 하트비트가 없으면 강의실을 자동 종료한다. */
     private static final long HOST_ABSENCE_LIMIT_SECONDS = 5 * 60; // 5분
@@ -106,18 +109,14 @@ public class ClassroomService {
     }
 
     /**
-     * 신규 참가자 행 저장. 동시 더블클릭으로 두 요청이 동시에 insert하면
-     * unique(session,user) 제약 위반(DataIntegrityViolationException)이 날 수 있으므로,
-     * 그 경우 이미 생성된 행을 재조회해 멱등하게 반환한다(500 방지).
+     * 신규 참가자 행 저장.
+     * 동시 입장 경합으로 두 요청이 같이 insert하면 unique(session,user) 위반이 날 수 있다.
+     * 같은 트랜잭션 안에서 catch+재조회하면 트랜잭션이 rollback-only로 오염돼 커밋 시 500이 나므로,
+     * 여기서는 예외를 그대로 전파시키고 호출부(joinSessionSafe)가 "새 트랜잭션으로 재시도"해 복구한다.
      */
     private ClassroomParticipant joinNewParticipant(ClassroomSession session, Long userId, boolean isHost) {
-        try {
-            User user = userRepository.getReferenceById(userId);
-            return participantRepository.save(ClassroomParticipant.join(session, user, isHost));
-        } catch (DataIntegrityViolationException e) {
-            return participantRepository.findBySessionIdAndUserId(session.getId(), userId)
-                    .orElseThrow(() -> e);
-        }
+        User user = userRepository.getReferenceById(userId);
+        return participantRepository.save(ClassroomParticipant.join(session, user, isHost));
     }
 
     // 개설 선생님의 참가자 행을 보장(이미 있으면 그대로 둔다)
@@ -125,6 +124,8 @@ public class ClassroomService {
         participantRepository.findBySessionIdAndUserId(session.getId(), teacherUserId)
                 .orElseGet(() -> participantRepository.save(
                         ClassroomParticipant.join(session, userRepository.getReferenceById(teacherUserId), true)));
+        // 호스트(선생님)는 판서 권한 보장 — 화이트보드 권한 캐시에 등록(이슈 #162)
+        whiteboardDrawPermissionStore.grant(session.getId(), teacherUserId);
     }
 
     /**
@@ -146,6 +147,20 @@ public class ClassroomService {
     }
 
     /**
+     * 강의실 참가 (22-3, 컨트롤러 진입점) — 동시 입장 경합에 견고한 래퍼.
+     * 트랜잭션 밖에서 호출하고, 유니크 위반(다른 요청이 먼저 참가행 생성)이 나면
+     * "새 트랜잭션"으로 한 번 재시도한다(이때는 기존 행을 조회해 그대로 반환 → 멱등).
+     * selfProvider로 프록시를 거쳐 호출해야 @Transactional 경계가 새로 열린다(self-invocation 회피).
+     */
+    public ClassroomParticipantResponse joinSessionSafe(Long sessionId, Long userId) {
+        try {
+            return selfProvider.getObject().joinSession(sessionId, userId);
+        } catch (DataIntegrityViolationException e) {
+            return selfProvider.getObject().joinSession(sessionId, userId);
+        }
+    }
+
+    /**
      * 강의실 참가 (22-3) — 수업 멤버만. 재입장 시 기존 참가 행 재사용.
      */
     @Transactional
@@ -164,7 +179,29 @@ public class ClassroomService {
                 .findBySessionIdAndUserId(sessionId, userId)
                 .orElseGet(() -> joinNewParticipant(session, userId, isHost));
 
+        // 판서 권한이 있는 참가자(기본: 선생님)는 화이트보드 권한 캐시에 등록(이슈 #162).
+        // 학생은 canDraw=false라 등록되지 않아 그릴 수 없다(선생님이 권한을 줘야 함).
+        if (participant.isCanDraw()) {
+            whiteboardDrawPermissionStore.grant(sessionId, userId);
+        }
+
         return ClassroomParticipantResponse.from(participant);
+    }
+
+    /**
+     * 세션 참가자 목록 조회 — 수업 멤버만. 선생님의 판서 권한 토글 UI(roster)에서 사용한다(이슈 #99/#162).
+     * 참가자별 participantId·userId·권한(canDraw 등)을 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassroomParticipantResponse> getParticipants(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        verifyMemberAndIsHost(session.getCourse(), userId); // 멤버 아니면 403
+        return participantRepository.findBySessionIdOrderByJoinedAtAsc(sessionId)
+                .stream()
+                .map(ClassroomParticipantResponse::from)
+                .toList();
     }
 
     /**
@@ -194,6 +231,8 @@ public class ClassroomService {
         session.close();
         // 화이트보드 권위 상태를 메모리에서 제거 — 종료된 세션 보드가 계속 쌓이지 않도록 정리.
         whiteboardStateStore.clear(session.getId());
+        // 화이트보드 판서 권한 캐시도 함께 정리(이슈 #162).
+        whiteboardDrawPermissionStore.clear(session.getId());
         // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
         messagingTemplate.convertAndSend(
                 "/sub/classroom-sessions/" + session.getId() + "/events",
@@ -253,6 +292,28 @@ public class ClassroomService {
         //   이 API가 곧바로 효력을 갖는다. canDraw/canShareScreen/canChat은 정상 동작.
         boolean canPublish = request.canPublish() != null ? request.canPublish() : participant.isCanPublish();
         participant.updatePermissions(request.canDraw(), request.canShareScreen(), request.canChat(), canPublish);
+
+        // 화이트보드 판서 권한 캐시 동기화 + 대상에게 실시간 통지(이슈 #162).
+        // (session/user 는 LAZY지만 id getter는 프록시 초기화 없이 FK를 반환 → 추가 쿼리 없음)
+        Long sessionId = participant.getSession().getId();
+        Long targetUserId = participant.getUser().getId();
+        if (participant.isCanDraw()) {
+            whiteboardDrawPermissionStore.grant(sessionId, targetUserId);
+        } else {
+            whiteboardDrawPermissionStore.revoke(sessionId, targetUserId);
+        }
+        // 권한 변경 토픽 브로드캐스트 — 대상 클라가 새로고침 없이 즉시 도구 활성/비활성 반영.
+        messagingTemplate.convertAndSend(
+                "/sub/classroom-sessions/" + sessionId + "/permissions",
+                Map.of(
+                        "participantId", participant.getId(),
+                        "userId", targetUserId,
+                        "canDraw", participant.isCanDraw(),
+                        "canShareScreen", participant.isCanShareScreen(),
+                        "canChat", participant.isCanChat(),
+                        "canPublish", participant.isCanPublish()
+                ));
+
         return ParticipantPermissionResponse.from(participant);
     }
 

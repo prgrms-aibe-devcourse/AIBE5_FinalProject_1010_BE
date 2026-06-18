@@ -59,7 +59,17 @@ public class ClassroomSessionController {
             @Parameter(hidden = true) @AuthenticationPrincipal Long userId
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(classroomService.joinSession(sessionId, userId));
+                .body(classroomService.joinSessionSafe(sessionId, userId));
+    }
+
+    // 세션 참가자 목록 — 수업 멤버. 선생님 판서 권한 토글 UI(roster)용 (이슈 #99/#162).
+    @Operation(summary = "세션 참가자 목록", description = "수업 멤버만. 참가자별 participantId·userId·권한(canDraw 등)을 반환합니다.")
+    @GetMapping("/classroom-sessions/{sessionId}/participants")
+    public ResponseEntity<java.util.List<ClassroomParticipantResponse>> getParticipants(
+            @PathVariable Long sessionId,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(classroomService.getParticipants(sessionId, userId));
     }
 
     // 22-4 LiveKit 토큰 발급 — 수업 멤버. 입장 시점마다 즉석 발급(저장 안 함).

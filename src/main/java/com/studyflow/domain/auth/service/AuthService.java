@@ -73,7 +73,7 @@ public class AuthService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void sendAuthCode(EmailAuthRequest request) {
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다.");
         });
 
         // 60초 쿨다운 — 재발송 폭탄 방지
@@ -222,11 +222,16 @@ public class AuthService {
 
         // 이메일 중복이 있는지 확인하고, 있으면 예외를 던집니다.
         userRepository.findActiveByEmailAndSocialProvider(request.getEmail(), SocialProvider.LOCAL).ifPresent(u -> {
-            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다: " + request.getEmail());
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다.");
         });
 
         User user = User.createUser(request, passwordEncoder, marketingAgreed, birthDateParsed, genderEnum, userRole);
-        userRepository.save(user);
+        try {
+            // saveAndFlush로 즉시 INSERT — 동시 요청 시 DB 유니크 제약 위반을 이 자리에서 잡기 위함
+            userRepository.saveAndFlush(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new AccountAlreadyExistsException(ErrorCode.EMAIL_CONFLICT, "이미 사용 중인 이메일입니다.");
+        }
         // 회원 저장 성공 후 단회용 토큰 삭제 — 저장 전 삭제 시 이후 예외로 토큰만 소진되는 문제 방지
         redisTemplate.delete(tokenKey);
 

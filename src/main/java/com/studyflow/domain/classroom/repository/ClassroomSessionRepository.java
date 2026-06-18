@@ -14,6 +14,9 @@ public interface ClassroomSessionRepository extends JpaRepository<ClassroomSessi
 
     Optional<ClassroomSession> findTopByCourseIdAndStatusOrderByStartedAtDesc(Long courseId, ClassroomStatus status);
 
+    // 수업 삭제 가능 여부 확인 — 강의실 세션이 한 건이라도 있으면 삭제 불가
+    boolean existsByCourseId(Long courseId);
+
     // 자동종료 스윕 — 호스트 하트비트가 cutoff보다 오래된 OPEN 세션(부재 의심)
     List<ClassroomSession> findByStatusAndLastHostSeenAtBefore(ClassroomStatus status, LocalDateTime cutoff);
 
