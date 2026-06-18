@@ -76,6 +76,16 @@ public class CourseProgressService {
         CourseProgress progress = progressRepository.findByIdAndCourseIdAndDeletedAtIsNull(progressId, courseId)
                 .orElseThrow(() -> new CourseProgressNotFoundException(progressId));
         LocalDate date = request.getProgressDate() != null ? request.getProgressDate() : progress.getProgressDate();
+
+        // "수업당 같은 날짜 1건" 불변식 — 날짜를 바꾸는데 그 날짜에 이미 다른 진도가 있으면 거부(이슈 #179 리뷰).
+        if (!date.equals(progress.getProgressDate())) {
+            progressRepository.findByCourseIdAndProgressDateAndDeletedAtIsNull(courseId, date)
+                    .filter(other -> !other.getId().equals(progressId))
+                    .ifPresent(other -> {
+                        throw new IllegalArgumentException("해당 날짜에는 이미 진도가 있어 날짜를 변경할 수 없습니다. 기존 진도를 수정해 주세요.");
+                    });
+        }
+
         progress.update(date, request.getContent());
         return CourseProgressResponse.from(progress);
     }

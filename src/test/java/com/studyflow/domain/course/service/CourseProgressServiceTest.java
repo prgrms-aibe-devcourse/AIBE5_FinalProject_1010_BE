@@ -185,6 +185,22 @@ class CourseProgressServiceTest {
         assertThat(res.getProgressDate()).isEqualTo(LocalDate.of(2026, 6, 20));
     }
 
+    @Test
+    @DisplayName("날짜를 다른 날짜로 바꾸는데 그 날짜에 이미 다른 진도가 있으면 거부한다")
+    void updateProgress_날짜충돌_거부() {
+        CourseProgress current = CourseProgress.create(teacherUser, course, LocalDate.of(2026, 6, 10), "현재");
+        when(progressRepository.findByIdAndCourseIdAndDeletedAtIsNull(PROGRESS_ID, COURSE_ID))
+                .thenReturn(Optional.of(current));
+        CourseProgress other = mock(CourseProgress.class);
+        when(other.getId()).thenReturn(999L);
+        when(progressRepository.findByCourseIdAndProgressDateAndDeletedAtIsNull(COURSE_ID, LocalDate.of(2026, 6, 20)))
+                .thenReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> service.updateProgress(
+                COURSE_ID, PROGRESS_ID, TEACHER_USER_ID, newUpdateRequest("수정", LocalDate.of(2026, 6, 20))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     // ── 삭제 ──────────────────────────────────────────────
 
     @Test
