@@ -207,7 +207,7 @@ public class TeacherService {
             }
         }
 
-        return new TeacherProfileResponse(profile, hasListedCourses(profile.getId()));
+        return new TeacherProfileResponse(profile);
     }
 
     // 로그인한 선생님 본인의 선생님 찾기 목록 노출 여부 토글

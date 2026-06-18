@@ -273,8 +273,8 @@ public class GlobalExceptionHandler {
     // 노출 중인 수업이 있는데 선생님 찾기 노출을 끄려 할 때 (400)
     @ExceptionHandler(TeacherHasListedCoursesException.class)
     public ResponseEntity<Map<String, Object>> handleTeacherHasListedCourses(TeacherHasListedCoursesException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorCode.TEACHER_HAS_LISTED_COURSES.toBody(ex.getMessage()));
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
     // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)
