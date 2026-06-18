@@ -6,6 +6,8 @@ import com.studyflow.domain.auth.service.AuthService;
 import com.studyflow.domain.auth.dto.SignupRequest.TermsType;
 import com.studyflow.global.auth.RefreshCookieCreator;
 import com.studyflow.global.exception.ErrorCode;
+import com.studyflow.global.util.UserAgentParser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,12 +84,13 @@ public class AuthController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        // @Valid 검사 먼저 함
-        // UserService로 넘어가서 로그인 검사
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String ipAddress = UserAgentParser.extractClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
         LoginResponse resp;
         try {
-            resp = authService.login(request);
+            resp = authService.login(request, ipAddress, userAgent);
         } catch (IllegalStateException e) {
             /*
             Role이 Spring Security에서 확인되었으나, 서비스 레벨에서 확인되지 않는 경우

@@ -68,6 +68,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
     private final JavaMailSender mailSender;
+    private final LoginHistoryService loginHistoryService;
 
     // 이메일 인증 코드 발송 — 6자리 숫자 코드를 생성해 Redis에 5분간 저장 후 발송
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -244,7 +245,7 @@ public class AuthService {
         }
     }
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user = userRepository.findActiveByEmailAndSocialProvider(request.getEmail(),SocialProvider.LOCAL)
                 .orElseThrow(() -> new InvalidCredentialsException(ErrorCode.AUTH_LOGIN_FAILED, "이메일 또는 비밀번호가 일치하지 않습니다."));
 
@@ -273,6 +274,8 @@ public class AuthService {
                 jwtTokenProvider.getRefreshTokenExpiration(),
                 java.util.concurrent.TimeUnit.MILLISECONDS
         );
+
+        loginHistoryService.record(user.getId(), ipAddress, userAgent);
 
         return new LoginResponse(user.getId(), user.getName(), user.getRole(),
                 accessToken, refreshToken,
