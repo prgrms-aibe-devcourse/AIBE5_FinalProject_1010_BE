@@ -57,9 +57,16 @@ public class ClassroomWhiteboardWebSocketController {
 
         String type = String.valueOf(message.get("type"));
 
-        // 판서 권한 게이팅(이슈 #162) — 권한 없는 참가자(기본: 학생)의 변경(ops)·미리보기(live)는 조용히 무시.
+        // 판서 권한 게이팅(이슈 #162) — 권한 없는 참가자(기본: 학생)의 변경(ops)·미리보기(live)·페이지이동(page)은 조용히 무시.
         // 선생님(호스트)은 입장 시 canDraw=true. 권한자 집합은 인메모리 캐시로 검사(고빈도 메시지라 DB 미조회).
-        if (("ops".equals(type) || "live".equals(type)) && !drawPermissionStore.canDraw(sessionId, senderId)) {
+        if (("ops".equals(type) || "live".equals(type) || "page".equals(type)) && !drawPermissionStore.canDraw(sessionId, senderId)) {
+            return;
+        }
+
+        // 페이지 이동: 전원이 같은 페이지를 보도록 활성 페이지를 갱신하고 그대로 중계(상태 op 아님, 순번 없음).
+        if ("page".equals(type)) {
+            stateStore.setActivePage(sessionId, String.valueOf(message.get("pageId")));
+            broadcast(sessionId, message);
             return;
         }
 

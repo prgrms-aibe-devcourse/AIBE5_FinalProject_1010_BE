@@ -30,10 +30,11 @@ public class WhiteboardStateStore {
         Page(String id) { this.id = id; }
     }
 
-    /** 한 세션의 보드(페이지 목록 + 적용된 op 순번). */
+    /** 한 세션의 보드(페이지 목록 + 적용된 op 순번 + 전원이 함께 보는 활성 페이지). */
     static final class Board {
         final List<Page> pages = new ArrayList<>();
         long seq = 0;
+        String activePageId = "p1"; // 모두가 같은 페이지를 보도록 — 판서 권한자가 이동하면 전파(이슈)
         Board() { pages.add(new Page("p1")); } // 모든 세션은 공통 첫 페이지 "p1"로 시작
     }
 
@@ -74,8 +75,16 @@ public class WhiteboardStateStore {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("pages", pages);
             out.put("seq", b.seq);
+            out.put("activePageId", b.activePageId); // 입장/재동기화 시 현재 활성 페이지로 맞추도록
             return out;
         }
+    }
+
+    /** 전원이 함께 볼 활성 페이지 변경(판서 권한자가 페이지 이동 시). */
+    public void setActivePage(Long sessionId, String pageId) {
+        if (pageId == null) return;
+        Board b = board(sessionId);
+        synchronized (b) { b.activePageId = pageId; }
     }
 
     public void clear(Long sessionId) {
