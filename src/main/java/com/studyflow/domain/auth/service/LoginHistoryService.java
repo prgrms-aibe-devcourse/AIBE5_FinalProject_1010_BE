@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -24,8 +25,9 @@ public class LoginHistoryService {
 
     private final LoginHistoryRepository loginHistoryRepository;
 
-    // best-effort: 저장 실패가 로그인/가입을 막지 않도록 격리
-    @Transactional
+    // REQUIRES_NEW: 호출자(AuthService, SocialSignupService) 트랜잭션과 분리해
+    // 저장 실패 시 메인 트랜잭션의 rollback-only 오염을 방지
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(Long userId, String ipAddress, String userAgent) {
         try {
             loginHistoryRepository.save(LoginHistory.of(
