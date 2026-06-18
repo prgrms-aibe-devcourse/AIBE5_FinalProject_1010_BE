@@ -56,7 +56,7 @@ public class TeacherProfile extends BaseTimeEntity {
 
     // 선생님 찾기 목록 노출 여부 — 본인이 토글로 제어. 기본값 false(미노출),
     // 첫 수업 등록 시 자동으로 true로 전환된다.
-    @Column(nullable = false)
+    @Column(name = "is_listed", nullable = false)
     private boolean isListed = false;
 
     // DECIMAL(10,1) 매핑을 위해 BigDecimal 사용
