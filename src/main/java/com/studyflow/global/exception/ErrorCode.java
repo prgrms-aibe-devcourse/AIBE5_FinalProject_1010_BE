@@ -48,6 +48,9 @@ public enum ErrorCode {
     // 공지사항
     COURSE_NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 공지를 찾을 수 없습니다."),
 
+    // 수업 진도
+    COURSE_PROGRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "수업 진도를 찾을 수 없습니다."),
+
     // 자유 게시판
     COURSE_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "강의 게시글을 찾을 수 없습니다."),
 

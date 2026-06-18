@@ -21,6 +21,7 @@ import com.studyflow.domain.course.exception.CourseNotDeletableException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
 import com.studyflow.domain.course.exception.CourseNoticeNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
+import com.studyflow.domain.course.exception.CourseProgressNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostCommentNotFoundException;
 import com.studyflow.domain.course.exception.CoursePostNotFoundException;
 import com.studyflow.domain.course.exception.NotCourseParticipantException;
@@ -222,6 +223,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleCourseNoticeNotFound(CourseNoticeNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorCode.COURSE_NOTICE_NOT_FOUND.toBody(ex.getMessage()));
+    }
+
+    // 존재하지 않거나 삭제된 수업 진도 조회 (404)
+    @ExceptionHandler(CourseProgressNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseProgressNotFound(CourseProgressNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorCode.COURSE_PROGRESS_NOT_FOUND.toBody(ex.getMessage()));
     }
 
     // 존재하지 않거나 삭제된 게시글 조회 (404)
