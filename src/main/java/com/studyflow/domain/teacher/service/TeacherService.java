@@ -16,6 +16,7 @@ import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
+import com.studyflow.domain.teacher.exception.TeacherHasListedCoursesException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
 import org.springframework.dao.DataIntegrityViolationException;
 import com.studyflow.domain.file.entity.FileAsset;
@@ -173,7 +174,7 @@ public class TeacherService {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
-        return new TeacherProfileResponse(profile);
+        return new TeacherProfileResponse(profile, hasListedCourses(profile.getId()));
     }
 
     // 로그인한 선생님 본인의 프로필 수정
@@ -206,7 +207,7 @@ public class TeacherService {
             }
         }
 
-        return new TeacherProfileResponse(profile);
+        return new TeacherProfileResponse(profile, hasListedCourses(profile.getId()));
     }
 
     // 로그인한 선생님 본인의 선생님 찾기 목록 노출 여부 토글
@@ -218,8 +219,21 @@ public class TeacherService {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
+        boolean hasListedCourses = hasListedCourses(profile.getId());
+
+        // 수업 찾기에 노출 중인 수업이 있으면 선생님 찾기에서 숨길 수 없음
+        if (!listed && hasListedCourses) {
+            throw new TeacherHasListedCoursesException();
+        }
+
         profile.updateListed(listed);
-        return new TeacherProfileResponse(profile);
+        return new TeacherProfileResponse(profile, hasListedCourses);
+    }
+
+    // 수업 찾기에 노출 중인(공개 + 모집중) 수업을 하나라도 보유하고 있는지
+    private boolean hasListedCourses(Long teacherProfileId) {
+        return courseRepository
+                .countSearchableByTeacherProfileId(teacherProfileId, CourseStatus.RECRUITING) > 0;
     }
 
     // 로그인한 선생님 본인의 수업 목록 조회 — status가 null이면 전체 반환, 페이지네이션 지원
