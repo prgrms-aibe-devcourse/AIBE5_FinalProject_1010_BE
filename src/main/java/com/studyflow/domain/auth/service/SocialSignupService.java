@@ -5,10 +5,8 @@ import com.studyflow.domain.auth.dto.LoginResponse;
 import com.studyflow.domain.auth.dto.PendingSocialUserData;
 import com.studyflow.domain.auth.dto.SocialPendingInfoResponse;
 import com.studyflow.domain.auth.dto.SocialSignupRequest;
-import com.studyflow.domain.auth.entity.LoginHistory;
 import com.studyflow.domain.auth.exception.AccountAlreadyExistsException;
 import com.studyflow.domain.auth.exception.SignupRequestException;
-import com.studyflow.domain.auth.repository.LoginHistoryRepository;
 import com.studyflow.domain.student.entity.StudentProfile;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -21,7 +19,6 @@ import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.auth.JwtTokenProvider;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
-import com.studyflow.global.util.UserAgentParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -48,7 +45,7 @@ public class SocialSignupService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final LoginHistoryRepository loginHistoryRepository;
+    private final LoginHistoryService loginHistoryService;
 
     /**
      * Redis 임시 데이터에서 폼 pre-fill용 정보를 조회합니다.
@@ -189,12 +186,7 @@ public class SocialSignupService {
                 TimeUnit.MILLISECONDS
         );
 
-        loginHistoryRepository.save(LoginHistory.of(
-                user.getId(),
-                ipAddress,
-                UserAgentParser.extractDeviceInfo(userAgent),
-                UserAgentParser.extractBrowser(userAgent)
-        ));
+        loginHistoryService.record(user.getId(), ipAddress, userAgent);
 
         return new LoginResponse(user.getId(), user.getName(), user.getRole(),
                 accessToken, refreshToken,

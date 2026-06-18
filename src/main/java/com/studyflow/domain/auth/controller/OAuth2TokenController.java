@@ -3,9 +3,8 @@ package com.studyflow.domain.auth.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.domain.auth.dto.OAuth2TokenRequest;
-import com.studyflow.domain.auth.entity.LoginHistory;
 import com.studyflow.domain.auth.exception.SignupRequestException;
-import com.studyflow.domain.auth.repository.LoginHistoryRepository;
+import com.studyflow.domain.auth.service.LoginHistoryService;
 import com.studyflow.global.auth.RefreshCookieCreator;
 import com.studyflow.global.exception.ErrorCode;
 import com.studyflow.global.redis.RedisPrefixProvider;
@@ -45,7 +44,7 @@ public class OAuth2TokenController {
     private final StringRedisTemplate redisTemplate;
     private final RefreshCookieCreator refreshCookieCreator;
     private final ObjectMapper objectMapper;
-    private final LoginHistoryRepository loginHistoryRepository;
+    private final LoginHistoryService loginHistoryService;
 
     @PostMapping("/oauth2/token")
     public ResponseEntity<?> exchangeCode(@Valid @RequestBody OAuth2TokenRequest request,
@@ -81,12 +80,8 @@ public class OAuth2TokenController {
         long refreshExpiresIn = ((Number) data.get("refreshExpiresIn")).longValue();
         long accessExpiresIn  = ((Number) data.get("accessExpiresIn")).longValue();
 
-        loginHistoryRepository.save(LoginHistory.of(
-                userId,
-                UserAgentParser.extractClientIp(httpRequest),
-                UserAgentParser.extractDeviceInfo(httpRequest.getHeader("User-Agent")),
-                UserAgentParser.extractBrowser(httpRequest.getHeader("User-Agent"))
-        ));
+        loginHistoryService.record(userId, UserAgentParser.extractClientIp(httpRequest),
+                httpRequest.getHeader("User-Agent"));
 
         ResponseCookie refreshCookie = refreshCookieCreator.createRefreshCookie(refreshToken, refreshExpiresIn);
 

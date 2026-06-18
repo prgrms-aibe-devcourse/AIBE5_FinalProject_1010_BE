@@ -7,13 +7,12 @@ public class UserAgentParser {
     private UserAgentParser() {}
 
     public static String extractClientIp(HttpServletRequest request) {
-        String[] headers = {"X-Forwarded-For", "Proxy-Client-IP", "WL-Proxy-Client-IP", "X-Real-IP"};
-        for (String header : headers) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-                return ip.split(",")[0].trim();
-            }
+        // X-Real-IP: Nginx가 $remote_addr로 직접 세팅 — 클라이언트 위조 불가
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank() && !"unknown".equalsIgnoreCase(realIp)) {
+            return realIp.trim();
         }
+        // X-Real-IP 없으면 TCP 연결 IP 사용 (로컬 / Nginx 미경유 환경)
         return request.getRemoteAddr();
     }
 
@@ -31,8 +30,8 @@ public class UserAgentParser {
         if (userAgent.contains("iPhone")) return "iOS / iPhone";
         if (userAgent.contains("iPad"))  return "iOS / iPad";
         if (userAgent.contains("Android")) {
-            String version = extractBetween(userAgent, "Android ", ";");
-            return "Android " + (version.isEmpty() ? "" : version).trim() + " / Mobile";
+            String version = extractBetween(userAgent, "Android ", ";").trim();
+            return version.isEmpty() ? "Android / Mobile" : "Android " + version + " / Mobile";
         }
         if (userAgent.contains("Linux")) return "Linux / PC";
         if (userAgent.contains("CrOS"))  return "ChromeOS / PC";
