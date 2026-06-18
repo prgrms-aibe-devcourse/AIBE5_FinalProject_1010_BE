@@ -8,12 +8,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 class RedisConnectionTest {
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+
+    @MockitoBean private ClientRegistrationRepository clientRegistrationRepository;
+    @MockitoBean private JavaMailSender mailSender;
 
     private static final String TEST_KEY = RedisPrefixProvider.testKey("connect");
 
