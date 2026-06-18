@@ -87,6 +87,19 @@ public class TeacherController {
         return ResponseEntity.ok(response);
     }
 
+    // 로그인한 선생님 본인의 선생님 찾기 목록 노출 여부 토글
+    // 예시: PATCH /api/v1/teachers/me/listed  body: { "listed": true }
+    @PatchMapping("/me/listed")
+    public ResponseEntity<?> updateMyListed(@AuthenticationPrincipal Long userId,
+                                            Authentication authentication,
+                                            @Valid @RequestBody TeacherListedUpdateRequest request) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        TeacherProfileResponse response = teacherService.updateMyListed(userId, request.getListed());
+        return ResponseEntity.ok(response);
+    }
+
     // 로그인한 선생님 본인의 수업 목록 조회
     // 예시: GET /api/v1/teachers/me/courses?status=RECRUITING&page=0&size=12
     @GetMapping("/me/courses")

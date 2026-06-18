@@ -27,7 +27,7 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "SELECT DISTINCT tp FROM TeacherProfile tp " +
            "JOIN FETCH tp.user u " +
            "LEFT JOIN tp.specialtySubjects s " +
-           "WHERE u.isDeleted = 0 AND u.isActive = true " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true AND tp.isListed = true " +
            "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "AND (:gender IS NULL OR u.gender = :gender) " +
            "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +
@@ -39,7 +39,7 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "SELECT COUNT(DISTINCT tp) FROM TeacherProfile tp " +
            "JOIN tp.user u " +
            "LEFT JOIN tp.specialtySubjects s " +
-           "WHERE u.isDeleted = 0 AND u.isActive = true " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true AND tp.isListed = true " +
            "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
            "AND (:gender IS NULL OR u.gender = :gender) " +
            "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +

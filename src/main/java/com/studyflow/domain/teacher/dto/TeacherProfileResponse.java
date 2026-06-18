@@ -22,6 +22,7 @@ public class TeacherProfileResponse {
     private final String introduction;
     private final Integer naegongScore;
     private final BigDecimal totalTeachingHours;
+    private final boolean isListed;       // 선생님 찾기 목록 노출 여부 (마이페이지 토글)
     private final List<SubjectResponse> specialtySubjects;   // 전문 과목
 
     public TeacherProfileResponse(TeacherProfile profile) {
@@ -35,6 +36,7 @@ public class TeacherProfileResponse {
         this.introduction        = profile.getIntroduction();
         this.naegongScore        = profile.getNaegongScore();
         this.totalTeachingHours  = profile.getTotalTeachingHours();
+        this.isListed            = profile.isListed();
         this.specialtySubjects   = profile.getSpecialtySubjects().stream()
                 .sorted(Comparator.comparing(Subject::getId))
                 .map(SubjectResponse::from)

@@ -49,6 +49,12 @@ public class CourseCreateService {
         );
 
         Course saved = courseRepository.save(course);
+
+        // 첫 수업 등록 시 선생님 찾기 목록에 자동 노출 — 이미 노출 중이면 변화 없음
+        if (!teacherProfile.isListed()) {
+            teacherProfile.updateListed(true);
+        }
+
         return CourseCreateResponse.from(saved);
     }
 }

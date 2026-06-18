@@ -209,6 +209,19 @@ public class TeacherService {
         return new TeacherProfileResponse(profile);
     }
 
+    // 로그인한 선생님 본인의 선생님 찾기 목록 노출 여부 토글
+    @Transactional
+    public TeacherProfileResponse updateMyListed(Long userId, boolean listed) {
+        userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
+
+        profile.updateListed(listed);
+        return new TeacherProfileResponse(profile);
+    }
+
     // 로그인한 선생님 본인의 수업 목록 조회 — status가 null이면 전체 반환, 페이지네이션 지원
     public Page<TeacherCourseCardResponse> getMyCourses(Long userId, CourseStatus status, Pageable pageable) {
         userRepository.findActiveById(userId)
