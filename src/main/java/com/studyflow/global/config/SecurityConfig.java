@@ -52,6 +52,13 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.disable())
+                        .addHeaderWriter((request, response) -> {
+                            if (!request.getRequestURI().startsWith("/uploads/classroom/")) {
+                                response.setHeader("X-Frame-Options", "DENY");
+                            }
+                        }))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // ── 역할 기반 규칙: permitAll보다 반드시 먼저 선언 ──
