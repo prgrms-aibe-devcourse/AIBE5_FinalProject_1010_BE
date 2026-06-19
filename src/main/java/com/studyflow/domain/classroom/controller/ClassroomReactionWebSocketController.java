@@ -11,6 +11,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.Principal;
 import java.util.Map;
@@ -33,6 +34,10 @@ public class ClassroomReactionWebSocketController {
     private final ClassroomSessionRepository sessionRepository;
     private final ClassroomService classroomService;
 
+    // @Transactional: verifyMemberAndIsHost가 호스트 판정 시 course.getTeacherProfile()을 지연로딩하는데,
+    // 트랜잭션(영속성 컨텍스트)이 없으면 선생님(호스트) 요청에서 LazyInitializationException이 나
+    // catch에 삼켜져 리액션이 드롭됐다(학생은 그 분기를 안 타서 정상). 읽기 트랜잭션으로 감싸 지연로딩을 보장.
+    @Transactional(readOnly = true)
     @MessageMapping("/classroom-sessions/{sessionId}/reactions")
     public void relay(
             @DestinationVariable Long sessionId,
