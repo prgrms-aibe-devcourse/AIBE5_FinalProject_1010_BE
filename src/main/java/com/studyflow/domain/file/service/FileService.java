@@ -350,6 +350,18 @@ public class FileService {
     }
 
     /**
+     * Classroom document upload. Used for whiteboard PDF backgrounds.
+     */
+    @Transactional
+    public FileUploadResponse uploadClassroomDocument(Long uploaderId, MultipartFile file) {
+        String extension = extractExtension(file == null ? null : file.getOriginalFilename()).toLowerCase();
+        if (!ALLOWED_PDF_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("강의실에는 PDF 파일만 업로드할 수 있습니다.");
+        }
+        return uploadCourseAttachment(uploaderId, file, "classroom");
+    }
+
+    /**
      * 수업 관련 첨부파일 공통 업로드 로직 (이미지 + PDF 허용).
      *
      * - 이미지(JPEG/PNG/WEBP): 기존 채팅 이미지와 동일한 검증
