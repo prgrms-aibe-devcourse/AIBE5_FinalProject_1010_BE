@@ -385,7 +385,12 @@ public class ClassroomService {
         ClassroomSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ClassroomSessionNotFoundException(
                         "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
-        verifyMemberAndIsHost(session.getCourse(), userId);
+        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
+        // 스냅샷은 클라이언트가 (재)연결마다 호출하므로, 선생님이면 여기서 오디오 제어 권한자를 (재)등록한다.
+        // → BE 재시작/재연결로 메모리의 호스트 등록이 사라져도 제어가 막히지 않게 한다(이슈 #182).
+        if (isHost) {
+            audioStateStore.setHost(sessionId, userId);
+        }
         return audioStateStore.snapshot(sessionId);
     }
 
