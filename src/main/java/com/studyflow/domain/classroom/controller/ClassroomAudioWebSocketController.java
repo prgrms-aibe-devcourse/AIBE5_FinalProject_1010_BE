@@ -21,11 +21,15 @@ import java.util.Map;
  *
  * <p>메시지 종류(type):
  * <ul>
- *   <li>load  {url, fileName, fileId} — 트랙 선택(정지·0초)</li>
- *   <li>play  {positionSec}           — 재생</li>
- *   <li>pause {positionSec}           — 일시정지</li>
- *   <li>seek  {positionSec, playing?} — 위치 이동</li>
- *   <li>stop                          — 정지(0초로 되감기)</li>
+ *   <li>add         {url, fileName, fileId} — 재생목록에 트랙 추가</li>
+ *   <li>select      {fileId}                — 재생목록에서 트랙 선택(정지·0초·반복해제)</li>
+ *   <li>removeTrack {fileId}                — 재생목록에서 트랙 삭제</li>
+ *   <li>play        {positionSec}           — 재생</li>
+ *   <li>pause       {positionSec}           — 일시정지</li>
+ *   <li>seek        {positionSec, playing?} — 위치 이동(정밀 탐색)</li>
+ *   <li>stop                                — 정지(0초로 되감기)</li>
+ *   <li>rate        {rate, positionSec}     — 재생 배속(0.2~3x)</li>
+ *   <li>loop        {loopOn, loopStart, loopEnd} — AB 반복 구간</li>
  * </ul>
  * 오디오 "제어"는 호스트(수업 진행 선생님)만 가능하다 — 권한 없는 참가자(학생)의 메시지는 조용히 무시한다.
  * 인증은 STOMP CONNECT 시 WebSocketAuthChannelInterceptor가 Principal에 userId를 넣어둔다.</p>
@@ -57,12 +61,17 @@ public class ClassroomAudioWebSocketController {
 
         String type = String.valueOf(message.get("type"));
         switch (type) {
-            case "load" -> audioStateStore.load(sessionId,
+            case "add" -> audioStateStore.add(sessionId,
                     str(message.get("url")), str(message.get("fileName")), longVal(message.get("fileId")));
+            case "select" -> audioStateStore.select(sessionId, longVal(message.get("fileId")));
+            case "removeTrack" -> audioStateStore.removeTrack(sessionId, longVal(message.get("fileId")));
             case "play" -> audioStateStore.play(sessionId, dbl(message.get("positionSec")));
             case "pause" -> audioStateStore.pause(sessionId, dbl(message.get("positionSec")));
             case "seek" -> audioStateStore.seek(sessionId, dbl(message.get("positionSec")), boolVal(message.get("playing")));
             case "stop" -> audioStateStore.stop(sessionId);
+            case "rate" -> audioStateStore.setRate(sessionId, dbl(message.get("rate")), dbl(message.get("positionSec")));
+            case "loop" -> audioStateStore.setLoop(sessionId,
+                    Boolean.TRUE.equals(boolVal(message.get("loopOn"))), dbl(message.get("loopStart")), dbl(message.get("loopEnd")));
             default -> { return; } // 알 수 없는 타입은 무시
         }
 
