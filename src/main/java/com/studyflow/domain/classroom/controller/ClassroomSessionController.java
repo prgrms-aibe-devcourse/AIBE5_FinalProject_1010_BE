@@ -7,6 +7,8 @@ import com.studyflow.domain.classroom.dto.response.ClassroomParticipantResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomSessionResponse;
 import com.studyflow.domain.classroom.dto.response.LivekitTokenResponse;
 import com.studyflow.domain.classroom.service.ClassroomService;
+import com.studyflow.domain.file.dto.response.FileUploadResponse;
+import com.studyflow.domain.file.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 강의실(실시간 화상수업) 세션 API — apidetail.md 22장.
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 public class ClassroomSessionController {
 
     private final ClassroomService classroomService;
+    private final FileService fileService;
 
     // 22-1 강의실 열기 — 담당 선생님 전용
     @Operation(summary = "강의실 열기", description = "담당 선생님 전용. 이미 열린 강의실이 있으면 그 세션을 반환합니다.")
@@ -81,6 +85,17 @@ public class ClassroomSessionController {
             @RequestBody(required = false) LivekitTokenRequest request
     ) {
         return ResponseEntity.ok(classroomService.issueLivekitToken(sessionId, userId, request));
+    }
+
+    @Operation(summary = "강의실 PDF 자료 업로드", description = "강의실을 연 담당 선생님만 PDF 자료를 업로드할 수 있습니다.")
+    @PostMapping("/classroom-sessions/{sessionId}/documents")
+    public ResponseEntity<FileUploadResponse> uploadClassroomDocument(
+            @PathVariable Long sessionId,
+            @RequestPart("file") MultipartFile file,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId
+    ) {
+        classroomService.verifyClassroomHost(sessionId, userId);
+        return ResponseEntity.ok(fileService.uploadClassroomDocument(userId, file));
     }
 
     // 22-6 강의실 종료 — 담당 선생님 전용

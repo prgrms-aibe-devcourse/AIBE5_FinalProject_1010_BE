@@ -102,20 +102,6 @@ public class FileController {
     }
 
     /**
-     * Classroom document upload API.
-     *
-     * POST /api/v1/files/classroom/documents
-     * Allowed: PDF, max 20MB. The uploaded file can be used as a whiteboard background.
-     */
-    @PostMapping("/classroom/documents")
-    public FileUploadResponse uploadClassroomDocument(
-            @RequestPart("file") MultipartFile file,
-            @AuthenticationPrincipal Long userId
-    ) {
-        return fileService.uploadClassroomDocument(userId, file);
-    }
-
-    /**
      * 선생님 인증 서류 업로드 API.
      *
      * POST /api/v1/files/verification/documents
