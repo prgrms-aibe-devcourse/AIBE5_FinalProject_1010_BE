@@ -1,21 +1,14 @@
-# Caddy — 단일 도메인 통합(프론트+백엔드), Let's Encrypt 자동 HTTPS.
-# DuckDNS(studyflow-mytutor.duckdns.org) → EIP(EC2-A) → Caddy.
-#   - 백엔드 경로(/api, /ws-stomp, /login, /oauth2, swagger, /health) → ALB(HTTP) → EC2 2대 분산(+sticky)
-#   - 그 외 전부(/) → 프론트 정적(SPA, file_server). 같은 origin이라 CORS 불필요.
-# WebSocket(STOMP)·SSE는 Caddy가 자동 처리한다.
-{$BACKEND_DOMAIN} {
-	# 백엔드로 보낼 경로
-	#  ⚠️ /oauth2/* 전체를 보내면 안 됨 — /oauth2/callback·/oauth2/additional-info는 프론트(SPA) 라우트다.
-	#  백엔드 OAuth는 /oauth2/authorization/*(개시) 와 /login/oauth2/code/*(콜백, /login/* 에 포함)뿐.
-	@backend path /api/* /ws-stomp/* /oauth2/authorization/* /login/* /swagger-ui/* /swagger-ui.html /v3/api-docs/* /health
-	handle @backend {
-		reverse_proxy http://{$ALB_DNS}
-	}
+# Caddy — 도메인(Host) 기준 분리. 같은 EIP(EC2-A)로 두 도메인이 들어오며 Host로 구분한다.
+# Let's Encrypt 자동 HTTPS. 경로 충돌 없음(프론트/백엔드가 도메인 자체로 분리됨).
 
-	# 그 외 전부 → 프론트 SPA 정적 서빙 (없으면 index.html로 폴백)
-	handle {
-		root * /srv/www
-		try_files {path} /index.html
-		file_server
-	}
+# 프론트엔드: 정적 SPA 서빙 (모든 경로 → index.html 폴백)
+{$FRONTEND_DOMAIN} {
+	root * /srv/www
+	try_files {path} /index.html
+	file_server
+}
+
+# 백엔드: 전부 ALB로 프록시 (API·WS·OAuth·Swagger 모두). WebSocket/SSE 자동 처리.
+{$BACKEND_DOMAIN} {
+	reverse_proxy http://{$ALB_DNS}
 }

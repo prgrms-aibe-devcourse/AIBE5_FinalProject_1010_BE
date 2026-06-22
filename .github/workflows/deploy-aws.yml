@@ -136,6 +136,7 @@ jobs:
       - name: Render Caddy env (별도 파일 — 앱 .env 클로버 방지)
         run: |
           cat > .env.caddy << 'ENVEOF'
+          FRONTEND_DOMAIN=${{ vars.FRONTEND_DOMAIN }}
           BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
           ALB_DNS=${{ vars.ALB_DNS }}
           ENVEOF
