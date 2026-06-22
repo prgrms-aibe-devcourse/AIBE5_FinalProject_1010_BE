@@ -26,6 +26,12 @@ public class WhiteboardStateStore {
     /** 한 페이지(= shapes의 순서 있는 목록). */
     static final class Page {
         final String id;
+        String kind = "board";
+        String pdfDocId;
+        Integer pdfPage;
+        Integer pdfPageCount;
+        String pdfSrc;
+        String fileName;
         List<Map<String, Object>> shapes = new ArrayList<>();
         Page(String id) { this.id = id; }
     }
@@ -69,6 +75,12 @@ public class WhiteboardStateStore {
             for (Page p : b.pages) {
                 Map<String, Object> pm = new LinkedHashMap<>();
                 pm.put("id", p.id);
+                pm.put("kind", p.kind);
+                pm.put("pdfDocId", p.pdfDocId);
+                pm.put("pdfPage", p.pdfPage);
+                pm.put("pdfPageCount", p.pdfPageCount);
+                pm.put("pdfSrc", p.pdfSrc);
+                pm.put("fileName", p.fileName);
                 pm.put("shapes", new ArrayList<>(p.shapes)); // 얕은 복사(전송용)
                 pages.add(pm);
             }
@@ -99,7 +111,16 @@ public class WhiteboardStateStore {
         String pageId = str(op.get("pageId"));
 
         if ("addPage".equals(type)) {
-            if (pageId != null && findPage(b, pageId) == null) b.pages.add(new Page(pageId));
+            if (pageId != null && findPage(b, pageId) == null) {
+                Page p = new Page(pageId);
+                p.kind = str(op.get("kind")) != null ? str(op.get("kind")) : "board";
+                p.pdfDocId = str(op.get("pdfDocId"));
+                p.pdfPage = intVal(op.get("pdfPage"));
+                p.pdfPageCount = intVal(op.get("pdfPageCount"));
+                p.pdfSrc = str(op.get("pdfSrc"));
+                p.fileName = str(op.get("fileName"));
+                b.pages.add(p);
+            }
             return;
         }
         if ("removePage".equals(type)) {
@@ -186,6 +207,15 @@ public class WhiteboardStateStore {
 
     private static String str(Object o) {
         return o == null ? null : String.valueOf(o);
+    }
+
+    private static Integer intVal(Object o) {
+        if (o == null) return null;
+        try {
+            return Integer.valueOf(String.valueOf(o));
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")

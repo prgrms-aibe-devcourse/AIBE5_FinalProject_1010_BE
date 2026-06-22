@@ -370,6 +370,14 @@ public class ClassroomService {
         return whiteboardStateStore.snapshot(sessionId);
     }
 
+    @Transactional(readOnly = true)
+    public void verifyClassroomHost(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        assertHost(session.getCourse(), userId);
+    }
+
     // ── 권한 검증 헬퍼 ──
 
     /** 해당 수업의 담당 선생님인지 검증. 아니면 403. */
