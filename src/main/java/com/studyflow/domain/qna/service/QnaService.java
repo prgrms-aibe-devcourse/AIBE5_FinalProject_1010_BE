@@ -336,7 +336,7 @@ public class QnaService {
     /** 답변 좋아요 토글 (로그인 사용자). 이미 눌렀으면 취소, 아니면 추가. */
     @Transactional
     public QnaLikeResponse toggleAnswerLike(Long userId, Long answerId) {
-        QnaAnswer answer = answerRepository.findById(answerId)
+        QnaAnswer answer = answerRepository.findByIdWithLock(answerId)
                 .orElseThrow(() -> new QnaAnswerNotFoundException(answerId));
 
         boolean liked;

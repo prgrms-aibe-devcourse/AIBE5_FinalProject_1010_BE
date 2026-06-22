@@ -9,5 +9,7 @@ public interface QnaAnswerLikeRepository extends JpaRepository<QnaAnswerLike, Lo
 
     Optional<QnaAnswerLike> findByAnswerIdAndUserId(Long answerId, Long userId);
 
+    long countByAnswerId(Long answerId);
+
     // findLikedAnswerIds는 QnaAnswerLikeRepositoryCustom(QueryDSL)에 정의되어 있다.
 }

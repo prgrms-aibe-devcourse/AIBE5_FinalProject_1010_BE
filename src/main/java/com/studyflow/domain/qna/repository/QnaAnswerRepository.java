@@ -1,7 +1,13 @@
 package com.studyflow.domain.qna.repository;
 
 import com.studyflow.domain.qna.entity.QnaAnswer;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
 
 public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, QnaAnswerRepositoryCustom {
 
@@ -15,4 +21,9 @@ public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, Qna
     long countByAuthorIdAndAcceptedTrue(Long authorId);
 
     // fetch join/집계 쿼리는 QnaAnswerRepositoryCustom(QueryDSL)에 정의되어 있다.
+
+    /** 좋아요 토글 시 비관적 쓰기 락으로 조회 — likeCount 카운터 동시 갱신 방지. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM QnaAnswer a WHERE a.id = :id")
+    Optional<QnaAnswer> findByIdWithLock(@Param("id") Long id);
 }
