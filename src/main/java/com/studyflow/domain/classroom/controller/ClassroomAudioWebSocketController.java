@@ -63,7 +63,7 @@ public class ClassroomAudioWebSocketController {
         switch (type) {
             case "add" -> audioStateStore.add(sessionId,
                     str(message.get("url")), str(message.get("fileName")), longVal(message.get("fileId")));
-            case "select" -> audioStateStore.select(sessionId, longVal(message.get("fileId")));
+            case "select" -> { if (!audioStateStore.select(sessionId, longVal(message.get("fileId")))) return; } // 목록에 없으면 상태 미변경 → 재방송 안 함
             case "removeTrack" -> audioStateStore.removeTrack(sessionId, longVal(message.get("fileId")));
             case "play" -> audioStateStore.play(sessionId, dbl(message.get("positionSec")));
             case "pause" -> audioStateStore.pause(sessionId, dbl(message.get("positionSec")));
@@ -88,12 +88,18 @@ public class ClassroomAudioWebSocketController {
     }
 
     private static double dbl(Object o) {
-        if (o instanceof Number n) return n.doubleValue();
-        try {
-            return o == null ? 0 : Double.parseDouble(String.valueOf(o));
-        } catch (NumberFormatException e) {
-            return 0;
+        double v;
+        if (o instanceof Number n) {
+            v = n.doubleValue();
+        } else {
+            try {
+                v = o == null ? 0 : Double.parseDouble(String.valueOf(o));
+            } catch (NumberFormatException e) {
+                v = 0;
+            }
         }
+        // NaN/Infinity가 상태에 들어가면 전 참가자 재생 위치가 깨지므로 차단(리뷰 반영).
+        return Double.isFinite(v) ? v : 0;
     }
 
     private static Long longVal(Object o) {

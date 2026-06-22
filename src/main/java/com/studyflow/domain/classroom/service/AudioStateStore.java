@@ -73,14 +73,17 @@ public class AudioStateStore {
         }
     }
 
-    /** 재생목록에서 트랙 선택(현재 트랙 = 그 트랙, 위치 0·정지·반복 해제). */
-    public void select(Long sessionId, Long fileId) {
+    /**
+     * 재생목록에서 트랙 선택(현재 트랙 = 그 트랙, 위치 0·정지·반복 해제).
+     * @return 트랙을 찾아 상태가 바뀌었으면 true, 목록에 없으면 false(이 경우 호출측이 재방송하지 않도록).
+     */
+    public boolean select(Long sessionId, Long fileId) {
         Audio a = audio(sessionId);
         synchronized (a) {
             Map<String, Object> t = a.playlist.stream()
                     .filter(x -> fileId != null && fileId.equals(x.get("fileId")))
                     .findFirst().orElse(null);
-            if (t == null) return;
+            if (t == null) return false;
             a.url = (String) t.get("url");
             a.fileName = (String) t.get("fileName");
             a.fileId = fileId;
@@ -90,6 +93,7 @@ public class AudioStateStore {
             a.loopStart = 0;
             a.loopEnd = 0;
             a.updatedAtMs = now();
+            return true;
         }
     }
 
