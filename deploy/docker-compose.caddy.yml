@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
+      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
       BACKEND_DOMAIN: ${BACKEND_DOMAIN}
       ALB_DNS: ${ALB_DNS}
     volumes:
