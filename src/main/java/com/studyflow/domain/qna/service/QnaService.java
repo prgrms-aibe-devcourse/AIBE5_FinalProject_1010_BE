@@ -215,7 +215,7 @@ public class QnaService {
     /** 질문 삭제 (작성 학생 본인 또는 관리자). 답변·좋아요·첨부는 cascade로 함께 삭제된다. */
     @Transactional
     public void deleteQuestion(Long userId, Long questionId, boolean isAdmin) {
-        QnaQuestion question = questionRepository.findById(questionId)
+        QnaQuestion question = questionRepository.findByIdWithLock(questionId)
                 .orElseThrow(() -> new QnaQuestionNotFoundException(questionId));
         requireAuthor(question.isAuthor(userId) || isAdmin, "본인이 작성한 질문만 삭제할 수 있습니다.");
         questionRepository.delete(question);
@@ -226,7 +226,7 @@ public class QnaService {
     /** 답변 작성 (TEACHER). */
     @Transactional
     public QnaAnswerCreateResponse createAnswer(Long userId, Long questionId, QnaAnswerRequest request) {
-        QnaQuestion question = questionRepository.findById(questionId)
+        QnaQuestion question = questionRepository.findByIdWithLock(questionId)
                 .orElseThrow(() -> new QnaQuestionNotFoundException(questionId));
         User author = userRepository.getReferenceById(userId);
 
