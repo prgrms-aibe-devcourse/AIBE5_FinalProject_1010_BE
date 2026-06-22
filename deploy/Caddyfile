@@ -1,0 +1,7 @@
+# Caddy — DuckDNS 도메인의 HTTPS 종단(Let's Encrypt 자동 발급/갱신).
+# EC2-A의 EIP를 가리키는 DuckDNS 도메인을 받아, AWS ALB(HTTP)로 프록시한다.
+# ALB가 EC2 2대로 부하분산(+sticky)하므로, Caddy는 TLS 종단 + 예쁜 도메인 역할만 한다.
+# WebSocket(STOMP)·SSE는 Caddy가 자동 처리한다.
+{$BACKEND_DOMAIN} {
+	reverse_proxy http://{$ALB_DNS}
+}

@@ -1,0 +1,19 @@
+# EC2-A 전용 — Caddy 리버스 프록시(HTTPS 종단). DuckDNS 도메인 → ALB로 프록시.
+# host 네트워크로 80/443을 직접 바인딩하고 ALB DNS로 아웃바운드한다.
+services:
+  caddy:
+    image: caddy:2
+    container_name: studyflow-caddy
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN}
+      ALB_DNS: ${ALB_DNS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
