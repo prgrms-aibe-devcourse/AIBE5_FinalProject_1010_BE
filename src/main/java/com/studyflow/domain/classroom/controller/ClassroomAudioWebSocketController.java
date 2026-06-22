@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -39,7 +38,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ClassroomAudioWebSocketController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
     private final AudioStateStore audioStateStore;
 
     @MessageMapping("/classroom-sessions/{sessionId}/audio")
@@ -77,7 +76,7 @@ public class ClassroomAudioWebSocketController {
 
         // 클라이언트가 위치/지연을 보정할 수 있도록 서버 시각을 실어 재방송.
         message.put("serverNowMs", System.currentTimeMillis());
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/audio",
                 message
         );

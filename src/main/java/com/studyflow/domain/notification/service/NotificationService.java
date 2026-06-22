@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +26,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
 
     // 내 알림 목록 조회 (최신순, 페이징)
     public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
@@ -133,7 +132,7 @@ public class NotificationService {
      */
     private void push(Long recipientId, NotificationResponse payload) {
         try {
-            messagingTemplate.convertAndSendToUser(String.valueOf(recipientId), "/sub/notifications", payload);
+            broadcaster.sendToUser(String.valueOf(recipientId), "/sub/notifications", payload);
         } catch (Exception e) {
             log.warn("알림 실시간 push 실패 (recipientId={}): {}", recipientId, e.getMessage());
         }

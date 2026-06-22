@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -28,7 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ClassroomReactionWebSocketController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
     private final UserRepository userRepository;
     private final ClassroomSessionRepository sessionRepository;
     private final ClassroomService classroomService;
@@ -54,7 +53,7 @@ public class ClassroomReactionWebSocketController {
 
         message.put("senderId", userId);
         userRepository.findById(userId).ifPresent(u -> message.put("senderName", u.getName()));
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/reactions",
                 message
         );
