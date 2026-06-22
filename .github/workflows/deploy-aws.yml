@@ -95,6 +95,8 @@ jobs:
           LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
           LIVEKIT_URL=${{ vars.LIVEKIT_URL }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
           BACKEND_URL=${{ vars.BACKEND_URL }}
           FRONTEND_URL=${{ vars.FRONTEND_URL }}
           ENVEOF
