@@ -51,6 +51,9 @@ public class FileService {
     /** 허용 PDF 확장자 화이트리스트. 이미지와 동일한 패턴으로 관리한다. */
     private static final Set<String> ALLOWED_PDF_EXTENSIONS = Set.of(".pdf");
 
+    /** 허용 오디오 확장자 화이트리스트(강의실 듣기 자료). */
+    private static final Set<String> ALLOWED_AUDIO_EXTENSIONS = Set.of(".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac");
+
     /**
      * 로컬 저장 루트의 절대경로. 기동 시 한 번 고정해 저장/읽기가 항상 같은 기준점을 쓰게 한다.
      * (개발용 로컬 저장 — 운영에서는 S3로 교체 추천. file_asset 구조는 양쪽 모두 그대로 사용 가능)
@@ -359,6 +362,62 @@ public class FileService {
             throw new IllegalArgumentException("강의실에는 PDF 파일만 업로드할 수 있습니다.");
         }
         return uploadCourseAttachment(uploaderId, file, "classroom");
+    }
+
+    /**
+     * 강의실 듣기 자료(오디오) 업로드 (이슈 #182). mp3/wav/m4a/ogg/aac/flac 허용, 최대 50MB.
+     * 확장자 화이트리스트 + 매직바이트로 실제 오디오 여부를 검사하고 FileCategory.AUDIO로 저장한다.
+     * 저장 경로: uploads/classroom-audio/yyyy/MM/dd/
+     */
+    @Transactional
+    public FileUploadResponse uploadClassroomAudio(Long uploaderId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+        String originalFileName = file.getOriginalFilename();
+        String extension = extractExtension(originalFileName).toLowerCase();
+        if (!ALLOWED_AUDIO_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("오디오 파일(mp3, wav, m4a, ogg, aac, flac)만 업로드할 수 있습니다.");
+        }
+        long maxSize = 50 * 1024 * 1024L; // 50MB
+        if (file.getSize() > maxSize) {
+            throw new IllegalArgumentException("오디오 파일은 최대 50MB까지 업로드할 수 있습니다.");
+        }
+        User uploader = userRepository.findById(uploaderId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        try {
+            byte[] bytes = file.getBytes();
+            if (!looksLikeAudio(bytes)) {
+                throw new IllegalArgumentException("올바른 오디오 파일이 아닙니다.");
+            }
+            StoredFile sf = storeLocalFile(bytes, "classroom-audio", extension);
+            FileAsset asset = FileAsset.createFile(uploader, originalFileName, sf.storedFileName(),
+                    FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(),
+                    file.getContentType(), file.getSize(), FileCategory.AUDIO);
+            FileAsset saved = fileAssetRepository.save(asset);
+            return new FileUploadResponse(
+                    saved.getId(), saved.getFileUrl(), saved.getThumbnailUrl(),
+                    saved.getOriginalFileName(), saved.getContentType(),
+                    saved.getFileSize(), null, null);
+        } catch (IOException e) {
+            throw new IllegalStateException("파일 업로드에 실패했습니다.", e);
+        }
+    }
+
+    /** 흔한 오디오 컨테이너 시그니처(매직바이트)로 오디오 여부를 추정한다. */
+    private static boolean looksLikeAudio(byte[] b) {
+        if (b == null || b.length < 12) return false;
+        int b0 = b[0] & 0xFF, b1 = b[1] & 0xFF, b2 = b[2] & 0xFF, b3 = b[3] & 0xFF;
+        if (b0 == 0x49 && b1 == 0x44 && b2 == 0x33) return true;                 // "ID3" (mp3)
+        if (b0 == 0xFF && (b1 & 0xE0) == 0xE0) return true;                      // MPEG/ADTS 프레임 동기 (mp3/aac)
+        if (b0 == 0x52 && b1 == 0x49 && b2 == 0x46 && b3 == 0x46                 // "RIFF"...."WAVE" (wav)
+                && (b[8] & 0xFF) == 0x57 && (b[9] & 0xFF) == 0x41
+                && (b[10] & 0xFF) == 0x56 && (b[11] & 0xFF) == 0x45) return true;
+        if (b0 == 0x4F && b1 == 0x67 && b2 == 0x67 && b3 == 0x53) return true;   // "OggS" (ogg)
+        if (b0 == 0x66 && b1 == 0x4C && b2 == 0x61 && b3 == 0x43) return true;   // "fLaC" (flac)
+        if ((b[4] & 0xFF) == 0x66 && (b[5] & 0xFF) == 0x74                       // "ftyp" @4 (m4a/mp4)
+                && (b[6] & 0xFF) == 0x79 && (b[7] & 0xFF) == 0x70) return true;
+        return false;
     }
 
     /**

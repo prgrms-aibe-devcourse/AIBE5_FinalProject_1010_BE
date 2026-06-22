@@ -98,6 +98,17 @@ public class ClassroomSessionController {
         return ResponseEntity.ok(fileService.uploadClassroomDocument(userId, file));
     }
 
+    @Operation(summary = "강의실 듣기 자료(오디오) 업로드", description = "강의실을 연 담당 선생님만 오디오(mp3/wav 등) 자료를 업로드할 수 있습니다. (이슈 #182)")
+    @PostMapping("/classroom-sessions/{sessionId}/audios")
+    public ResponseEntity<FileUploadResponse> uploadClassroomAudio(
+            @PathVariable Long sessionId,
+            @RequestPart("file") MultipartFile file,
+            @Parameter(hidden = true) @AuthenticationPrincipal Long userId
+    ) {
+        classroomService.verifyClassroomHost(sessionId, userId);
+        return ResponseEntity.ok(fileService.uploadClassroomAudio(userId, file));
+    }
+
     // 22-6 강의실 종료 — 담당 선생님 전용
     @Operation(summary = "강의실 종료", description = "담당 선생님 전용. 진행 시간(durationSeconds)이 계산됩니다.")
     @PatchMapping("/classroom-sessions/{sessionId}/close")

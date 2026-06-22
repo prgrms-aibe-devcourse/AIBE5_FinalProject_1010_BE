@@ -61,6 +61,7 @@ public class ClassroomService {
     private final UserRepository userRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
+    private final AudioStateStore audioStateStore;
     private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
@@ -184,6 +185,10 @@ public class ClassroomService {
         if (participant.isCanDraw()) {
             whiteboardDrawPermissionStore.grant(sessionId, userId);
         }
+        // 오디오 제어 권한자(호스트=수업 진행 선생님) 등록 — 듣기 자료 재생 동기화 게이팅용(이슈 #182).
+        if (isHost) {
+            audioStateStore.setHost(sessionId, userId);
+        }
 
         return ClassroomParticipantResponse.from(participant);
     }
@@ -233,6 +238,8 @@ public class ClassroomService {
         whiteboardStateStore.clear(session.getId());
         // 화이트보드 판서 권한 캐시도 함께 정리(이슈 #162).
         whiteboardDrawPermissionStore.clear(session.getId());
+        // 오디오 재생 상태도 메모리에서 정리(이슈 #182).
+        audioStateStore.clear(session.getId());
         // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
         messagingTemplate.convertAndSend(
                 "/sub/classroom-sessions/" + session.getId() + "/events",
@@ -368,6 +375,23 @@ public class ClassroomService {
                         "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
         verifyMemberAndIsHost(session.getCourse(), userId);
         return whiteboardStateStore.snapshot(sessionId);
+    }
+
+    /**
+     * 오디오 현재 재생 상태 조회 — 수업 멤버만 (이슈 #182). 입장/재연결 시 트랙/위치 복원용.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAudioSnapshot(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        boolean isHost = verifyMemberAndIsHost(session.getCourse(), userId);
+        // 스냅샷은 클라이언트가 (재)연결마다 호출하므로, 선생님이면 여기서 오디오 제어 권한자를 (재)등록한다.
+        // → BE 재시작/재연결로 메모리의 호스트 등록이 사라져도 제어가 막히지 않게 한다(이슈 #182).
+        if (isHost) {
+            audioStateStore.setHost(sessionId, userId);
+        }
+        return audioStateStore.snapshot(sessionId);
     }
 
     @Transactional(readOnly = true)
