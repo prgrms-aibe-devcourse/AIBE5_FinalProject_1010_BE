@@ -16,7 +16,7 @@ name: Deploy AWS Multi-Instance
 
 on:
   push:
-    branches: [feat/aws-multi-instance]
+    branches: [main]
   workflow_dispatch: {}
 
 env:
