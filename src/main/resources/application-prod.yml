@@ -24,6 +24,19 @@ spring:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+  # 이메일 인증(JavaMailSender). host가 있어야 빈이 생성되어 앱이 기동된다.
+  # 실제 발송하려면 MAIL_USERNAME/MAIL_PASSWORD(Gmail 앱 비밀번호)를 .env로 주입.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   data:
     redis:
       # ElastiCache 엔드포인트 — 인메모리 상태/WS 릴레이/ShedLock 공유 (무인증이면 비번 빈값)
