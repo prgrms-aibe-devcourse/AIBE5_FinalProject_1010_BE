@@ -100,17 +100,30 @@ public class CourseSearchService {
         ));
     }
 
-    // request.sort 값을 Spring Data Sort 객체로 변환 — 거리순(DISTANCE)은 Specification orderBy로 처리하므로 제외
+    // request.sort 값을 Spring Data Sort 객체로 변환
     private Sort buildSort(CourseSort sort) {
         return switch (sort) {
             case PRICE_ASC  -> Sort.by(Sort.Direction.ASC,  "pricePerSession");
             case PRICE_DESC -> Sort.by(Sort.Direction.DESC, "pricePerSession");
-            case OLDEST          -> Sort.by(Sort.Direction.ASC,  "createdAt");
-            case DISTANCE, LATEST -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case OLDEST     -> Sort.by(Sort.Direction.ASC,  "createdAt");
+            case LATEST     -> Sort.by(Sort.Direction.DESC, "createdAt");
+            // 거리순(DISTANCE)은 좌표가 있으면 호출부(distanceSort 분기)에서 Specification orderBy로 처리되어
+            // 이 메서드를 타지 않는다. 또한 좌표 없는 DISTANCE는 DTO 검증(@AssertTrue)에서 이미 차단된다.
+            // 그럼에도 도달한다면(좌표 누락 등 예외 상황) 안전하게 최신순으로 폴백한다.
+            case DISTANCE   -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
     }
 
     // 두 좌표 사이 거리를 Haversine 공식으로 계산해 소수 첫째 자리 km로 반환 (표시용).
+    //
+    // ⚠️ 의도적 공식 분리:
+    //   - DB 정렬(CourseSpecification.orderByDistance)은 구면 코사인 법칙(SLoC)을 사용한다.
+    //     Criteria로 표현하기 단순하고, 정렬은 "상대적 순서"만 맞으면 되기 때문.
+    //   - 화면 표시값(이 메서드)은 근거리에서 부동소수 오차가 작은 Haversine을 사용한다.
+    //   두 공식은 수학적으로 동치이며 정렬 결과도 동일하다. 표시 거리에서 수 km 이내 미세한
+    //   차이가 날 수 있으나 사용자 경험에 영향이 없어 의도적으로 분리해 둔다.
+    //
+    // studentLat/Lng는 primitive — 호출부(distanceSort=true)에서 좌표가 non-null임이 보장된 뒤에만 호출된다.
     // 좌표가 하나라도 null이면 null 반환. 정렬은 DB에서 수행하고, 여기서는 화면 표시값만 만든다.
     private static Double distanceKm(double studentLat, double studentLng,
                                      Double courseLat, Double courseLng) {

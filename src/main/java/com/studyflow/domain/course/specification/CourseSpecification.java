@@ -199,7 +199,9 @@ public class CourseSpecification {
     public static Specification<Course> orderByDistance(Double lat, Double lng) {
         return (root, query, cb) -> {
             if (lat == null || lng == null) return null;
-            if (query.getResultType() != null && Long.class.equals(query.getResultType())) {
+            // count 쿼리에는 ORDER BY가 불필요하고 일부 DB에서 오류를 내므로 건너뛴다.
+            // Hibernate 구현/버전에 따라 결과 타입이 달라질 수 있어 isAssignableFrom으로 방어적으로 판별.
+            if (query.getResultType() != null && Long.class.isAssignableFrom(query.getResultType())) {
                 return null; // count 쿼리
             }
 

@@ -88,10 +88,10 @@ public class CourseSearchRequest {
     @DecimalMax(value = "180.0",  message = "경도는 180 이하이어야 합니다.")
     private Double studentLng;
 
-    // 거리순 정렬에 필요한 좌표가 둘 다(또는 둘 다 없이) 들어왔는지 검증
-    // 한쪽만 들어오면 거리 계산이 불가능하므로 차단
+    // 거리순(DISTANCE) 정렬에 필요한 좌표가 둘 다 들어왔는지 검증
+    // 한쪽만 들어오면 거리 계산이 불가능하므로 차단 (DISTANCE가 아니면 검증하지 않음)
     @AssertTrue(message = "거리순 정렬에는 위도·경도를 함께 전달해야 합니다.")
-    public boolean isStudentLocationValid() {
+    public boolean isDistanceSortLocationValid() {
         if (sort != CourseSort.DISTANCE) return true;
         return studentLat != null && studentLng != null;
     }
