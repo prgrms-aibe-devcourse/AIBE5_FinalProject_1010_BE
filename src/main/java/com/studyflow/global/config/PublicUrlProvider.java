@@ -8,6 +8,9 @@ public class PublicUrlProvider {
     // 인증 정보 저장 및 인증 필터링 과정 전체를 생략하는 url 목록
     public String[] getPublicUrls() {
         return new String[] {
+                // ALB 헬스체크 — 인증 없이 200 반환(멀티 인스턴스 배포)
+                "/health",
+
                 "/api/v1/auth/email/code/send",
                 "/api/v1/auth/email/verify",
                 "/api/v1/auth/password/reset/link",
