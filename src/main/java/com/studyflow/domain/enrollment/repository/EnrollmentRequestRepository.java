@@ -28,17 +28,16 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     @Query("UPDATE EnrollmentRequest er SET er.status = 'REJECTED' WHERE er.course.id = :courseId AND er.status = 'PENDING'")
     int bulkRejectPendingByCourseId(@Param("courseId") Long courseId);
 
-    // 수락/거절 처리용 — course·teacherProfile JOIN FETCH + 비관적 쓰기 락 (취소와의 동시성 보호)
+    // 동시성 보호용 — enrollment_request 행에만 배타 락 (course·teacherProfile 등 조인 테이블은 잠그지 않음)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT er FROM EnrollmentRequest er WHERE er.id = :id")
+    Optional<EnrollmentRequest> findByIdForUpdate(@Param("id") Long id);
+
+    // 수락/거절 처리용 — course·teacherProfile JOIN FETCH (락 없음, findByIdForUpdate 이후 연관 로딩용)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.course c JOIN FETCH c.teacherProfile WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithCourse(@Param("id") Long id);
 
-    // 취소 처리용 — user JOIN FETCH (본인 확인 시 LAZY 추가 쿼리 방지)
-    @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user WHERE er.id = :id")
-    Optional<EnrollmentRequest> findByIdWithUser(@Param("id") Long id);
-
-    // 취소 알림 발행용 — user + course + teacherProfile + teacher user 한 번에 로딩 + 비관적 쓰기 락 (수락/거절과의 동시성 보호)
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    // 취소 처리용 — user + course + teacherProfile + teacher user JOIN FETCH (락 없음, findByIdForUpdate 이후 연관 로딩용)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user JOIN FETCH er.course c JOIN FETCH c.teacherProfile tp JOIN FETCH tp.user WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithUserAndCourse(@Param("id") Long id);
 
