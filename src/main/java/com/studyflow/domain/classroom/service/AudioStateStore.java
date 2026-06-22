@@ -1,91 +1,103 @@
 package com.studyflow.domain.classroom.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.global.redis.RedisStateLock;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 
 /**
- * 강의실 듣기 자료(오디오)의 "권위 있는 현재 재생 상태"를 세션별로 메모리에 보관한다 (이슈 #182).
+ * 강의실 듣기 자료(오디오)의 "권위 있는 현재 재생 상태"를 세션별로 Redis에 보관한다 (이슈 #182, 멀티 인스턴스 대응).
  *
- * <p>화이트보드({@link WhiteboardStateStore})와 같은 철학: 서버가 단일 진실원천이다. 선생님(호스트)이
- * 보낸 제어(add/select/removeTrack/play/pause/seek/stop/rate/loop)를 이 상태에 반영한 뒤 같은 세션
- * 전원에게 재방송한다. 늦게 들어온 참가자는 REST 스냅샷으로 재생목록·현재 트랙·재생여부·위치·배속·반복구간을 복원한다.</p>
- *
- * <p>오디오 "제어"는 호스트(수업 진행 선생님)만 가능하다 — 입장 시 {@code setHost}로 기록하고
- * WebSocket 컨트롤러가 {@code isHost}로 게이팅한다. 단일 인스턴스 in-memory.</p>
+ * <p>화이트보드({@link WhiteboardStateStore})와 같은 방식: 상태를 Redis에 JSON으로 저장하고 read-modify-write를
+ * 세션 단위 분산 락({@link RedisStateLock})으로 직렬화한다. 선생님(호스트)이 보낸 제어를 반영 후 전원에게 재방송하며,
+ * 늦은 입장자는 REST 스냅샷으로 재생목록·트랙·재생여부·위치·배속·반복을 복원한다. 방치 상태는 TTL로 자동 만료.</p>
  */
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class AudioStateStore {
 
-    /** 한 세션의 오디오 재생 컨텍스트. */
-    static final class Audio {
-        Long hostUserId;                 // 오디오 제어 권한자(수업 진행 선생님)
-        final List<Map<String, Object>> playlist = new ArrayList<>(); // [{url, fileName, fileId}] 업로드 순
-        String url;                      // 현재 트랙 URL (null = 선택된 트랙 없음)
-        String fileName;
-        Long fileId;
-        boolean playing;
-        double positionSec;              // updatedAtMs 기준 시점의 재생 위치(초)
-        long updatedAtMs;                // 위 상태가 설정된 서버 epoch ms
-        double rate = 1.0;               // 재생 배속(0.2~3.0)
-        boolean loopOn;                  // AB 반복 사용 여부
-        double loopStart;                // 반복 시작(초)
-        double loopEnd;                  // 반복 끝(초)
-    }
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final RedisStateLock lock;
 
     private static final double MIN_RATE = 0.2;
     private static final double MAX_RATE = 3.0;
+    private static final Duration TTL = Duration.ofHours(24);
 
-    private final Map<Long, Audio> audios = new ConcurrentHashMap<>();
+    private String key(Long sessionId) { return "audio:" + sessionId; }
+    private String lockName(Long sessionId) { return "audio:" + sessionId; }
 
-    private Audio audio(Long sessionId) {
-        return audios.computeIfAbsent(sessionId, k -> new Audio());
+    /** 한 세션의 오디오 재생 컨텍스트(작업용 인메모리 표현 — 영속은 Redis JSON). */
+    static final class Audio {
+        Long hostUserId;
+        final List<Map<String, Object>> playlist = new ArrayList<>();
+        String url;
+        String fileName;
+        Long fileId;
+        boolean playing;
+        double positionSec;
+        long updatedAtMs;
+        double rate = 1.0;
+        boolean loopOn;
+        double loopStart;
+        double loopEnd;
     }
 
     /** 호스트(제어 권한자) 등록 — 입장 시 호출. */
     public void setHost(Long sessionId, Long userId) {
-        Audio a = audio(sessionId);
-        synchronized (a) { a.hostUserId = userId; }
+        lock.withLock(lockName(sessionId), () -> {
+            Audio a = load(sessionId);
+            a.hostUserId = userId;
+            save(sessionId, a);
+            return null;
+        });
     }
 
     public boolean isHost(Long sessionId, Long userId) {
-        Audio a = audios.get(sessionId);
-        return a != null && userId != null && userId.equals(a.hostUserId);
+        Audio a = load(sessionId);
+        return a.hostUserId != null && userId != null && a.hostUserId.equals(userId);
     }
 
     /** 재생목록에 트랙 추가(같은 fileId면 무시). */
     public void add(Long sessionId, String url, String fileName, Long fileId) {
         if (url == null) return;
-        Audio a = audio(sessionId);
-        synchronized (a) {
-            boolean exists = a.playlist.stream().anyMatch(t -> fileId != null && fileId.equals(t.get("fileId")));
+        lock.withLock(lockName(sessionId), () -> {
+            Audio a = load(sessionId);
+            boolean exists = a.playlist.stream().anyMatch(t -> idEq(fileId, t.get("fileId")));
             if (!exists) {
                 Map<String, Object> t = new LinkedHashMap<>();
                 t.put("url", url);
                 t.put("fileName", fileName);
                 t.put("fileId", fileId);
                 a.playlist.add(t);
+                save(sessionId, a);
             }
-        }
+            return null;
+        });
     }
 
     /**
-     * 재생목록에서 트랙 선택(현재 트랙 = 그 트랙, 위치 0·정지·반복 해제).
-     * @return 트랙을 찾아 상태가 바뀌었으면 true, 목록에 없으면 false(이 경우 호출측이 재방송하지 않도록).
+     * 재생목록에서 트랙 선택. 목록에 없으면 false(호출측이 재방송하지 않도록).
      */
     public boolean select(Long sessionId, Long fileId) {
-        Audio a = audio(sessionId);
-        synchronized (a) {
+        return lock.withLock(lockName(sessionId), () -> {
+            Audio a = load(sessionId);
             Map<String, Object> t = a.playlist.stream()
-                    .filter(x -> fileId != null && fileId.equals(x.get("fileId")))
+                    .filter(x -> idEq(fileId, x.get("fileId")))
                     .findFirst().orElse(null);
             if (t == null) return false;
-            a.url = (String) t.get("url");
-            a.fileName = (String) t.get("fileName");
+            a.url = str(t.get("url"));
+            a.fileName = str(t.get("fileName"));
             a.fileId = fileId;
             a.playing = false;
             a.positionSec = 0;
@@ -93,16 +105,17 @@ public class AudioStateStore {
             a.loopStart = 0;
             a.loopEnd = 0;
             a.updatedAtMs = now();
+            save(sessionId, a);
             return true;
-        }
+        });
     }
 
     /** 재생목록에서 트랙 삭제. 현재 트랙이면 재생 정지하고 현재 트랙 해제. */
     public void removeTrack(Long sessionId, Long fileId) {
-        Audio a = audio(sessionId);
-        synchronized (a) {
-            a.playlist.removeIf(t -> fileId != null && fileId.equals(t.get("fileId")));
-            if (fileId != null && fileId.equals(a.fileId)) {
+        lock.withLock(lockName(sessionId), () -> {
+            Audio a = load(sessionId);
+            a.playlist.removeIf(t -> idEq(fileId, t.get("fileId")));
+            if (Objects.equals(fileId, a.fileId)) {
                 a.url = null;
                 a.fileName = null;
                 a.fileId = null;
@@ -111,98 +124,180 @@ public class AudioStateStore {
                 a.loopOn = false;
                 a.updatedAtMs = now();
             }
-        }
+            save(sessionId, a);
+            return null;
+        });
     }
 
     public void play(Long sessionId, double positionSec) {
-        Audio a = audio(sessionId);
-        synchronized (a) { a.playing = true; a.positionSec = Math.max(0, positionSec); a.updatedAtMs = now(); }
+        mutate(sessionId, a -> { a.playing = true; a.positionSec = Math.max(0, positionSec); a.updatedAtMs = now(); });
     }
 
     public void pause(Long sessionId, double positionSec) {
-        Audio a = audio(sessionId);
-        synchronized (a) { a.playing = false; a.positionSec = Math.max(0, positionSec); a.updatedAtMs = now(); }
+        mutate(sessionId, a -> { a.playing = false; a.positionSec = Math.max(0, positionSec); a.updatedAtMs = now(); });
     }
 
     public void seek(Long sessionId, double positionSec, Boolean playing) {
-        Audio a = audio(sessionId);
-        synchronized (a) {
+        mutate(sessionId, a -> {
             a.positionSec = Math.max(0, positionSec);
             if (playing != null) a.playing = playing;
             a.updatedAtMs = now();
-        }
+        });
     }
 
     public void stop(Long sessionId) {
-        Audio a = audio(sessionId);
-        synchronized (a) { a.playing = false; a.positionSec = 0; a.updatedAtMs = now(); }
+        mutate(sessionId, a -> { a.playing = false; a.positionSec = 0; a.updatedAtMs = now(); });
     }
 
-    /** 배속 변경. 클라가 보낸 현재 위치로 기준을 다시 잡아 경과시간 보정이 어긋나지 않게 한다. */
+    /** 배속 변경 — 클라가 보낸 현재 위치로 기준 재설정. */
     public void setRate(Long sessionId, double rate, double positionSec) {
-        Audio a = audio(sessionId);
-        synchronized (a) {
+        mutate(sessionId, a -> {
             a.rate = Math.max(MIN_RATE, Math.min(MAX_RATE, rate <= 0 ? 1.0 : rate));
             a.positionSec = Math.max(0, positionSec);
             a.updatedAtMs = now();
-        }
+        });
     }
 
-    /** AB 반복 구간 설정(각 클라가 로컬에서 loopEnd 도달 시 loopStart로 되감아 동일 구간 반복). */
+    /** AB 반복 구간 설정. */
     public void setLoop(Long sessionId, boolean on, double start, double end) {
-        Audio a = audio(sessionId);
-        synchronized (a) {
+        mutate(sessionId, a -> {
             a.loopOn = on;
             a.loopStart = Math.max(0, start);
             a.loopEnd = Math.max(0, end);
-        }
+        });
     }
 
-    /**
-     * 입장/재동기화용 현재 상태 스냅샷. 재생 중이면 배속을 반영한 경과시간을 더해 "현재 위치"를 계산해 돌려준다.
-     */
+    /** 입장/재동기화용 스냅샷. 재생 중이면 배속 반영 경과시간을 더해 현재 위치를 계산. */
     public Map<String, Object> snapshot(Long sessionId) {
-        Audio a = audios.get(sessionId);
+        Audio a = load(sessionId);
         Map<String, Object> out = new LinkedHashMap<>();
         long now = now();
         out.put("serverNowMs", now);
-        if (a == null) {
-            out.put("playlist", new ArrayList<>());
+        out.put("playlist", new ArrayList<>(a.playlist));
+        out.put("rate", a.rate);
+        out.put("loopOn", a.loopOn);
+        out.put("loopStart", a.loopStart);
+        out.put("loopEnd", a.loopEnd);
+        if (a.url == null) {
             out.put("url", null);
             out.put("playing", false);
             out.put("positionSec", 0.0);
-            out.put("rate", 1.0);
-            out.put("loopOn", false);
             return out;
         }
-        synchronized (a) {
-            out.put("playlist", new ArrayList<>(a.playlist));
-            out.put("rate", a.rate);
-            out.put("loopOn", a.loopOn);
-            out.put("loopStart", a.loopStart);
-            out.put("loopEnd", a.loopEnd);
-            if (a.url == null) {
-                out.put("url", null);
-                out.put("playing", false);
-                out.put("positionSec", 0.0);
-                return out;
-            }
-            double effective = a.playing ? a.positionSec + (now - a.updatedAtMs) / 1000.0 * a.rate : a.positionSec;
-            out.put("url", a.url);
-            out.put("fileName", a.fileName);
-            out.put("fileId", a.fileId);
-            out.put("playing", a.playing);
-            out.put("positionSec", Math.max(0, effective));
-            out.put("updatedAtMs", a.updatedAtMs);
-        }
+        double effective = a.playing ? a.positionSec + (now - a.updatedAtMs) / 1000.0 * a.rate : a.positionSec;
+        out.put("url", a.url);
+        out.put("fileName", a.fileName);
+        out.put("fileId", a.fileId);
+        out.put("playing", a.playing);
+        out.put("positionSec", Math.max(0, effective));
+        out.put("updatedAtMs", a.updatedAtMs);
         return out;
     }
 
     public void clear(Long sessionId) {
-        audios.remove(sessionId);
+        redisTemplate.delete(key(sessionId));
+    }
+
+    // ───────────── 공통 mutate(락) + Redis load/save ─────────────
+
+    private void mutate(Long sessionId, java.util.function.Consumer<Audio> fn) {
+        lock.withLock(lockName(sessionId), () -> {
+            Audio a = load(sessionId);
+            fn.accept(a);
+            save(sessionId, a);
+            return null;
+        });
+    }
+
+    private Audio load(Long sessionId) {
+        String json = redisTemplate.opsForValue().get(key(sessionId));
+        if (json == null) return new Audio();
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> m = objectMapper.readValue(json, Map.class);
+            return fromMap(m);
+        } catch (Exception e) {
+            log.warn("[audio] 상태 역직렬화 실패 — 빈 상태로 시작 (sessionId={})", sessionId, e);
+            return new Audio();
+        }
+    }
+
+    private void save(Long sessionId, Audio a) {
+        try {
+            redisTemplate.opsForValue().set(key(sessionId), objectMapper.writeValueAsString(rawMap(a)), TTL);
+        } catch (Exception e) {
+            log.warn("[audio] 상태 직렬화 저장 실패 (sessionId={})", sessionId, e);
+        }
+    }
+
+    private Map<String, Object> rawMap(Audio a) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("hostUserId", a.hostUserId);
+        m.put("playlist", a.playlist);
+        m.put("url", a.url);
+        m.put("fileName", a.fileName);
+        m.put("fileId", a.fileId);
+        m.put("playing", a.playing);
+        m.put("positionSec", a.positionSec);
+        m.put("updatedAtMs", a.updatedAtMs);
+        m.put("rate", a.rate);
+        m.put("loopOn", a.loopOn);
+        m.put("loopStart", a.loopStart);
+        m.put("loopEnd", a.loopEnd);
+        return m;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Audio fromMap(Map<String, Object> m) {
+        Audio a = new Audio();
+        a.hostUserId = longVal(m.get("hostUserId"));
+        Object pl = m.get("playlist");
+        if (pl instanceof List<?> list) {
+            for (Object o : list) if (o instanceof Map) a.playlist.add((Map<String, Object>) o);
+        }
+        a.url = str(m.get("url"));
+        a.fileName = str(m.get("fileName"));
+        a.fileId = longVal(m.get("fileId"));
+        a.playing = boolVal(m.get("playing"));
+        a.positionSec = dblVal(m.get("positionSec"));
+        Long u = longVal(m.get("updatedAtMs"));
+        a.updatedAtMs = u != null ? u : 0L;
+        a.rate = m.get("rate") != null ? dblVal(m.get("rate")) : 1.0;
+        a.loopOn = boolVal(m.get("loopOn"));
+        a.loopStart = dblVal(m.get("loopStart"));
+        a.loopEnd = dblVal(m.get("loopEnd"));
+        return a;
     }
 
     private static long now() {
         return System.currentTimeMillis();
+    }
+
+    /** JSON 라운드트립으로 Integer/Long이 섞여도 숫자 값으로 비교(fileId 매칭 안정성). */
+    private static boolean idEq(Long target, Object stored) {
+        return target != null && target.equals(longVal(stored));
+    }
+
+    private static Long longVal(Object o) {
+        if (o instanceof Number n) return n.longValue();
+        if (o == null) return null;
+        try { return Long.valueOf(String.valueOf(o)); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static double dblVal(Object o) {
+        if (o instanceof Number n) return n.doubleValue();
+        if (o == null) return 0;
+        try {
+            double v = Double.parseDouble(String.valueOf(o));
+            return Double.isFinite(v) ? v : 0;
+        } catch (NumberFormatException e) { return 0; }
+    }
+
+    private static boolean boolVal(Object o) {
+        return Boolean.TRUE.equals(o) || "true".equalsIgnoreCase(String.valueOf(o));
+    }
+
+    private static String str(Object o) {
+        return o == null ? null : String.valueOf(o);
     }
 }
