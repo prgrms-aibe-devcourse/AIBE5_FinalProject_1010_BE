@@ -4,7 +4,9 @@ import com.studyflow.domain.enrollment.entity.EnrollmentRequest;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,7 +28,8 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     @Query("UPDATE EnrollmentRequest er SET er.status = 'REJECTED' WHERE er.course.id = :courseId AND er.status = 'PENDING'")
     int bulkRejectPendingByCourseId(@Param("courseId") Long courseId);
 
-    // 수락/거절 처리용 — course·teacherProfile JOIN FETCH (소유권 검증 시 LAZY 추가 쿼리 방지)
+    // 수락/거절 처리용 — course·teacherProfile JOIN FETCH + 비관적 쓰기 락 (취소와의 동시성 보호)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.course c JOIN FETCH c.teacherProfile WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithCourse(@Param("id") Long id);
 
@@ -34,7 +37,8 @@ public interface EnrollmentRequestRepository extends JpaRepository<EnrollmentReq
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithUser(@Param("id") Long id);
 
-    // 취소 알림 발행용 — user + course + teacherProfile + teacher user 한 번에 로딩 (lazy 체인 3회 방지)
+    // 취소 알림 발행용 — user + course + teacherProfile + teacher user 한 번에 로딩 + 비관적 쓰기 락 (수락/거절과의 동시성 보호)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT er FROM EnrollmentRequest er JOIN FETCH er.user JOIN FETCH er.course c JOIN FETCH c.teacherProfile tp JOIN FETCH tp.user WHERE er.id = :id")
     Optional<EnrollmentRequest> findByIdWithUserAndCourse(@Param("id") Long id);
 
