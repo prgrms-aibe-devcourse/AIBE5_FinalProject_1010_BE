@@ -160,6 +160,7 @@ class NaegongScoreConcurrencyTest {
         startLatch.countDown(); // 10개 스레드 동시 출발
         boolean finished = doneLatch.await(30, TimeUnit.SECONDS);
         executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
 
         assertThat(finished)
                 .as("10개 스레드 모두 제한 시간(30초) 내에 완료되어야 합니다")

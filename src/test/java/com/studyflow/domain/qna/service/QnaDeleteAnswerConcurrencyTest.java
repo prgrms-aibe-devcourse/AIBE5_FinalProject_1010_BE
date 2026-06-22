@@ -158,11 +158,15 @@ class QnaDeleteAnswerConcurrencyTest {
         startLatch.countDown(); // 11개 스레드 동시 출발
         boolean finished = doneLatch.await(30, TimeUnit.SECONDS);
         executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
 
         assertThat(finished)
                 .as("11개 스레드 모두 제한 시간(30초) 내에 완료되어야 합니다")
                 .isTrue();
 
+        // 비관적 락 직렬화 환경에서 삭제는 언제나 성공해야 함:
+        // 삭제 스레드는 락을 획득한 뒤 question을 삭제하므로, 답변 스레드들이 먼저 커밋했더라도
+        // cascade ALL + orphanRemoval이 answer를 함께 제거하고 삭제 트랜잭션이 완료된다.
         assertThat(deleteSucceeded.get())
                 .as("학생의 질문 삭제는 반드시 성공해야 합니다")
                 .isTrue();
@@ -179,20 +183,7 @@ class QnaDeleteAnswerConcurrencyTest {
 
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
 
-    /** QnaAnswerRequest — setter 없이 content만 세팅하는 테스트 전용 서브클래스. */
-    private static class TestAnswerRequest extends QnaAnswerRequest {
-        TestAnswerRequest(String content) {
-            try {
-                var field = QnaAnswerRequest.class.getDeclaredField("content");
-                field.setAccessible(true);
-                field.set(this, content);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
     private QnaAnswerRequest buildAnswerRequest() {
-        return new TestAnswerRequest("동시성 테스트 답변입니다.");
+        return QnaAnswerRequest.of("동시성 테스트 답변입니다.");
     }
 }

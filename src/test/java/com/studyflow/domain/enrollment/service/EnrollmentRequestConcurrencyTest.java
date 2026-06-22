@@ -181,6 +181,7 @@ class EnrollmentRequestConcurrencyTest {
             startLatch.countDown(); // 두 스레드 동시 출발
             boolean finished = doneLatch.await(10, TimeUnit.SECONDS);
             executor.shutdown();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
 
             assertThat(finished)
                     .as("Round %d — 두 스레드가 제한 시간(10초) 내에 완료되어야 합니다", round)
@@ -243,6 +244,7 @@ class EnrollmentRequestConcurrencyTest {
             startLatch.countDown();
             boolean finished = doneLatch.await(10, TimeUnit.SECONDS);
             executor.shutdown();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
 
             assertThat(finished)
                     .as("Round %d — 두 스레드가 제한 시간(10초) 내에 완료되어야 합니다", round)

@@ -152,6 +152,7 @@ class QnaAnswerLikeConcurrencyTest {
         startLatch.countDown(); // 20개 스레드 동시 출발
         boolean finished = doneLatch.await(30, TimeUnit.SECONDS);
         executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
 
         assertThat(finished)
                 .as("20개 스레드 모두 제한 시간(30초) 내에 완료되어야 합니다")
@@ -210,6 +211,7 @@ class QnaAnswerLikeConcurrencyTest {
         startLatch.countDown();
         boolean finished = doneLatch.await(30, TimeUnit.SECONDS);
         executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
 
         assertThat(finished)
                 .as("20개 스레드 모두 제한 시간(30초) 내에 완료되어야 합니다")
