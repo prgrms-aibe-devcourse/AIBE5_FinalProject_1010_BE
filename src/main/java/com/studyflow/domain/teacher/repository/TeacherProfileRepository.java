@@ -4,7 +4,9 @@ import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.user.enums.Gender;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -81,4 +83,8 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
 
     // 로그인한 선생님의 프로필 조회 — 수업 생성 시 teacherProfile 참조용
     Optional<TeacherProfile> findByUserId(Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT tp FROM TeacherProfile tp WHERE tp.user.id = :userId")
+    Optional<TeacherProfile> findByUserIdWithLock(@Param("userId") Long userId);
 }

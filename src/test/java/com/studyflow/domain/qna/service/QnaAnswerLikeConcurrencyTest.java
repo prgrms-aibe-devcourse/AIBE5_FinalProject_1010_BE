@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -53,6 +54,9 @@ class QnaAnswerLikeConcurrencyTest {
 
     @MockitoBean
     private ClientRegistrationRepository clientRegistrationRepository;
+
+    @MockitoBean
+    private SimpMessagingTemplate messagingTemplate;
 
     @Autowired private QnaService qnaService;
     @Autowired private QnaAnswerRepository answerRepository;

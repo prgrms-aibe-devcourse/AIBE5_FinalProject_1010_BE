@@ -9,4 +9,6 @@ public interface NaegongHistoryRepository extends JpaRepository<NaegongHistory, 
 
     // 특정 사용자의 내공 이력을 최신순으로 조회 (GET /api/v1/users/{userId}/naegong-histories 용)
     List<NaegongHistory> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    void deleteAllByUserId(Long userId);
 }
