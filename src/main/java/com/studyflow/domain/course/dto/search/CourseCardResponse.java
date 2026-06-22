@@ -54,9 +54,17 @@ public class CourseCardResponse {
     private String thumbnailUrl;
     private CourseStatus status;
 
-    // course 엔티티 + 수강생 수를 조합해 카드 응답 생성
+    // 학생 위치 기준 거리(km) — 거리순(DISTANCE) 정렬일 때만 값 존재, 그 외에는 null
+    private Double distanceKm;
+
+    // course 엔티티 + 수강생 수를 조합해 카드 응답 생성 (거리 정보 없음)
     // teacherProfile, user, subject는 JOIN FETCH 후 전달해야 LazyInitializationException 방지
     public static CourseCardResponse of(Course course, long currentStudents) {
+        return of(course, currentStudents, null);
+    }
+
+    // course 엔티티 + 수강생 수 + 거리(km)를 조합해 카드 응답 생성
+    public static CourseCardResponse of(Course course, long currentStudents, Double distanceKm) {
         return CourseCardResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -74,6 +82,7 @@ public class CourseCardResponse {
                 .currentStudents(currentStudents)
                 .thumbnailUrl(course.getThumbnailUrl())
                 .status(course.getStatus())
+                .distanceKm(distanceKm)
                 .build();
     }
 }

@@ -4,6 +4,7 @@ import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.enums.TargetGrade;
 import com.studyflow.domain.course.enums.TeachingMode;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -179,5 +180,54 @@ public class CourseSpecification {
                 cb.isTrue(root.get("isListed")),
                 cb.equal(root.get("status"), CourseStatus.RECRUITING)
         );
+    }
+
+    // 좌표(위도·경도)가 모두 채워진 수업만 — 거리순 정렬 대상 한정.
+    // 대면 수업이라도 선생님이 지도 핀을 찍지 않아 좌표가 null이면 거리 계산이 불가능하므로 제외한다.
+    public static Specification<Course> hasCoordinates() {
+        return (root, query, cb) -> cb.and(
+                cb.isNotNull(root.get("locationLat")),
+                cb.isNotNull(root.get("locationLng"))
+        );
+    }
+
+    // 학생 좌표(lat/lng)와의 거리(Haversine) 오름차순 정렬을 부여한다.
+    // - 조건(WHERE)은 추가하지 않고 ORDER BY만 설정하므로 항상 null Predicate를 반환.
+    // - count 쿼리에는 ORDER BY가 불필요하고 일부 DB에서 오류를 내므로 건너뛴다.
+    // - acos 인자가 부동소수 오차로 1.0을 살짝 넘으면 도메인 오류가 나므로 least(1.0, ...)로 클램프.
+    // - 거리 동률 시 페이지네이션 안정성을 위해 id 오름차순을 보조 정렬로 둔다.
+    public static Specification<Course> orderByDistance(Double lat, Double lng) {
+        return (root, query, cb) -> {
+            if (lat == null || lng == null) return null;
+            if (query.getResultType() != null && Long.class.equals(query.getResultType())) {
+                return null; // count 쿼리
+            }
+
+            Expression<Double> latCol = root.get("locationLat");
+            Expression<Double> lngCol = root.get("locationLng");
+
+            Expression<Double> radStudentLat = cb.function("radians", Double.class, cb.literal(lat));
+            Expression<Double> radStudentLng = cb.function("radians", Double.class, cb.literal(lng));
+            Expression<Double> radCourseLat  = cb.function("radians", Double.class, latCol);
+            Expression<Double> radCourseLng  = cb.function("radians", Double.class, lngCol);
+
+            // cos(radStudentLat)*cos(radCourseLat)*cos(radCourseLng - radStudentLng) + sin(radStudentLat)*sin(radCourseLat)
+            Expression<Double> cosTerm = cb.prod(
+                    cb.prod(
+                            cb.function("cos", Double.class, radStudentLat),
+                            cb.function("cos", Double.class, radCourseLat)
+                    ),
+                    cb.function("cos", Double.class, cb.diff(radCourseLng, radStudentLng))
+            );
+            Expression<Double> sinTerm = cb.prod(
+                    cb.function("sin", Double.class, radStudentLat),
+                    cb.function("sin", Double.class, radCourseLat)
+            );
+            Expression<Double> clamped = cb.function("least", Double.class, cb.literal(1.0), cb.sum(cosTerm, sinTerm));
+            Expression<Double> distance = cb.prod(cb.literal(6371.0), cb.function("acos", Double.class, clamped));
+
+            query.orderBy(cb.asc(distance), cb.asc(root.get("id")));
+            return null;
+        };
     }
 }
