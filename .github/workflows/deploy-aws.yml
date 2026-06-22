@@ -131,9 +131,9 @@ jobs:
     if: vars.BACKEND_DOMAIN != ''
     steps:
       - uses: actions/checkout@v4
-      - name: Render Caddy .env
+      - name: Render Caddy env (별도 파일 — 앱 .env 클로버 방지)
         run: |
-          cat > .env << 'ENVEOF'
+          cat > .env.caddy << 'ENVEOF'
           BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
           ALB_DNS=${{ vars.ALB_DNS }}
           ENVEOF
@@ -143,7 +143,7 @@ jobs:
           host: ${{ secrets.EC2_HOST_A }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "deploy/docker-compose.caddy.yml,deploy/Caddyfile,deploy/www/*,.env"
+          source: "deploy/docker-compose.caddy.yml,deploy/Caddyfile,deploy/www/*,.env.caddy"
           target: /home/ec2-user/studyflow
           strip_components: 0
       - name: Start Caddy on EC2-A
@@ -158,5 +158,6 @@ jobs:
             mv -f deploy/docker-compose.caddy.yml ./docker-compose.caddy.yml 2>/dev/null || true
             mv -f deploy/Caddyfile ./Caddyfile 2>/dev/null || true
             mkdir -p www
-            cp -rf deploy/www/. www/ 2>/dev/null || true
-            docker compose -f docker-compose.caddy.yml up -d
+            # www가 비어있을 때만 placeholder 시드 (실제 FE가 올라가 있으면 보존)
+            if [ -z "$(ls -A www 2>/dev/null)" ]; then cp -rf deploy/www/. www/ 2>/dev/null || true; fi
+            docker compose --env-file .env.caddy -f docker-compose.caddy.yml up -d
