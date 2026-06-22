@@ -107,7 +107,7 @@ public class WrongAnswerNoteService {
                 request.explanation() != null ? blankToNull(request.explanation()) : note.getExplanation(),
                 request.wrongReason() != null ? blankToNull(request.wrongReason()) : note.getWrongReason(),
                 request.memo() != null ? blankToNull(request.memo()) : note.getMemo(),
-                request.tags() != null ? normalizeTags(request.tags()) : note.getTags()
+                request.tags() != null ? normalizeTags(request.tags()) : List.copyOf(note.getTags())
         );
         return WrongAnswerNoteResponse.from(note);
     }
