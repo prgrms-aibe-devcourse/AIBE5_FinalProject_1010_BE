@@ -1,5 +1,6 @@
 package com.studyflow.domain.enrollment.repository;
 
+import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import org.springframework.data.domain.Page;
@@ -70,4 +71,13 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     // 특정 선생님의 전체 누적 수강생 수 — 상태 무관하게 전체 집계 (수업 상세 페이지 선생님 통계용)
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.teacherProfile.id = :teacherProfileId")
     long countByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId);
+
+    // 회원 탈퇴 가능 여부 확인 — 선생님의 특정 상태 수업에 ACTIVE 수강생이 한 명이라도 있으면 true
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END " +
+           "FROM Enrollment e " +
+           "JOIN e.course c JOIN c.teacherProfile tp " +
+           "WHERE tp.user.id = :teacherUserId AND c.status IN :courseStatuses AND e.status = :enrollmentStatus")
+    boolean existsActiveStudentInTeacherCourses(@Param("teacherUserId") Long teacherUserId,
+                                                @Param("courseStatuses") List<CourseStatus> courseStatuses,
+                                                @Param("enrollmentStatus") EnrollmentStatus enrollmentStatus);
 }

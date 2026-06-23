@@ -1,5 +1,8 @@
 package com.studyflow.domain.user.service;
 
+import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
+import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.user.dto.PasswordChangeRequest;
 import com.studyflow.domain.user.dto.UserUpdateRequest;
 import com.studyflow.domain.user.dto.UserInfoResponse;
@@ -9,6 +12,7 @@ import com.studyflow.domain.user.enums.SocialProvider;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
+import com.studyflow.domain.user.exception.TeacherHasActiveStudentsException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
@@ -23,12 +27,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.util.List;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final StringRedisTemplate redisTemplate;
     private final PasswordEncoder passwordEncoder;
 
@@ -106,6 +112,17 @@ public class UserService {
         // 관리자 탈퇴는 불가능
         if(user.getRole() == UserRole.ADMIN) {
            throw new DeleteAdminException(ErrorCode.ACCESS_DENIED, "탈퇴가 불가능한 계정입니다.");
+        }
+
+        // 선생님인 경우, RECRUITING/IN_PROGRESS 수업에 ACTIVE 수강생이 있으면 탈퇴 불가
+        if (user.getRole() == UserRole.TEACHER) {
+            List<CourseStatus> activeStatuses = List.of(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS);
+            boolean hasActiveStudents = enrollmentRepository.existsActiveStudentInTeacherCourses(
+                    userId, activeStatuses, EnrollmentStatus.ACTIVE);
+            if (hasActiveStudents) {
+                throw new TeacherHasActiveStudentsException(ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS,
+                        ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS.getMessage());
+            }
         }
 
         // user 객체의 isDeleted를 PK 값으로 변경

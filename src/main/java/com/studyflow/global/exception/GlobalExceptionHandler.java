@@ -34,6 +34,7 @@ import com.studyflow.domain.admin.exception.VerificationNotFoundException;
 import com.studyflow.domain.admin.exception.VerificationNotPendingException;
 import com.studyflow.domain.user.exception.DeleteAdminException;
 import com.studyflow.domain.user.exception.InvalidUserUpdateException;
+import com.studyflow.domain.user.exception.TeacherHasActiveStudentsException;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -190,6 +191,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDeleteAdminException(DeleteAdminException ex) {
         Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    // 수강 중인 학생이 있는 수업을 보유한 선생님이 탈퇴를 시도하는 경우 (400)
+    @ExceptionHandler(TeacherHasActiveStudentsException.class)
+    public ResponseEntity<Map<String, Object>> handleTeacherHasActiveStudentsException(TeacherHasActiveStudentsException ex) {
+        Map<String, Object> body = ex.getErrorCode().toBody(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     // ── 회원정보 관련 예외 처리 ──────────────────────
