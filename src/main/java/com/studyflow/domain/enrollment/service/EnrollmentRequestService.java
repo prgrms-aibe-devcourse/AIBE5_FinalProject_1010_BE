@@ -123,57 +123,47 @@ public class EnrollmentRequestService {
     @Transactional
     public void acceptEnrollmentRequest(Long requestId, Long userId) {
         EnrollmentRequest request = validateAndGetPendingRequest(requestId, userId);
+        Course course = request.getCourse();
+        Long studentUserId = request.getUser().getId();
 
-        // 수강 신청 수락 & Enrollment 생성
+        validateEnrollmentApproval(course, studentUserId);
+        settleCreditPayment(course, studentUserId, userId);
+
+        // 결제와 정산이 모두 끝난 뒤에만 신청을 수락하고 실제 수강 등록을 만든다.
         request.accept();
-        Enrollment enrollment = Enrollment.create(request.getUser(), request.getCourse(), request);
+        Enrollment enrollment = Enrollment.create(request.getUser(), course, request);
         enrollmentRepository.save(enrollment);
+
+        long teacherIncome = CreditPolicy.teacherIncome(course.getPricePerSession());
 
         // 학생에게 수락 알림
         eventPublisher.publishEvent(new NotificationCreatedEvent(
                 request.getUser().getId(), NotificationType.ENROLLMENT_ACCEPTED,
                 "수강 신청 수락",
-                String.format("'%s' 수강 신청이 수락되었어요.", request.getCourse().getTitle()),
+                String.format("'%s' 수강 신청이 수락되어 마일리지 결제가 완료되었습니다.", course.getTitle()),
                 request.getId()));
+
+        // 선생님에게 정산 알림
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                userId, NotificationType.ENROLLMENT_ACCEPTED,
+                "수강 등록 완료",
+                String.format("%s님이 '%s' 수업에 등록되었습니다. (+%d 마일리지)",
+                        request.getUser().getName(), course.getTitle(), teacherIncome),
+                enrollment.getId()));
     }
 
-    /**
-     * 마일리지 결제 기반 즉시 수강 등록(신청=결제=확정). 학생이 수강신청을 누르면 호출된다.
-     *
-     * <p>돈의 흐름: 학생 마일리지에서 수업료를 차감하고, 그중 수수료(10%)를 제외한 90%를
-     * 선생님 마일리지로 적립한다(나머지 10%는 플랫폼 수익). 차감·적립·수강등록을 한 트랜잭션으로
-     * 묶어, 어느 하나라도 실패하면 전부 롤백된다.</p>
-     *
-     * @return 결제 후 학생의 마일리지 잔액
-     */
-    @Transactional
-    public long enrollByCredit(Long courseId, Long studentUserId) {
-        // teacherProfile → user 까지 페치(선생님 userId·수업료가 필요)
-        Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
-                .orElseThrow(() -> new CourseNotFoundException(courseId));
-        Long teacherUserId = course.getTeacherProfile().getUser().getId();
-        User student = userRepository.findById(studentUserId)
-                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
-
-        validateEnrollable(course, studentUserId, teacherUserId);             // 결제 전 사전 검증
-        long studentBalance = settleCreditPayment(course, studentUserId, teacherUserId); // 차감 + 정산
-        Enrollment enrollment = confirmEnrollment(course, student);           // 즉시 수강 확정
-        notifyTeacherOfEnrollment(course, student, teacherUserId, enrollment); // 선생님 알림
-
-        return studentBalance;
-    }
-
-    /** 마일리지 결제 전 사전 검증(모집 상태·본인 수업·중복 수강). 돈이 빠지기 전에 막는다. */
-    private void validateEnrollable(Course course, Long studentUserId, Long teacherUserId) {
-        if (course.getStatus() != CourseStatus.RECRUITING) {
-            throw new CourseNotRecruitingException();
-        }
-        if (teacherUserId.equals(studentUserId)) {
-            throw new SelfEnrollmentException();
-        }
+    /** 선생님이 수락하는 바로 그 시점의 수강 가능 여부를 다시 확인한다. */
+    private void validateEnrollmentApproval(Course course, Long studentUserId) {
         if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 studentUserId, course.getId(), EnrollmentStatus.ACTIVE)) {
             throw new AlreadyEnrolledException();
+        }
+
+        long activeCount = enrollmentRepository.countByCourseIdAndStatus(course.getId(), EnrollmentStatus.ACTIVE);
+        if (activeCount >= course.getMaxStudents()) {
+            throw new ProcessEnrollmentRequestException(
+                    ErrorCode.CANNOT_PROCESS_ENROLLMENT_REQUEST,
+                    "정원이 가득 차 수강 등록을 처리할 수 없습니다.");
         }
     }
 
@@ -191,28 +181,6 @@ public class EnrollmentRequestService {
         long studentBalance = creditService.deduct(studentUserId, price, CreditReason.ENROLLMENT_PAY, course.getId());
         creditService.charge(teacherUserId, CreditPolicy.teacherIncome(price), CreditReason.ENROLLMENT_INCOME, course.getId());
         return studentBalance;
-    }
-
-    /** 즉시 수강 확정 — 자동 수락된 EnrollmentRequest와 그에 연결된 Enrollment를 생성한다. */
-    private Enrollment confirmEnrollment(Course course, User student) {
-        EnrollmentRequest request = EnrollmentRequest.create(
-                course, student, null, null, null, null, "마일리지 결제로 자동 수강 등록");
-        request.accept();
-        enrollmentRequestRepository.save(request);
-
-        Enrollment enrollment = Enrollment.create(student, course, request);
-        return enrollmentRepository.save(enrollment);
-    }
-
-    /** 선생님에게 수강 등록 + 적립 수익 알림. */
-    private void notifyTeacherOfEnrollment(Course course, User student, Long teacherUserId, Enrollment enrollment) {
-        long teacherIncome = CreditPolicy.teacherIncome(course.getPricePerSession());
-        eventPublisher.publishEvent(new NotificationCreatedEvent(
-                teacherUserId, NotificationType.ENROLLMENT_ACCEPTED,
-                "새 수강 등록",
-                String.format("%s님이 '%s' 수업을 결제하고 수강을 시작했어요. (+%d 마일리지)",
-                        student.getName(), course.getTitle(), teacherIncome),
-                enrollment.getId()));
     }
 
     @Transactional
