@@ -2,6 +2,7 @@ package com.studyflow.domain.wrongnote.entity;
 
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.user.entity.User;
+import com.studyflow.domain.wrongnote.enums.WrongAnswerReviewResult;
 import com.studyflow.domain.wrongnote.enums.WrongAnswerSourceType;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -19,7 +20,8 @@ import java.util.Set;
 @Table(name = "wrong_answer_note", indexes = {
         @Index(name = "idx_wrong_note_owner_created", columnList = "owner_id, created_at"),
         @Index(name = "idx_wrong_note_subject", columnList = "subject_id"),
-        @Index(name = "idx_wrong_note_source", columnList = "source_type, source_question_id")
+        @Index(name = "idx_wrong_note_source", columnList = "source_type, source_question_id"),
+        @Index(name = "idx_wrong_note_practice", columnList = "owner_id, next_review_at, difficulty_score")
 })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WrongAnswerNote extends BaseTimeEntity {
@@ -66,6 +68,37 @@ public class WrongAnswerNote extends BaseTimeEntity {
 
     @Column(name = "source_title", length = 300)
     private String sourceTitle;
+
+    @Column(name = "review_count", nullable = false, columnDefinition = "int default 0")
+    private int reviewCount;
+
+    @Column(name = "correct_count", nullable = false, columnDefinition = "int default 0")
+    private int correctCount;
+
+    @Column(name = "incorrect_count", nullable = false, columnDefinition = "int default 0")
+    private int incorrectCount;
+
+    @Column(name = "unsure_count", nullable = false, columnDefinition = "int default 0")
+    private int unsureCount;
+
+    @Column(name = "answer_view_count", nullable = false, columnDefinition = "int default 0")
+    private int answerViewCount;
+
+    @Column(name = "correct_streak", nullable = false, columnDefinition = "int default 0")
+    private int correctStreak;
+
+    @Column(name = "difficulty_score", nullable = false, columnDefinition = "int default 0")
+    private int difficultyScore;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_review_result", length = 20)
+    private WrongAnswerReviewResult lastReviewResult;
+
+    @Column(name = "last_reviewed_at")
+    private LocalDateTime lastReviewedAt;
+
+    @Column(name = "next_review_at")
+    private LocalDateTime nextReviewAt;
 
     @ElementCollection
     @CollectionTable(
@@ -134,6 +167,45 @@ public class WrongAnswerNote extends BaseTimeEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
+    public void recordReview(WrongAnswerReviewResult result, LocalDateTime reviewedAt) {
+        if (result == null) {
+            throw new IllegalArgumentException("복습 결과는 필수입니다.");
+        }
+        LocalDateTime reviewTime = reviewedAt != null ? reviewedAt : LocalDateTime.now();
+
+        switch (result) {
+            case ANSWER_VIEWED -> {
+                this.answerViewCount++;
+                this.difficultyScore = Math.min(100, this.difficultyScore + 1);
+                this.nextReviewAt = reviewTime.plusHours(12);
+            }
+            case CORRECT -> {
+                this.reviewCount++;
+                this.correctCount++;
+                this.correctStreak++;
+                this.difficultyScore = Math.max(0, this.difficultyScore - 1 - Math.min(this.correctStreak, 3));
+                this.nextReviewAt = reviewTime.plusDays(nextCorrectIntervalDays(this.correctStreak));
+            }
+            case INCORRECT -> {
+                this.reviewCount++;
+                this.incorrectCount++;
+                this.correctStreak = 0;
+                this.difficultyScore = Math.min(100, this.difficultyScore + 3);
+                this.nextReviewAt = reviewTime.plusDays(1);
+            }
+            case UNSURE -> {
+                this.reviewCount++;
+                this.unsureCount++;
+                this.correctStreak = 0;
+                this.difficultyScore = Math.min(100, this.difficultyScore + 2);
+                this.nextReviewAt = reviewTime.plusDays(2);
+            }
+        }
+
+        this.lastReviewResult = result;
+        this.lastReviewedAt = reviewTime;
+    }
+
     public boolean isOwner(Long userId) {
         return owner != null && owner.getId().equals(userId);
     }
@@ -143,5 +215,12 @@ public class WrongAnswerNote extends BaseTimeEntity {
         if (tags != null) {
             this.tags.addAll(tags);
         }
+    }
+
+    private static int nextCorrectIntervalDays(int correctStreak) {
+        if (correctStreak <= 1) return 3;
+        if (correctStreak == 2) return 7;
+        if (correctStreak == 3) return 14;
+        return 30;
     }
 }

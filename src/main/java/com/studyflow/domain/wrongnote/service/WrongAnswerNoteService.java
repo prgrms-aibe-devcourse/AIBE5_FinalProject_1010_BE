@@ -11,20 +11,29 @@ import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteReviewRequest;
 import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteCreateRequest;
 import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteUpdateRequest;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteAnswerResponse;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNotePracticeResponse;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteReviewResponse;
 import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteResponse;
 import com.studyflow.domain.wrongnote.entity.WrongAnswerNote;
+import com.studyflow.domain.wrongnote.entity.WrongAnswerNoteReview;
+import com.studyflow.domain.wrongnote.enums.WrongAnswerReviewResult;
 import com.studyflow.domain.wrongnote.enums.WrongAnswerSourceType;
+import com.studyflow.domain.wrongnote.repository.WrongAnswerNoteReviewRepository;
 import com.studyflow.domain.wrongnote.repository.WrongAnswerNoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,8 +45,10 @@ import java.util.Objects;
 public class WrongAnswerNoteService {
 
     private static final int MAX_TAG_COUNT = 20;
+    private static final int MAX_PRACTICE_SIZE = 50;
 
     private final WrongAnswerNoteRepository noteRepository;
+    private final WrongAnswerNoteReviewRepository reviewRepository;
     private final UserRepository userRepository;
     private final SubjectRepository subjectRepository;
     private final QnaQuestionRepository qnaQuestionRepository;
@@ -53,6 +64,62 @@ public class WrongAnswerNoteService {
     @Transactional(readOnly = true)
     public WrongAnswerNoteResponse getMyNote(Long noteId, Long userId) {
         return WrongAnswerNoteResponse.from(findMine(noteId, userId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WrongAnswerNotePracticeResponse> getPracticeRecommendations(Long userId, Long subjectId, int size) {
+        int normalizedSize = Math.max(1, Math.min(size, MAX_PRACTICE_SIZE));
+        LocalDateTime now = LocalDateTime.now();
+        return noteRepository.findPracticeRecommendations(
+                        userId,
+                        subjectId,
+                        now,
+                        PageRequest.of(0, normalizedSize)
+                )
+                .stream()
+                .map(note -> WrongAnswerNotePracticeResponse.from(note, now))
+                .toList();
+    }
+
+    public WrongAnswerNoteAnswerResponse viewAnswer(Long noteId, Long userId) {
+        WrongAnswerNote note = findMine(noteId, userId);
+        LocalDateTime now = LocalDateTime.now();
+        note.recordReview(WrongAnswerReviewResult.ANSWER_VIEWED, now);
+        reviewRepository.save(WrongAnswerNoteReview.create(
+                note,
+                userRepository.getReferenceById(userId),
+                WrongAnswerReviewResult.ANSWER_VIEWED,
+                null,
+                now
+        ));
+        return WrongAnswerNoteAnswerResponse.from(note);
+    }
+
+    public WrongAnswerNoteReviewResponse recordReview(Long noteId, Long userId, WrongAnswerNoteReviewRequest request) {
+        WrongAnswerReviewResult result = request.result();
+        if (result == WrongAnswerReviewResult.ANSWER_VIEWED) {
+            throw new IllegalArgumentException("답안보기 기록은 answer-view API를 사용하세요.");
+        }
+
+        WrongAnswerNote note = findMine(noteId, userId);
+        User reviewer = userRepository.getReferenceById(userId);
+        LocalDateTime now = LocalDateTime.now();
+        note.recordReview(result, now);
+        WrongAnswerNoteReview review = WrongAnswerNoteReview.create(
+                note,
+                reviewer,
+                result,
+                blankToNull(request.memo()),
+                now
+        );
+        return WrongAnswerNoteReviewResponse.from(reviewRepository.save(review));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WrongAnswerNoteReviewResponse> getReviewLogs(Long noteId, Long userId, Pageable pageable) {
+        findMine(noteId, userId);
+        return reviewRepository.findByNoteIdAndNoteOwnerIdOrderByReviewedAtDesc(noteId, userId, pageable)
+                .map(WrongAnswerNoteReviewResponse::from);
     }
 
     public WrongAnswerNoteResponse create(Long userId, WrongAnswerNoteCreateRequest request) {

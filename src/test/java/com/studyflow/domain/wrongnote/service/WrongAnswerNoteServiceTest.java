@@ -11,10 +11,17 @@ import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteCreateRequest;
+import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteReviewRequest;
 import com.studyflow.domain.wrongnote.dto.request.WrongAnswerNoteUpdateRequest;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteAnswerResponse;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNotePracticeResponse;
+import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteReviewResponse;
 import com.studyflow.domain.wrongnote.dto.response.WrongAnswerNoteResponse;
 import com.studyflow.domain.wrongnote.entity.WrongAnswerNote;
+import com.studyflow.domain.wrongnote.entity.WrongAnswerNoteReview;
+import com.studyflow.domain.wrongnote.enums.WrongAnswerReviewResult;
 import com.studyflow.domain.wrongnote.enums.WrongAnswerSourceType;
+import com.studyflow.domain.wrongnote.repository.WrongAnswerNoteReviewRepository;
 import com.studyflow.domain.wrongnote.repository.WrongAnswerNoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,9 +33,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +55,7 @@ import static org.mockito.Mockito.when;
 class WrongAnswerNoteServiceTest {
 
     @Mock WrongAnswerNoteRepository noteRepository;
+    @Mock WrongAnswerNoteReviewRepository reviewRepository;
     @Mock UserRepository userRepository;
     @Mock SubjectRepository subjectRepository;
     @Mock QnaQuestionRepository qnaQuestionRepository;
@@ -66,6 +76,7 @@ class WrongAnswerNoteServiceTest {
     void setUp() {
         service = new WrongAnswerNoteService(
                 noteRepository,
+                reviewRepository,
                 userRepository,
                 subjectRepository,
                 qnaQuestionRepository,
@@ -79,6 +90,7 @@ class WrongAnswerNoteServiceTest {
         lenient().when(userRepository.getReferenceById(USER_ID)).thenReturn(owner);
         lenient().when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(subject));
         lenient().when(noteRepository.save(any(WrongAnswerNote.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(reviewRepository.save(any(WrongAnswerNoteReview.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -112,6 +124,8 @@ class WrongAnswerNoteServiceTest {
 
         assertThat(response.title()).isEqualTo("이차방정식 오답");
         assertThat(response.tags()).containsExactly("수학", "방정식");
+        assertThat(response.reviewCount()).isZero();
+        assertThat(response.difficultyScore()).isZero();
     }
 
     @Test
@@ -251,6 +265,80 @@ class WrongAnswerNoteServiceTest {
 
         assertThat(page.getContent()).hasSize(1);
         verify(noteRepository).searchMine(USER_ID, SUBJECT_ID, "미분", pageable);
+    }
+
+    @Test
+    @DisplayName("문제풀이 추천은 최대 50개로 제한하고 답안 없는 추천 응답으로 변환한다")
+    void getPracticeRecommendations() {
+        WrongAnswerNote note = noteWithId(NOTE_ID, List.of("복습"));
+        note.recordReview(WrongAnswerReviewResult.INCORRECT, LocalDateTime.now().minusDays(2));
+        when(noteRepository.findPracticeRecommendations(eq(USER_ID), eq(SUBJECT_ID), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(note));
+
+        List<WrongAnswerNotePracticeResponse> responses = service.getPracticeRecommendations(USER_ID, SUBJECT_ID, 100);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(noteRepository).findPracticeRecommendations(eq(USER_ID), eq(SUBJECT_ID), any(LocalDateTime.class), pageableCaptor.capture());
+
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).id()).isEqualTo(NOTE_ID);
+        assertThat(responses.get(0).questionContent()).isEqualTo("원래 문제");
+        assertThat(responses.get(0).incorrectCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("답안 보기는 답안 조회 횟수와 복습 기록을 남긴다")
+    void viewAnswerRecordsAnswerViewed() {
+        WrongAnswerNote note = noteWithId(NOTE_ID, List.of());
+        when(noteRepository.findByIdAndOwnerIdAndDeletedAtIsNull(NOTE_ID, USER_ID)).thenReturn(Optional.of(note));
+
+        WrongAnswerNoteAnswerResponse response = service.viewAnswer(NOTE_ID, USER_ID);
+
+        ArgumentCaptor<WrongAnswerNoteReview> captor = ArgumentCaptor.forClass(WrongAnswerNoteReview.class);
+        verify(reviewRepository).save(captor.capture());
+
+        assertThat(response.answerContent()).isEqualTo("원래 답");
+        assertThat(response.answerViewCount()).isEqualTo(1);
+        assertThat(note.getLastReviewResult()).isEqualTo(WrongAnswerReviewResult.ANSWER_VIEWED);
+        assertThat(note.getNextReviewAt()).isNotNull();
+        assertThat(captor.getValue().getResult()).isEqualTo(WrongAnswerReviewResult.ANSWER_VIEWED);
+    }
+
+    @Test
+    @DisplayName("복습 결과를 기록하면 오답노트 집계와 다음 복습 시점을 갱신한다")
+    void recordReviewUpdatesStats() {
+        WrongAnswerNote note = noteWithId(NOTE_ID, List.of());
+        when(noteRepository.findByIdAndOwnerIdAndDeletedAtIsNull(NOTE_ID, USER_ID)).thenReturn(Optional.of(note));
+
+        WrongAnswerNoteReviewResponse response = service.recordReview(
+                NOTE_ID,
+                USER_ID,
+                new WrongAnswerNoteReviewRequest(WrongAnswerReviewResult.INCORRECT, "  계산 실수  ")
+        );
+
+        ArgumentCaptor<WrongAnswerNoteReview> captor = ArgumentCaptor.forClass(WrongAnswerNoteReview.class);
+        verify(reviewRepository).save(captor.capture());
+
+        assertThat(response.result()).isEqualTo(WrongAnswerReviewResult.INCORRECT);
+        assertThat(note.getReviewCount()).isEqualTo(1);
+        assertThat(note.getIncorrectCount()).isEqualTo(1);
+        assertThat(note.getCorrectStreak()).isZero();
+        assertThat(note.getDifficultyScore()).isEqualTo(3);
+        assertThat(note.getNextReviewAt()).isNotNull();
+        assertThat(captor.getValue().getMemo()).isEqualTo("계산 실수");
+    }
+
+    @Test
+    @DisplayName("복습 결과 기록 API로 ANSWER_VIEWED는 직접 남길 수 없다")
+    void recordReviewRejectsAnswerViewedResult() {
+        assertThatThrownBy(() -> service.recordReview(
+                NOTE_ID,
+                USER_ID,
+                new WrongAnswerNoteReviewRequest(WrongAnswerReviewResult.ANSWER_VIEWED, null)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("answer-view");
     }
 
     @Test
