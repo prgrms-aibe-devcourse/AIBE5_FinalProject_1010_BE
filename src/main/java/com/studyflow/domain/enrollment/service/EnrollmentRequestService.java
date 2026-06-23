@@ -9,6 +9,7 @@ import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.credit.CreditPolicy;
 import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.credit.exception.InsufficientCreditException;
 import com.studyflow.domain.credit.service.CreditService;
 import com.studyflow.domain.enrollment.dto.EnrollmentRequestCreateRequest;
 import com.studyflow.domain.enrollment.dto.EnrollmentRequestResponse;
@@ -29,17 +30,20 @@ import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
 import com.studyflow.domain.notification.enums.NotificationType;
 import com.studyflow.domain.notification.event.NotificationCreatedEvent;
+import com.studyflow.domain.notification.service.NotificationService;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // 수강 신청 생성 서비스 — 채팅방 생성 후 신청 저장 순서로 원자성 보장
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EnrollmentRequestService {
@@ -52,6 +56,7 @@ public class EnrollmentRequestService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CreditService creditService;
+    private final NotificationService notificationService;
 
     @Transactional
     public EnrollmentRequestResponse createEnrollmentRequest(
@@ -127,7 +132,12 @@ public class EnrollmentRequestService {
         Long studentUserId = request.getUser().getId();
 
         validateEnrollmentApproval(course, studentUserId);
-        settleCreditPayment(course, studentUserId, userId);
+        try {
+            settleCreditPayment(course, studentUserId, userId);
+        } catch (InsufficientCreditException e) {
+            notifyStudentOfInsufficientMileage(request, course);
+            throw e;
+        }
 
         // 결제와 정산이 모두 끝난 뒤에만 신청을 수락하고 실제 수강 등록을 만든다.
         request.accept();
@@ -153,6 +163,19 @@ public class EnrollmentRequestService {
     }
 
     /** 선생님이 수락하는 바로 그 시점의 수강 가능 여부를 다시 확인한다. */
+    private void notifyStudentOfInsufficientMileage(EnrollmentRequest request, Course course) {
+        try {
+            notificationService.create(
+                    request.getUser().getId(), NotificationType.ENROLLMENT_REJECTED,
+                    "수강 신청 보류",
+                    String.format("'%s' 수업은 마일리지가 부족해 수강 신청을 받을 수 없습니다. 충전 후 선생님에게 다시 요청해 주세요.",
+                            course.getTitle()),
+                    request.getId());
+        } catch (Exception notificationError) {
+            log.warn("마일리지 부족 수강신청 알림 저장 실패 (requestId={}): {}",
+                    request.getId(), notificationError.getMessage());
+        }
+    }
     private void validateEnrollmentApproval(Course course, Long studentUserId) {
         if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 studentUserId, course.getId(), EnrollmentStatus.ACTIVE)) {
