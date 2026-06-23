@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import com.studyflow.domain.user.dto.UserInfoResponse;
+import com.studyflow.domain.user.dto.VoiceCallSettingRequest;
 
 import java.util.Map;
 
@@ -43,6 +44,22 @@ public class UserController {
         }
 
         userService.updateUser(userId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    // 보이스톡 수신 설정 변경
+    @PatchMapping("/me/voice-call-setting")
+    public ResponseEntity<?> updateVoiceCallSetting(@AuthenticationPrincipal Long userId,
+                                                    @Valid @RequestBody VoiceCallSettingRequest request) {
+        if(userId == null) {
+            Map<String, Object> body = Map.of(
+                    "code", "AUTH_REQUIRED",
+                    "message", "인증 정보가 유효하지 않습니다."
+            );
+            return ResponseEntity.status(401).body(body);
+        }
+
+        userService.updateVoiceCallSetting(userId, request.isVoiceCallEnabled());
         return ResponseEntity.ok().build();
     }
 

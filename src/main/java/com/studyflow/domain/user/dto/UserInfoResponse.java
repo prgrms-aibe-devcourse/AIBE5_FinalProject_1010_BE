@@ -21,6 +21,7 @@ public class UserInfoResponse {
     private final String role;
     private final String socialProvider;
     private final Boolean isVerified; // TEACHER인 경우에만 포함
+    private final Boolean voiceCallEnabled;
 
     public UserInfoResponse(User user) {
         this.name            = user.getName();
@@ -33,5 +34,6 @@ public class UserInfoResponse {
         this.role            = user.getRole().name();
         this.socialProvider  = user.getSocialProvider().name();
         this.isVerified      = user.getRole() == UserRole.TEACHER ? user.isVerified() : null;
+        this.voiceCallEnabled = user.isVoiceCallEnabled();
     }
 }
