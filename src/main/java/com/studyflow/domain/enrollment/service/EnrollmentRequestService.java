@@ -91,6 +91,8 @@ public class EnrollmentRequestService {
             throw new EnrollmentRequestAlreadyPendingException();
         }
 
+        validateEnrollmentRequestMileage(course, studentUserId);
+
         User student = userRepository.findById(studentUserId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
@@ -124,6 +126,18 @@ public class EnrollmentRequestService {
 
         return EnrollmentRequestResponse.of(saved, chatRoom.getRoomId());
     }
+    private void validateEnrollmentRequestMileage(Course course, Long studentUserId) {
+        long price = course.getPricePerSession();
+        if (price <= 0) {
+            return;
+        }
+
+        long balance = creditService.getBalance(studentUserId);
+        if (balance < price) {
+            throw new InsufficientCreditException(price, balance);
+        }
+    }
+
 
     @Transactional
     public void acceptEnrollmentRequest(Long requestId, Long userId) {
