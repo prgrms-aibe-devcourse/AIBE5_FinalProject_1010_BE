@@ -16,7 +16,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create   # 로컬 개발: 매 기동 시 스키마 재생성(잔재 누적 방지). 데이터 유지가 필요하면 update로 바꿔 쓰세요.
     show-sql: false
     properties:
       hibernate:
