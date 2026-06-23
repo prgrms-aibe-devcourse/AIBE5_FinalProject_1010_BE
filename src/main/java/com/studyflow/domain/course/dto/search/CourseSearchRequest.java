@@ -4,6 +4,8 @@ import com.studyflow.domain.course.enums.CourseSort;
 import com.studyflow.domain.course.enums.TargetGrade;
 import com.studyflow.domain.course.enums.TeachingMode;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
@@ -75,4 +77,22 @@ public class CourseSearchRequest {
 
     // 정렬 기준 (기본값: 최신순)
     private CourseSort sort = CourseSort.LATEST;
+
+    // 거리순(DISTANCE) 정렬에 사용할 학생의 현재 위치 좌표 (브라우저 GPS)
+    // sort=DISTANCE일 때만 의미 있으며, 둘 다 있어야 거리 정렬이 동작한다.
+    @DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
+    @DecimalMax(value = "90.0",  message = "위도는 90 이하이어야 합니다.")
+    private Double studentLat;
+
+    @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
+    @DecimalMax(value = "180.0",  message = "경도는 180 이하이어야 합니다.")
+    private Double studentLng;
+
+    // 거리순(DISTANCE) 정렬에 필요한 좌표가 둘 다 들어왔는지 검증
+    // 한쪽만 들어오면 거리 계산이 불가능하므로 차단 (DISTANCE가 아니면 검증하지 않음)
+    @AssertTrue(message = "거리순 정렬에는 위도·경도를 함께 전달해야 합니다.")
+    public boolean isDistanceSortLocationValid() {
+        if (sort != CourseSort.DISTANCE) return true;
+        return studentLat != null && studentLng != null;
+    }
 }

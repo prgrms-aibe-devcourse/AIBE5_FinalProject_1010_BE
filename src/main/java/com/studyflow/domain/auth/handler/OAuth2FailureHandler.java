@@ -30,6 +30,6 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
         // URL에는 구체적인 원인 대신 일반 오류 코드만 포함
         getRedirectStrategy().sendRedirect(request, response,
-                frontendUrl + "/oauth2/callback?error=social_login_failed");
+                frontendUrl + "/#/oauth2/callback?error=social_login_failed");
     }
 }

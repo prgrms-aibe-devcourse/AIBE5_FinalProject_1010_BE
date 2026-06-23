@@ -38,7 +38,7 @@ public class NaegongService {
      */
     @Transactional
     public int addScore(User teacher, int scoreChange, NaegongReason reason, Long referenceId) {
-        TeacherProfile profile = teacherProfileRepository.findByUserId(teacher.getId())
+        TeacherProfile profile = teacherProfileRepository.findByUserIdWithLock(teacher.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "내공 적립 대상 선생님 프로필이 없습니다. userId=" + teacher.getId()));
 

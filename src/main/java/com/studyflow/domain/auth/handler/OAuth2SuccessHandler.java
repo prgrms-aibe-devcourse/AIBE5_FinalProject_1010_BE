@@ -54,7 +54,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         if (pendingSocialToken != null) {
             log.info("신규 소셜 유저 → 추가 정보 입력 페이지로 리다이렉트");
             getRedirectStrategy().sendRedirect(request, response,
-                    frontendUrl + "/oauth2/additional-info?token=" + pendingSocialToken);
+                    frontendUrl + "/#/oauth2/additional-info?token=" + pendingSocialToken);
             return;
         }
 
@@ -94,6 +94,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         // URL에는 code만 포함 (토큰 직접 노출 없음)
         getRedirectStrategy().sendRedirect(request, response,
-                frontendUrl + "/oauth2/callback?code=" + code);
+                frontendUrl + "/#/oauth2/callback?code=" + code);
     }
 }

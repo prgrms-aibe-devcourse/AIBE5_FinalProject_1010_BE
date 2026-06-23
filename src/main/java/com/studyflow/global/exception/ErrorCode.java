@@ -32,6 +32,7 @@ public enum ErrorCode {
     STUDENT_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "학생 프로필을 찾을 수 없습니다."),
     TEACHER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "선생님 프로필을 찾을 수 없습니다."),
     TEACHER_HAS_LISTED_COURSES(HttpStatus.BAD_REQUEST, "수업 찾기에 노출 중인 수업이 있어 선생님 찾기 노출을 끌 수 없습니다. 먼저 수업을 종료해주세요."),
+    TEACHER_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있는 수업이 존재하여 탈퇴할 수 없습니다. 먼저 해당 수업을 종료해주세요."),
 
     // 선생님 인증
     VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
@@ -42,7 +43,7 @@ public enum ErrorCode {
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "강의를 찾을 수 없습니다."),
     COURSE_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "해당 강의의 참여자가 아닙니다."),
     COURSE_ACCESS_FORBIDDEN(HttpStatus.FORBIDDEN, "강의에 대한 접근 권한이 없습니다."),
-    COURSE_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있어 수업을 삭제할 수 없습니다."),
+    COURSE_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있어 해당 작업을 수행할 수 없습니다."),
     COURSE_NOT_DELETABLE(HttpStatus.CONFLICT, "아무도 사용하지 않은 모집중 수업만 삭제할 수 있습니다. 이미 사용된 수업은 PATCH /close를 이용해 종료하세요."),
 
     // 공지사항

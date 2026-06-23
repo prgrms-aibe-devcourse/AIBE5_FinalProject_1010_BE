@@ -1,0 +1,42 @@
+# AWS 멀티 인스턴스 배포용 — 앱 컨테이너만 실행한다 (이슈 #182).
+#
+# 무상태화 후 인프라가 컨테이너 밖으로 분리됨:
+#   - MySQL  → RDS         (DB_HOST/DB_PORT/DB_NAME)
+#   - Redis  → ElastiCache (REDIS_HOST/REDIS_PORT)  ← 인메모리 상태·WS 릴레이·ShedLock 공유
+#   - 업로드 → S3          (APP_STORAGE_TYPE=s3, S3_BUCKET, S3_PUBLIC_BASE_URL)
+#
+# EC2 2대(team-10-*) 각각에서 이 compose로 같은 이미지를 띄우고, 앞단 ALB가 트래픽을 분산한다.
+# (WebSocket 때문에 ALB 대상그룹에 sticky session 권장)
+
+services:
+  app:
+    image: ${DOCKER_IMAGE}          # GitHub Actions에서 빌드/푸시한 이미지
+    container_name: studyflow-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # DB (RDS)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-studyflow}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Redis (ElastiCache) — 모든 인스턴스가 공유하는 상태/락 저장소
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # 파일 저장소 (S3)
+      APP_STORAGE_TYPE: ${APP_STORAGE_TYPE:-s3}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      # 인증/외부 연동
+      JWT_SECRET: ${JWT_SECRET}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      # 프론트 도메인(CORS)
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
