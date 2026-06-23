@@ -5,6 +5,7 @@ import com.studyflow.domain.classroom.dto.response.ClassroomCloseResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomCurrentResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomParticipantResponse;
 import com.studyflow.domain.classroom.dto.response.ClassroomSessionResponse;
+import com.studyflow.domain.classroom.dto.response.LivekitPreviewTokenResponse;
 import com.studyflow.domain.classroom.dto.response.LivekitTokenResponse;
 import com.studyflow.domain.classroom.service.ClassroomService;
 import com.studyflow.domain.file.dto.response.FileUploadResponse;
@@ -85,6 +86,25 @@ public class ClassroomSessionController {
             @RequestBody(required = false) LivekitTokenRequest request
     ) {
         return ResponseEntity.ok(classroomService.issueLivekitToken(sessionId, userId, request));
+    }
+
+    // 미리보기 토큰 발급 — 비로그인 포함 누구나 진행 중인 강의실을 60초간 보기 전용으로 미리볼 수 있다.
+    // 멤버십·로그인 검증 없이 발급하지만 canPublish=false·canPublishData=false·TTL 60초로 제한된다.
+    @Operation(summary = "강의실 미리보기 토큰 발급",
+            description = "비로그인 포함 누구나 진행 중인 강의실을 60초간 보기 전용으로 미리볼 수 있는 토큰을 발급합니다.")
+    @PostMapping("/classroom-sessions/{sessionId}/livekit-preview-token")
+    public ResponseEntity<LivekitPreviewTokenResponse> issuePreviewToken(@PathVariable Long sessionId) {
+        return ResponseEntity.ok(classroomService.issuePreviewToken(sessionId));
+    }
+
+    // 미리보기용 화이트보드 스냅샷 — 비로그인 포함 공개. OPEN 세션의 현재 판서 상태를 1회 받아 동기화한다.
+    @Operation(summary = "강의실 미리보기 화이트보드 스냅샷",
+            description = "비로그인 포함 공개. 진행 중인 강의실의 현재 화이트보드 상태(pages+seq)를 반환합니다.")
+    @GetMapping("/classroom-sessions/{sessionId}/whiteboard-preview")
+    public ResponseEntity<java.util.Map<String, Object>> getWhiteboardPreview(@PathVariable Long sessionId) {
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("board", classroomService.getWhiteboardPreviewSnapshot(sessionId));
+        return ResponseEntity.ok(body);
     }
 
     @Operation(summary = "강의실 PDF 자료 업로드", description = "강의실을 연 담당 선생님만 PDF 자료를 업로드할 수 있습니다.")
