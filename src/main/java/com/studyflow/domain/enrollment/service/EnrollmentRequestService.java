@@ -138,13 +138,13 @@ public class EnrollmentRequestService {
     }
 
     /**
-     * 크레딧 결제 기반 즉시 수강 등록(신청=결제=확정). 학생이 수강신청을 누르면 호출된다.
+     * 마일리지 결제 기반 즉시 수강 등록(신청=결제=확정). 학생이 수강신청을 누르면 호출된다.
      *
-     * <p>돈의 흐름: 학생 크레딧에서 수업료를 차감하고, 그중 수수료(10%)를 제외한 90%를
-     * 선생님 크레딧으로 적립한다(나머지 10%는 플랫폼 수익). 차감·적립·수강등록을 한 트랜잭션으로
+     * <p>돈의 흐름: 학생 마일리지에서 수업료를 차감하고, 그중 수수료(10%)를 제외한 90%를
+     * 선생님 마일리지로 적립한다(나머지 10%는 플랫폼 수익). 차감·적립·수강등록을 한 트랜잭션으로
      * 묶어, 어느 하나라도 실패하면 전부 롤백된다.</p>
      *
-     * @return 결제 후 학생의 크레딧 잔액
+     * @return 결제 후 학생의 마일리지 잔액
      */
     @Transactional
     public long enrollByCredit(Long courseId, Long studentUserId) {
@@ -163,7 +163,7 @@ public class EnrollmentRequestService {
         return studentBalance;
     }
 
-    /** 크레딧 결제 전 사전 검증(모집 상태·본인 수업·중복 수강). 돈이 빠지기 전에 막는다. */
+    /** 마일리지 결제 전 사전 검증(모집 상태·본인 수업·중복 수강). 돈이 빠지기 전에 막는다. */
     private void validateEnrollable(Course course, Long studentUserId, Long teacherUserId) {
         if (course.getStatus() != CourseStatus.RECRUITING) {
             throw new CourseNotRecruitingException();
@@ -178,10 +178,10 @@ public class EnrollmentRequestService {
     }
 
     /**
-     * 수업료 결제·정산: 학생 크레딧 차감 → 수수료(10%) 제외한 90%를 선생님에게 적립.
+     * 수업료 결제·정산: 학생 마일리지 차감 → 수수료(10%) 제외한 90%를 선생님에게 적립.
      * 잔액 부족이면 InsufficientCreditException(충전 유도)으로 트랜잭션 롤백.
      *
-     * @return 차감 후 학생 크레딧 잔액
+     * @return 차감 후 학생 마일리지 잔액
      */
     private long settleCreditPayment(Course course, Long studentUserId, Long teacherUserId) {
         long price = course.getPricePerSession();
@@ -196,7 +196,7 @@ public class EnrollmentRequestService {
     /** 즉시 수강 확정 — 자동 수락된 EnrollmentRequest와 그에 연결된 Enrollment를 생성한다. */
     private Enrollment confirmEnrollment(Course course, User student) {
         EnrollmentRequest request = EnrollmentRequest.create(
-                course, student, null, null, null, null, "크레딧 결제로 자동 수강 등록");
+                course, student, null, null, null, null, "마일리지 결제로 자동 수강 등록");
         request.accept();
         enrollmentRequestRepository.save(request);
 
@@ -210,7 +210,7 @@ public class EnrollmentRequestService {
         eventPublisher.publishEvent(new NotificationCreatedEvent(
                 teacherUserId, NotificationType.ENROLLMENT_ACCEPTED,
                 "새 수강 등록",
-                String.format("%s님이 '%s' 수업을 결제하고 수강을 시작했어요. (+%d 크레딧)",
+                String.format("%s님이 '%s' 수업을 결제하고 수강을 시작했어요. (+%d 마일리지)",
                         student.getName(), course.getTitle(), teacherIncome),
                 enrollment.getId()));
     }

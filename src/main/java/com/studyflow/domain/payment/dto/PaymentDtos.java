@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * 결제(크레딧 충전) 관련 요청/응답 DTO 모음.
+ * 결제(마일리지 충전) 관련 요청/응답 DTO 모음.
  */
 public final class PaymentDtos {
 
@@ -12,7 +12,7 @@ public final class PaymentDtos {
 
     /**
      * 충전 주문 생성 요청. 결제창을 열기 전 서버에 주문을 만든다(금액 서버 확정).
-     * amount = 충전 금액(원). 적립 크레딧도 동일(1원=1크레딧).
+     * amount = 충전 금액(원). 적립 마일리지도 동일(1원=1마일리지).
      */
     public record CreateOrderRequest(
             @Min(1) long amount
@@ -36,6 +36,6 @@ public final class PaymentDtos {
     public record ConfirmResponse(
             String orderId,
             long amount,
-            long creditBalance   // 충전 적립 후 잔액
+            long mileageBalance   // 충전 적립 후 잔액
     ) {}
 }

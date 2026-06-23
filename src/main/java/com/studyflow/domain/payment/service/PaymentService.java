@@ -19,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * 결제 서비스 — 토스 결제로 <b>크레딧을 충전</b>하는 것만 담당한다.
+ * 결제 서비스 — 토스 결제로 <b>마일리지를 충전</b>하는 것만 담당한다.
  *
- * <p>크레딧이 플랫폼 화폐다. 충전(현금→크레딧)만 토스를 거치고, 그 크레딧으로
+ * <p>마일리지가 플랫폼 화폐다. 충전(현금→마일리지)만 토스를 거치고, 그 마일리지로
  * AI 질문·강의 개설·수강신청을 결제한다(각 도메인 서비스에서 차감). 즉 토스 결제는
  * 오직 충전 한 가지 용도다.</p>
  *
@@ -37,23 +37,23 @@ public class PaymentService {
     private final TossPaymentsClient tossPaymentsClient;
     private final CreditService creditService;
 
-    /** 충전 결제창을 열기 전 주문을 생성한다(충전 금액 = 적립 크레딧, 1원=1크레딧). */
+    /** 충전 결제창을 열기 전 주문을 생성한다(충전 금액 = 적립 마일리지, 1원=1마일리지). */
     @Transactional
     public CreateOrderResponse createOrder(Long userId, CreateOrderRequest req) {
         if (req.amount() <= 0) throw new PaymentException("충전 금액이 올바르지 않습니다.");
 
         String orderId = "ord_" + UUID.randomUUID().toString().replace("-", "");
         long amount = req.amount();
-        String orderName = "크레딧 " + amount + " 충전";
+        String orderName = "마일리지 " + amount + " 충전";
 
-        // refId = 적립할 크레딧 수(1원=1크레딧)
+        // refId = 적립할 마일리지 수(1원=1마일리지)
         PaymentOrder order = PaymentOrder.create(orderId, userId, orderName, amount, PaymentType.CREDIT_CHARGE, amount);
         paymentOrderRepository.save(order);
         return new CreateOrderResponse(orderId, orderName, amount);
     }
 
     /**
-     * 결제 승인. 주문 검증 → 토스 승인 → 크레딧 적립.
+     * 결제 승인. 주문 검증 → 토스 승인 → 마일리지 적립.
      * 이미 처리된 주문이면 중복 적립 없이 현재 잔액을 그대로 반환(멱등).
      */
     @Transactional
@@ -78,7 +78,7 @@ public class PaymentService {
         tossPaymentsClient.confirm(req.paymentKey(), req.orderId(), req.amount());
         order.markDone(req.paymentKey());
 
-        long creditBalance = creditService.charge(userId, order.getRefId(), CreditReason.CHARGE, order.getId());
-        return new ConfirmResponse(order.getOrderId(), order.getAmount(), creditBalance);
+        long mileageBalance = creditService.charge(userId, order.getRefId(), CreditReason.CHARGE, order.getId());
+        return new ConfirmResponse(order.getOrderId(), order.getAmount(), mileageBalance);
     }
 }

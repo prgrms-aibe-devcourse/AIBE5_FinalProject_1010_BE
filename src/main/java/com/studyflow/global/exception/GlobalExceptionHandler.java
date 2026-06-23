@@ -110,7 +110,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    // 크레딧 부족(402) — 프론트는 code=INSUFFICIENT_CREDIT 받으면 충전 안내로 유도
+    // 마일리지 부족(402) — 프론트는 code=INSUFFICIENT_CREDIT 받으면 충전 안내로 유도
     @ExceptionHandler(com.studyflow.domain.credit.exception.InsufficientCreditException.class)
     public ResponseEntity<Map<String, Object>> handleInsufficientCredit(
             com.studyflow.domain.credit.exception.InsufficientCreditException ex) {

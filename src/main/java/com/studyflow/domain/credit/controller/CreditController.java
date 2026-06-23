@@ -17,9 +17,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 크레딧 잔액/내역/정책 조회 API.
+ * 마일리지 잔액/내역/정책 조회 API.
  * - GET /api/v1/credits/me          : 내 잔액 + 기능별 단가
- * - GET /api/v1/credits/me/history  : 내 크레딧 변동 내역(페이지)
+ * - GET /api/v1/credits/me/history  : 내 마일리지 변동 내역(페이지)
  */
 @RestController
 @RequestMapping("/api/v1/credits")

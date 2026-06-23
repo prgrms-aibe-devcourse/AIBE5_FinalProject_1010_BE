@@ -15,7 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 크레딧 변동 이력 한 건. (감사/내역 화면용)
+ * 마일리지 변동 이력 한 건. (감사/내역 화면용)
  */
 @Entity
 @Table(name = "credit_history")

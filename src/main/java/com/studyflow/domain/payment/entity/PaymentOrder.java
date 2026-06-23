@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  * 승인 시 금액 위변조 검증의 기준이 된다(주문 금액 == 결제 금액).
  *
  * <p>orderId는 토스에 보낼 우리 주문번호(고유). paymentKey는 토스가 발급한 결제 식별자(승인 시 기록).
- * refId는 용도별 의미: ENROLLMENT=courseId, CREDIT_CHARGE=적립할 크레딧 수.</p>
+ * refId는 용도별 의미: ENROLLMENT=courseId, CREDIT_CHARGE=적립할 마일리지 수.</p>
  */
 @Entity
 @Table(name = "payment_order")
@@ -59,7 +59,7 @@ public class PaymentOrder extends BaseTimeEntity {
     @Column(length = 200)
     private String paymentKey;
 
-    /** 용도별 연관값: ENROLLMENT=courseId, CREDIT_CHARGE=적립 크레딧 수. */
+    /** 용도별 연관값: ENROLLMENT=courseId, CREDIT_CHARGE=적립 마일리지 수. */
     private Long refId;
 
     private LocalDateTime approvedAt;

@@ -33,7 +33,7 @@ public class CourseCreateService {
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(teacherUserId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacherUserId));
 
-        // 강의 개설 사용료(크레딧) 차감 — 잔액 부족이면 InsufficientCreditException → 충전 유도.
+        // 강의 개설 사용료(마일리지) 차감 — 잔액 부족이면 InsufficientCreditException → 충전 유도.
         creditService.deduct(teacherUserId, CreditPolicy.COURSE_OPEN_COST, CreditReason.COURSE_OPEN, null);
 
         // 요청한 과목 조회

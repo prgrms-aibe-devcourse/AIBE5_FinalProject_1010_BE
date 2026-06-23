@@ -106,7 +106,7 @@ public class AiQuestionService {
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
 
-        // 1-1) AI 질문 사용료(크레딧) 차감. 잔액 부족이면 InsufficientCreditException → 충전 유도.
+        // 1-1) AI 질문 사용료(마일리지) 차감. 잔액 부족이면 InsufficientCreditException → 충전 유도.
         creditService.deduct(userId, CreditPolicy.AI_QUESTION_COST, CreditReason.AI_QUESTION, null);
 
         // 2) 첨부 이미지(선택, 여러 장) 해석: fileId 목록을 FileAsset 목록으로 변환·검증한다.
@@ -152,7 +152,7 @@ public class AiQuestionService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
-        // AI 질문 사용료(크레딧) 차감 — 스트림 시작 전에 동기로(잔액 부족이면 여기서 막힘).
+        // AI 질문 사용료(마일리지) 차감 — 스트림 시작 전에 동기로(잔액 부족이면 여기서 막힘).
         creditService.deduct(userId, CreditPolicy.AI_QUESTION_COST, CreditReason.AI_QUESTION, null);
         // 첨부 이미지는 소유/유효성만 검증해 저장 시 연결한다.
         // (1단계: 동기 ask()와 동일하게 OpenAI 호출에는 텍스트만 보내고, 이미지는 vision으로
