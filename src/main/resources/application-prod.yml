@@ -48,7 +48,9 @@ spring:
       api-key: ${OPENAI_API_KEY:dummy}
       chat:
         options:
-          model: gpt-4o-mini
+          # 실제 AI 호출 모델(OpenAiClient=Spring AI ChatClient). mini는 고등수학 자주 틀림 → gpt-4o.
+          model: gpt-4o
+          temperature: 0.2
   security:
     oauth2:
       client:
