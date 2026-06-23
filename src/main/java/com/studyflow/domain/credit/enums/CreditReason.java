@@ -9,5 +9,6 @@ public enum CreditReason {
     COURSE_OPEN,        // 강의 개설(-)
     ENROLLMENT_PAY,     // 수강신청 수업료 결제(-) — 학생
     ENROLLMENT_INCOME,  // 수강 정산 수익(+) — 선생님(수업료의 90%)
+    SUBSCRIPTION_PURCHASE, // 구독권 구매(-)
     REFUND              // 환불/취소 복원(+)
 }
