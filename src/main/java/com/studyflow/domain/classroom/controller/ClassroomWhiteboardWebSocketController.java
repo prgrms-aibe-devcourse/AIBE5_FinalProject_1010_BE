@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -38,7 +37,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ClassroomWhiteboardWebSocketController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
     private final WhiteboardStateStore stateStore;
     private final WhiteboardDrawPermissionStore drawPermissionStore;
 
@@ -91,7 +90,7 @@ public class ClassroomWhiteboardWebSocketController {
     }
 
     private void broadcast(Long sessionId, Map<String, Object> message) {
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/whiteboard",
                 message
         );

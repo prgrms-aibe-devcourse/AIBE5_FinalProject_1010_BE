@@ -3,6 +3,7 @@ package com.studyflow.domain.classroom.scheduler;
 import com.studyflow.domain.classroom.service.ClassroomService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,10 +23,14 @@ public class ClassroomAutoCloseScheduler {
 
     /**
      * 1분마다 호스트 부재 세션 스윕(이전 실행 종료 후 60초).
-     * ⚠️ 다중 인스턴스 수평 확장 시에는 모든 인스턴스가 동시에 돌아 같은 세션을 중복 종료(종료 이벤트 중복 송신)할 수 있다.
-     *   그때는 ShedLock 등 분산 락을 도입할 것(현재 단일 인스턴스 기준이라 미적용).
+     *
+     * <p>멀티 인스턴스(EC2 2대)에서 모든 인스턴스가 동시에 돌면 같은 세션을 중복 종료(종료 이벤트 중복 송신)할 수
+     * 있어 ShedLock 분산 락을 적용한다. 한 틱은 한 인스턴스만 실행한다.
+     * lockAtMostFor: 실행 노드가 죽어도 락이 5분 뒤 자동 해제(데드락 방지).
+     * lockAtLeastFor: 실행이 매우 빨라도 30초간 락 유지 → 클럭 스큐로 인한 즉시 중복 실행 방지.</p>
      */
     @Scheduled(fixedDelay = 60_000L)
+    @SchedulerLock(name = "classroom-autoclose-sweep", lockAtMostFor = "PT5M", lockAtLeastFor = "PT30S")
     public void sweepIdleSessions() {
         try {
             classroomService.autoCloseIdleSessions();

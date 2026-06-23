@@ -29,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,7 +62,7 @@ public class ClassroomService {
     private final WhiteboardStateStore whiteboardStateStore;
     private final AudioStateStore audioStateStore;
     private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectProvider<ClassroomService> selfProvider; // 프록시 경유 self 호출(@Transactional 재시도용)
 
@@ -241,7 +240,7 @@ public class ClassroomService {
         // 오디오 재생 상태도 메모리에서 정리(이슈 #182).
         audioStateStore.clear(session.getId());
         // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + session.getId() + "/events",
                 Map.of("type", "closed", "reason", reason));
         // TODO: LiveKit RoomService.DeleteRoom로 미디어 룸도 강제 종료(서버 SDK 연동 전까지는
@@ -310,7 +309,7 @@ public class ClassroomService {
             whiteboardDrawPermissionStore.revoke(sessionId, targetUserId);
         }
         // 권한 변경 토픽 브로드캐스트 — 대상 클라가 새로고침 없이 즉시 도구 활성/비활성 반영.
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/permissions",
                 Map.of(
                         "participantId", participant.getId(),

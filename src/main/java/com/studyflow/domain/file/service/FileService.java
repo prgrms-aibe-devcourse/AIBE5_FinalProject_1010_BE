@@ -3,10 +3,10 @@ package com.studyflow.domain.file.service;
 import com.studyflow.domain.file.dto.response.FileUploadResponse;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.enums.FileCategory;
-import com.studyflow.domain.file.enums.FileStorageProvider;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.global.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +16,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -54,27 +47,17 @@ public class FileService {
     /** 허용 오디오 확장자 화이트리스트(강의실 듣기 자료). */
     private static final Set<String> ALLOWED_AUDIO_EXTENSIONS = Set.of(".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac");
 
-    /**
-     * 로컬 저장 루트의 절대경로. 기동 시 한 번 고정해 저장/읽기가 항상 같은 기준점을 쓰게 한다.
-     * (개발용 로컬 저장 — 운영에서는 S3로 교체 추천. file_asset 구조는 양쪽 모두 그대로 사용 가능)
-     * (상대경로를 그때그때 해석하면 실행 위치(working directory)에 따라 경로가 달라질 수 있다)
-     *
-     * <p>경로 규약: {@code objectKey}(예: "chat/2026/06/04/uuid.png")는 S3 전환 시 버킷 내 키가
-     * 되고, LOCAL에서는 이 루트("uploads/") 아래 상대경로다. 즉 로컬 루트 디렉터리가 버킷에
-     * 해당하며, {@code fileUrl}("/uploads/" + objectKey)은 정적 서빙 경로일 뿐 저장 키가 아니다.</p>
-     */
-    private static final Path LOCAL_UPLOAD_ROOT = Paths.get("uploads").toAbsolutePath().normalize();
-
-    /**
-     * 업로드 파일을 chat/년/월/일 하위 폴더로 분산 저장하기 위한 날짜 경로 포맷.
-     *
-     * 한 폴더에 파일이 무한정 쌓이는 것을 막고, 날짜별로 찾기/정리하기 쉽게 한다.
-     * 예: chat/2026/05/29/{uuid}.png
-     */
-    private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-
     private final FileAssetRepository fileAssetRepository;
     private final UserRepository userRepository;
+
+    /**
+     * 파일 저장소(개발=로컬 디스크, 운영=S3). {@code app.storage.type} 설정으로 구현이 주입된다.
+     * FileService는 저장/읽기 위치를 모른 채 위임만 한다(멀티 인스턴스 무상태화).
+     *
+     * <p>경로 규약: {@code objectKey}(예: "chat/2026/06/22/uuid.png")는 저장소 내 키로 LOCAL·S3 공통이며
+     * file_asset에 보관한다. {@code fileUrl}은 브라우저가 직접 GET 하는 공개 URL이다.</p>
+     */
+    private final StorageService storageService;
 
     /**
      * 채팅 이미지 업로드.
@@ -145,14 +128,14 @@ public class FileService {
             // Content-Type·확장자는 위조 가능하므로, 내용 자체를 검사해 위장 업로드를 막는다.
             validateMagicBytes(bytes);
 
-            StoredFile sf = storeLocalFile(bytes, folder, extension);
+            StorageService.Stored sf = storageService.store(bytes, folder, extension, file.getContentType());
             ImageSize imageSize = readImageSize(bytes);
 
             FileAsset fileAsset = FileAsset.createImage(
                     uploader,
                     originalFileName,
                     sf.storedFileName(),
-                    FileStorageProvider.LOCAL,
+                    storageService.provider(),
                     null,
                     sf.objectKey(),
                     sf.fileUrl(),
@@ -187,18 +170,9 @@ public class FileService {
      * 접근할 수 없으므로, 파일 내용을 읽어 base64로 전달하기 위함이다.</p>
      */
     public byte[] readImageBytes(FileAsset asset) {
-        if (asset.getStorageProvider() != FileStorageProvider.LOCAL) {
-            throw new IllegalStateException("로컬 저장 파일만 읽을 수 있습니다.");
-        }
-        // 저장 키(objectKey)를 절대 루트에 붙여 해석한다.
-        // (fileUrl 문자열 파싱·작업 디렉터리 의존 제거 — 저장과 동일한 기준점 사용)
-        Path path = LOCAL_UPLOAD_ROOT.resolve(asset.getObjectKey()).normalize();
-        if (!path.startsWith(LOCAL_UPLOAD_ROOT)) {
-            // "../" 등으로 루트를 벗어나는 키 방어 (DB가 오염됐더라도 임의 파일 읽기 차단)
-            throw new IllegalStateException("잘못된 파일 경로입니다.");
-        }
+        // 활성 저장소(LOCAL/S3)에 위임해 objectKey로 읽는다. (경로 방어/네트워크 읽기는 구현이 담당)
         try {
-            return Files.readAllBytes(path);
+            return storageService.read(asset.getObjectKey());
         } catch (IOException e) {
             throw new IllegalStateException("이미지 파일을 읽을 수 없습니다.", e);
         }
@@ -220,14 +194,14 @@ public class FileService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         try {
-            StoredFile sf = storeLocalFile(bytes, "chat", ".png");
+            StorageService.Stored sf = storageService.store(bytes, "chat", ".png", "image/png");
             ImageSize imageSize = readImageSize(bytes);
 
             FileAsset fileAsset = FileAsset.createImage(
                     owner,
                     sf.storedFileName(),
                     sf.storedFileName(),
-                    FileStorageProvider.LOCAL,
+                    storageService.provider(),
                     null,
                     sf.objectKey(),
                     sf.fileUrl(),
@@ -390,9 +364,9 @@ public class FileService {
             if (!looksLikeAudio(bytes)) {
                 throw new IllegalArgumentException("올바른 오디오 파일이 아닙니다.");
             }
-            StoredFile sf = storeLocalFile(bytes, "classroom-audio", extension);
+            StorageService.Stored sf = storageService.store(bytes, "classroom-audio", extension, file.getContentType());
             FileAsset asset = FileAsset.createFile(uploader, originalFileName, sf.storedFileName(),
-                    FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(),
+                    storageService.provider(), null, sf.objectKey(), sf.fileUrl(),
                     file.getContentType(), file.getSize(), FileCategory.AUDIO);
             FileAsset saved = fileAssetRepository.save(asset);
             return new FileUploadResponse(
@@ -470,7 +444,7 @@ public class FileService {
                 }
             }
 
-            StoredFile sf = storeLocalFile(bytes, folder, extension);
+            StorageService.Stored sf = storageService.store(bytes, folder, extension, contentType);
 
             FileCategory category = isPdf ? FileCategory.PDF : FileCategory.IMAGE;
             Integer width = null, height = null;
@@ -482,10 +456,10 @@ public class FileService {
 
             FileAsset asset = isPdf
                     ? FileAsset.createFile(uploader, originalFileName, sf.storedFileName(),
-                            FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(),
+                            storageService.provider(), null, sf.objectKey(), sf.fileUrl(),
                             contentType, fileSize, category)
                     : FileAsset.createImage(uploader, originalFileName, sf.storedFileName(),
-                            FileStorageProvider.LOCAL, null, sf.objectKey(), sf.fileUrl(), null,
+                            storageService.provider(), null, sf.objectKey(), sf.fileUrl(), null,
                             contentType, fileSize, width, height);
 
             FileAsset saved = fileAssetRepository.save(asset);
@@ -499,20 +473,5 @@ public class FileService {
         }
     }
 
-    private StoredFile storeLocalFile(byte[] bytes, String folder, String extension) throws IOException {
-        String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
-        Path uploadPath = LOCAL_UPLOAD_ROOT.resolve(folder).resolve(datePath);
-        Files.createDirectories(uploadPath);
-        String storedFileName = UUID.randomUUID() + extension;
-        Files.copy(new ByteArrayInputStream(bytes), uploadPath.resolve(storedFileName),
-                StandardCopyOption.REPLACE_EXISTING);
-        return new StoredFile(
-                storedFileName,
-                folder + "/" + datePath + "/" + storedFileName,
-                "/uploads/" + folder + "/" + datePath + "/" + storedFileName
-        );
-    }
-
     private record ImageSize(Integer width, Integer height) {}
-    private record StoredFile(String storedFileName, String objectKey, String fileUrl) {}
 }
