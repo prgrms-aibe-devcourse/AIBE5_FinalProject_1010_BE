@@ -72,12 +72,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.teacherProfile.id = :teacherProfileId")
     long countByTeacherProfileId(@Param("teacherProfileId") Long teacherProfileId);
 
-    // 회원 탈퇴 가능 여부 확인 — 선생님의 특정 상태 수업에 ACTIVE 수강생이 한 명이라도 있으면 true
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END " +
-           "FROM Enrollment e " +
-           "JOIN e.course c JOIN c.teacherProfile tp " +
-           "WHERE tp.user.id = :teacherUserId AND c.status IN :courseStatuses AND e.status = :enrollmentStatus")
-    boolean existsActiveStudentInTeacherCourses(@Param("teacherUserId") Long teacherUserId,
-                                                @Param("courseStatuses") List<CourseStatus> courseStatuses,
-                                                @Param("enrollmentStatus") EnrollmentStatus enrollmentStatus);
+    // 회원 탈퇴 가능 여부 확인 — 네이밍 컨벤션으로 EXISTS 쿼리 생성 (COUNT 전체 스캔 방지)
+    boolean existsByCourseTeacherProfileUserIdAndCourseStatusInAndStatus(
+            Long teacherUserId, List<CourseStatus> courseStatuses, EnrollmentStatus enrollmentStatus);
 }

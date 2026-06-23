@@ -1,8 +1,6 @@
 package com.studyflow.domain.user.service;
 
-import com.studyflow.domain.course.enums.CourseStatus;
-import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
-import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
+import com.studyflow.domain.enrollment.service.EnrollmentService;
 import com.studyflow.domain.user.dto.PasswordChangeRequest;
 import com.studyflow.domain.user.dto.UserUpdateRequest;
 import com.studyflow.domain.user.dto.UserInfoResponse;
@@ -27,14 +25,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
-import java.util.List;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentService enrollmentService;
     private final StringRedisTemplate redisTemplate;
     private final PasswordEncoder passwordEncoder;
 
@@ -115,14 +112,9 @@ public class UserService {
         }
 
         // 선생님인 경우, RECRUITING/IN_PROGRESS 수업에 ACTIVE 수강생이 있으면 탈퇴 불가
-        if (user.getRole() == UserRole.TEACHER) {
-            List<CourseStatus> activeStatuses = List.of(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS);
-            boolean hasActiveStudents = enrollmentRepository.existsActiveStudentInTeacherCourses(
-                    userId, activeStatuses, EnrollmentStatus.ACTIVE);
-            if (hasActiveStudents) {
-                throw new TeacherHasActiveStudentsException(ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS,
-                        ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS.getMessage());
-            }
+        if (user.getRole() == UserRole.TEACHER && enrollmentService.hasActiveStudentsForTeacher(userId)) {
+            throw new TeacherHasActiveStudentsException(ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS,
+                    ErrorCode.TEACHER_HAS_ACTIVE_STUDENTS.getMessage());
         }
 
         // user 객체의 isDeleted를 PK 값으로 변경

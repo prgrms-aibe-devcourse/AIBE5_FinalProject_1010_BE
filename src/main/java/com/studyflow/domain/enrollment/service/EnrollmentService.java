@@ -1,5 +1,6 @@
 package com.studyflow.domain.enrollment.service;
 
+import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.exception.EnrollmentDropException;
@@ -13,12 +14,25 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class EnrollmentService {
 
+    /** 탈퇴 불가 조건: RECRUITING 또는 IN_PROGRESS 수업에 ACTIVE 수강생이 존재하는 경우 */
+    private static final List<CourseStatus> BLOCKING_COURSE_STATUSES =
+            List.of(CourseStatus.RECRUITING, CourseStatus.IN_PROGRESS);
+
     private final EnrollmentRepository enrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 선생님 회원탈퇴 가드 — 수강 중인 학생이 있는 활성 수업이 한 건이라도 있으면 true */
+    @Transactional(readOnly = true)
+    public boolean hasActiveStudentsForTeacher(Long teacherUserId) {
+        return enrollmentRepository.existsByCourseTeacherProfileUserIdAndCourseStatusInAndStatus(
+                teacherUserId, BLOCKING_COURSE_STATUSES, EnrollmentStatus.ACTIVE);
+    }
 
     @Transactional
     public void dropEnrollment(Long enrollmentId, Long userId) {
