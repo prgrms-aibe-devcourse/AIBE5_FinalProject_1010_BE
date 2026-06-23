@@ -4,13 +4,16 @@ import com.studyflow.domain.classroom.dto.request.LivekitTokenRequest;
 import com.studyflow.domain.classroom.dto.request.ParticipantPermissionUpdateRequest;
 import com.studyflow.domain.classroom.dto.response.*;
 import com.studyflow.domain.classroom.entity.ClassroomParticipant;
+import com.studyflow.domain.classroom.entity.ClassroomPreviewLog;
 import com.studyflow.domain.classroom.entity.ClassroomSession;
 import com.studyflow.domain.classroom.enums.ClassroomStatus;
 import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
 import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
+import com.studyflow.domain.classroom.exception.PreviewLimitExceededException;
 import com.studyflow.domain.classroom.repository.ClassroomParticipantRepository;
+import com.studyflow.domain.classroom.repository.ClassroomPreviewLogRepository;
 import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -54,6 +57,7 @@ public class ClassroomService {
 
     private final ClassroomSessionRepository sessionRepository;
     private final ClassroomParticipantRepository participantRepository;
+    private final ClassroomPreviewLogRepository previewLogRepository;
     private final CourseRepository courseRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -379,24 +383,31 @@ public class ClassroomService {
      * ⚠️ 같은 룸에 입장하므로 커스텀 클라이언트로 카메라 트랙을 구독할 여지가 이론상 남는다.
      * 완화책은 위 항목이며, 정식 해결은 LiveKit 서버 SDK로 트랙 단위 구독 제한(후속 과제).</p>
      */
-    @Transactional(readOnly = true)
-    public LivekitPreviewTokenResponse issuePreviewToken(Long sessionId) {
+    @Transactional
+    public LivekitPreviewTokenResponse issuePreviewToken(Long sessionId, Long userId) {
         ClassroomSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ClassroomSessionNotFoundException(
                         "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
         if (!session.isOpen()) {
             throw new ClassroomNotOpenException("종료된 강의실은 미리보기할 수 없습니다.");
         }
-        // 의도적으로 verifyMemberAndIsHost(...) 생략 — 비로그인 포함 누구나 미리보기 허용.
 
         Course course = session.getCourse();
         Long courseId = course.getId();
-        Long teacherUserId = course.getTeacherProfile().getUser().getId();
 
-        String roomName = "course-" + courseId + "-session-" + sessionId; // 멤버와 동일 룸
-        String identity = "preview-" + java.util.UUID.randomUUID();       // 매 요청 고유 게스트 식별자
+        // 수업당 2회 제한 — 초과하면 429
+        int previewed = previewLogRepository.countByUserIdAndCourseId(userId, courseId);
+        if (previewed >= 2) {
+            throw new PreviewLimitExceededException(
+                    "이 수업의 미리보기 횟수(" + previewed + "/2)를 모두 사용했습니다.");
+        }
+        previewLogRepository.save(ClassroomPreviewLog.of(userId, courseId));
+
+        Long teacherUserId = course.getTeacherProfile().getUser().getId();
+        String roomName = "course-" + courseId + "-session-" + sessionId;
+        String identity = "preview-user-" + userId;
         String displayName = "미리보기";
-        String hostIdentity = "user-" + teacherUserId;                    // 참고용(FE 카메라 미노출이라 필터에는 미사용)
+        String hostIdentity = "user-" + teacherUserId;
 
         String token = liveKitTokenService.createPreviewToken(roomName, identity, displayName);
 

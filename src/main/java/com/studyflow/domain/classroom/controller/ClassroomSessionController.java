@@ -88,13 +88,15 @@ public class ClassroomSessionController {
         return ResponseEntity.ok(classroomService.issueLivekitToken(sessionId, userId, request));
     }
 
-    // 미리보기 토큰 발급 — 비로그인 포함 누구나 진행 중인 강의실을 60초간 보기 전용으로 미리볼 수 있다.
-    // 멤버십·로그인 검증 없이 발급하지만 canPublish=false·canPublishData=false·TTL 60초로 제한된다.
+    // 미리보기 토큰 발급 — 로그인 유저 전용, 수업당 최대 2회.
+    // canPublish=false·canPublishData=false·TTL 60초로 제한된다.
     @Operation(summary = "강의실 미리보기 토큰 발급",
-            description = "비로그인 포함 누구나 진행 중인 강의실을 60초간 보기 전용으로 미리볼 수 있는 토큰을 발급합니다.")
+            description = "로그인 유저가 진행 중인 강의실을 60초간 보기 전용으로 미리볼 수 있는 토큰을 발급합니다. 수업당 2회 제한.")
     @PostMapping("/classroom-sessions/{sessionId}/livekit-preview-token")
-    public ResponseEntity<LivekitPreviewTokenResponse> issuePreviewToken(@PathVariable Long sessionId) {
-        return ResponseEntity.ok(classroomService.issuePreviewToken(sessionId));
+    public ResponseEntity<LivekitPreviewTokenResponse> issuePreviewToken(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId) {
+        return ResponseEntity.ok(classroomService.issuePreviewToken(sessionId, userId));
     }
 
     // 미리보기용 화이트보드 스냅샷 — 비로그인 포함 공개. OPEN 세션의 현재 판서 상태를 1회 받아 동기화한다.
