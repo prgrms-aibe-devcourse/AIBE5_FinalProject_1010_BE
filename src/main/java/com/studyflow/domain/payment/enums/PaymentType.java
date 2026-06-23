@@ -5,5 +5,5 @@ package com.studyflow.domain.payment.enums;
  */
 public enum PaymentType {
     ENROLLMENT,     // 수강신청 결제(수업료) → 결제 성공 시 수강 등록
-    CREDIT_CHARGE   // 크레딧 충전 → 결제 성공 시 크레딧 적립
+    SUBSCRIPTION    // 구독(이용권) 결제 → 결제 성공 시 30일 이용권 부여(AI 질문/강의 개설)
 }

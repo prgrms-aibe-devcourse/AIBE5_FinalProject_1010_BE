@@ -12,8 +12,8 @@ public enum ErrorCode {
     // 입력값 검증
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
 
-    // 결제 / 크레딧
-    INSUFFICIENT_CREDIT(HttpStatus.PAYMENT_REQUIRED, "크레딧이 부족합니다. 충전 후 이용해 주세요."),
+    // 결제 / 구독
+    SUBSCRIPTION_REQUIRED(HttpStatus.PAYMENT_REQUIRED, "이용권이 필요합니다. 구독 후 이용해 주세요."),
     PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제 처리에 실패했습니다."),
 
     // 인증

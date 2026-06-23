@@ -2,6 +2,7 @@ package com.studyflow.domain.payment.entity;
 
 import com.studyflow.domain.payment.enums.PaymentStatus;
 import com.studyflow.domain.payment.enums.PaymentType;
+import com.studyflow.domain.subscription.enums.SubscriptionType;
 import com.studyflow.global.audit.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -59,23 +60,34 @@ public class PaymentOrder extends BaseTimeEntity {
     @Column(length = 200)
     private String paymentKey;
 
-    /** 용도별 연관값: ENROLLMENT=courseId, CREDIT_CHARGE=적립 크레딧 수. */
+    /** 용도별 연관값: ENROLLMENT=courseId. (SUBSCRIPTION은 subType 사용) */
     private Long refId;
+
+    /** SUBSCRIPTION 결제일 때 부여할 구독 종류(ENROLLMENT면 null). */
+    @Enumerated(EnumType.STRING)
+    private SubscriptionType subType;
 
     private LocalDateTime approvedAt;
 
-    private PaymentOrder(String orderId, Long userId, String orderName, long amount, PaymentType type, Long refId) {
+    private PaymentOrder(String orderId, Long userId, String orderName, long amount, PaymentType type, Long refId, SubscriptionType subType) {
         this.orderId = orderId;
         this.userId = userId;
         this.orderName = orderName;
         this.amount = amount;
         this.type = type;
         this.refId = refId;
+        this.subType = subType;
         this.status = PaymentStatus.READY;
     }
 
-    public static PaymentOrder create(String orderId, Long userId, String orderName, long amount, PaymentType type, Long refId) {
-        return new PaymentOrder(orderId, userId, orderName, amount, type, refId);
+    /** 수강신청(ENROLLMENT) 주문. refId=courseId. */
+    public static PaymentOrder forEnrollment(String orderId, Long userId, String orderName, long amount, Long courseId) {
+        return new PaymentOrder(orderId, userId, orderName, amount, PaymentType.ENROLLMENT, courseId, null);
+    }
+
+    /** 구독(SUBSCRIPTION) 주문. subType=구독 종류. */
+    public static PaymentOrder forSubscription(String orderId, Long userId, String orderName, long amount, SubscriptionType subType) {
+        return new PaymentOrder(orderId, userId, orderName, amount, PaymentType.SUBSCRIPTION, null, subType);
     }
 
     public void markDone(String paymentKey) {
