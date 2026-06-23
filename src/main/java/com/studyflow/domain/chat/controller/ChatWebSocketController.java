@@ -15,7 +15,6 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
@@ -28,7 +27,7 @@ public class ChatWebSocketController {
 
     private final ChatService chatService;
     private final ChatCallSignalService chatCallSignalService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
 
     /**
      * WebSocket 메시지 전송.
@@ -58,7 +57,7 @@ public class ChatWebSocketController {
                 request
         );
 
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/chat-rooms/" + roomId + "/messages",
                 response
         );
@@ -87,7 +86,7 @@ public class ChatWebSocketController {
                 request.getLastReadMessageId()
         );
 
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/chat-rooms/" + roomId + "/read",
                 response
         );
@@ -116,7 +115,7 @@ public class ChatWebSocketController {
                 request
         );
 
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/chat-rooms/" + roomId + "/calls",
                 response
         );

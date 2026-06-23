@@ -12,7 +12,6 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
@@ -31,7 +30,7 @@ import java.security.Principal;
 public class ClassroomChatWebSocketController {
 
     private final ClassroomChatService classroomChatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
 
     @MessageMapping("/classroom-sessions/{sessionId}/chats")
     public void sendMessage(
@@ -44,7 +43,7 @@ public class ClassroomChatWebSocketController {
         ClassroomChatResponse response = classroomChatService.sendMessage(
                 sessionId, userId, request);
 
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/chats",
                 response
         );
@@ -59,7 +58,7 @@ public class ClassroomChatWebSocketController {
     ) {
         Long userId = extractUserId(principal);
         ClassroomChatLikeResponse response = classroomChatService.toggleLike(sessionId, userId, request.chatId());
-        messagingTemplate.convertAndSend(
+        broadcaster.send(
                 "/sub/classroom-sessions/" + sessionId + "/chat-likes",
                 response
         );

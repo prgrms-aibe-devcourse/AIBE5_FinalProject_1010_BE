@@ -162,6 +162,12 @@ public class EnrollmentRequestService {
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
+        // enrollment_request 행에만 배타 락 (course·teacherProfile 행은 잠그지 않음)
+        enrollmentRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new ProcessEnrollmentRequestException(
+                        ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
+                        ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));
+        // 락 획득 후 연관 엔티티를 JOIN FETCH로 로딩 (Hibernate 1차 캐시에서 같은 객체에 병합)
         EnrollmentRequest request = enrollmentRequestRepository.findByIdWithCourse(requestId)
                 .orElseThrow(() -> new ProcessEnrollmentRequestException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
@@ -188,7 +194,12 @@ public class EnrollmentRequestService {
         userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        // 2. 수강 신청 기록 조회 (course → teacherProfile → user 알림 발행에 필요해 한 번에 fetch)
+        // 2. enrollment_request 행에만 배타 락 (조인 테이블은 잠그지 않음)
+        enrollmentRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new EnrollmentRequestCancelException(
+                        ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
+                        ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND.getMessage()));
+        // 락 획득 후 연관 엔티티를 JOIN FETCH로 로딩
         EnrollmentRequest request = enrollmentRequestRepository.findByIdWithUserAndCourse(requestId)
                 .orElseThrow(() -> new EnrollmentRequestCancelException(
                         ErrorCode.ENROLLMENT_REQUEST_NOT_FOUND,
