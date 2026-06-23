@@ -1,7 +1,11 @@
 package com.studyflow.domain.chat.controller;
 
 import com.studyflow.domain.chat.dto.request.ChatRoomCreateRequest;
+import com.studyflow.domain.chat.dto.request.ChatReadRequest;
+import com.studyflow.domain.chat.dto.request.CourseGroupChatParticipantRequest;
+import com.studyflow.domain.chat.dto.request.CourseGroupChatRoomCreateRequest;
 import com.studyflow.domain.chat.dto.response.ChatMessagePageResponse;
+import com.studyflow.domain.chat.dto.response.ChatReadResponse;
 import com.studyflow.domain.chat.dto.response.ChatRoomResponse;
 import com.studyflow.domain.chat.service.ChatService;
 import jakarta.validation.Valid;
@@ -51,6 +55,43 @@ public class ChatRoomController {
     }
 
     /**
+     * 수업 단체톡 생성 또는 기존 방 반환.
+     *
+     * 담당 선생님만 호출할 수 있고, studentIds가 비어 있으면 현재 ACTIVE 수강생 전체를 초대한다.
+     */
+    @PostMapping("/course-group")
+    public ChatRoomResponse createCourseGroupRoom(
+            @Valid @RequestBody CourseGroupChatRoomCreateRequest request,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return chatService.createCourseGroupRoom(userId, request);
+    }
+
+    /**
+     * 수업 단체톡에 학생 초대.
+     */
+    @PostMapping("/{roomId}/participants")
+    public ChatRoomResponse inviteCourseGroupStudents(
+            @PathVariable Long roomId,
+            @Valid @RequestBody CourseGroupChatParticipantRequest request,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return chatService.inviteCourseGroupStudents(userId, roomId, request);
+    }
+
+    /**
+     * 수업 단체톡에서 학생 내보내기.
+     */
+    @DeleteMapping("/{roomId}/participants/{studentId}")
+    public ChatRoomResponse removeCourseGroupStudent(
+            @PathVariable Long roomId,
+            @PathVariable Long studentId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return chatService.removeCourseGroupStudent(userId, roomId, studentId);
+    }
+
+    /**
      * 메시지 목록 조회.
      *
      * cursor가 없으면 최신 메시지부터 조회한다.
@@ -69,5 +110,20 @@ public class ChatRoomController {
                 cursor,
                 size
         );
+    }
+
+    /**
+     * 메시지 읽음 처리.
+     *
+     * WebSocket 읽음 처리와 같은 저장 로직을 사용한다. 소켓 연결 전 방을 열어도 읽음 상태가 누락되지 않도록
+     * 프론트에서 안전한 동기화 경로로 호출할 수 있다.
+     */
+    @PatchMapping("/{roomId}/read")
+    public ChatReadResponse readMessages(
+            @PathVariable Long roomId,
+            @Valid @RequestBody ChatReadRequest request,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return chatService.readUpTo(userId, roomId, request.getLastReadMessageId());
     }
 }
