@@ -40,6 +40,9 @@ public class LiveKitTokenService {
     // 오래 살아있지 않도록 TTL을 짧게 유지하는 완화책. (TODO: 종료 시 RoomService.DeleteRoom 호출)
     private static final long TOKEN_TTL_MS = 2 * 60 * 60 * 1000L;
 
+    // 비수강생 미리보기 토큰 유효시간 — 60초. 짧은 TTL이 서버 측 자동 종료의 1차 방어선.
+    private static final long PREVIEW_TOKEN_TTL_MS = 60 * 1000L;
+
     public LiveKitTokenService(
             @Value("${livekit.api-key:}") String apiKey,
             @Value("${livekit.api-secret:}") String apiSecret,
@@ -82,6 +85,36 @@ public class LiveKitTokenService {
                 .expiration(new Date(now + TOKEN_TTL_MS))
                 // 알고리즘을 HS256으로 명시 고정. signWith(key)만 쓰면 jjwt가 키 길이에 따라
                 // HS384/HS512를 자동 선택하는데, LiveKit은 HS256 토큰만 검증하므로 긴 시크릿에서 전부 거부됨.
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    /**
+     * 비수강생 미리보기 토큰 발급 — 보기 전용(canPublish=false), 데이터 채널 금지(canPublishData=false), TTL 60초.
+     * 멤버용 createToken과 같은 룸에 입장하지만 송출·채팅·화이트보드 데이터 전송이 불가능하다.
+     *
+     * @param roomName    방 이름 (course-{courseId}-session-{sessionId}) — 멤버와 동일 룸
+     * @param identity    미리보기 참가자 식별자 (preview-user-{userId})
+     * @param displayName 표시 이름
+     */
+    public String createPreviewToken(String roomName, String identity, String displayName) {
+        SecretKey key = buildKey();
+
+        Map<String, Object> videoGrant = new HashMap<>();
+        videoGrant.put("room", roomName);
+        videoGrant.put("roomJoin", true);
+        videoGrant.put("canPublish", false);    // 보기 전용 — 송출 불가
+        videoGrant.put("canSubscribe", true);
+        videoGrant.put("canPublishData", false); // 채팅/화이트보드 데이터 전송 금지
+
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .issuer(apiKey)
+                .subject(identity)
+                .claim("name", displayName)
+                .claim("video", videoGrant)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + PREVIEW_TOKEN_TTL_MS))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }

@@ -14,6 +14,7 @@ import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
 import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
+import com.studyflow.domain.classroom.exception.PreviewLimitExceededException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
@@ -494,6 +495,13 @@ public class GlobalExceptionHandler {
     // 이미 종료된 강의실에 참가/종료 시도 등 상태 위배 (400)
     @ExceptionHandler(ClassroomNotOpenException.class)
     public ResponseEntity<Map<String, Object>> handleClassroomNotOpen(ClassroomNotOpenException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 수업당 미리보기 2회 한도 초과 (429)
+    @ExceptionHandler(PreviewLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handlePreviewLimitExceeded(PreviewLimitExceededException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
