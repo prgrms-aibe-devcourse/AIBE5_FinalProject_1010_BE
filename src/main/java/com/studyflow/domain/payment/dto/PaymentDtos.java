@@ -1,29 +1,21 @@
 package com.studyflow.domain.payment.dto;
 
-import com.studyflow.domain.payment.enums.PaymentType;
-import com.studyflow.domain.subscription.enums.SubscriptionType;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
-
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotBlank;
 
 /**
- * 결제 관련 요청/응답 DTO 모음.
+ * 결제(크레딧 충전) 관련 요청/응답 DTO 모음.
  */
 public final class PaymentDtos {
 
     private PaymentDtos() {}
 
     /**
-     * 주문 생성 요청. 결제창을 열기 전 서버에 주문을 만든다(금액·용도 서버 확정).
-     * - SUBSCRIPTION: subscriptionType 필수. 금액은 서버가 요금제에서 결정.
-     * - ENROLLMENT: refId = courseId 필수. 금액은 서버가 수업료로 결정.
+     * 충전 주문 생성 요청. 결제창을 열기 전 서버에 주문을 만든다(금액 서버 확정).
+     * amount = 충전 금액(원). 적립 크레딧도 동일(1원=1크레딧).
      */
     public record CreateOrderRequest(
-            @NotNull PaymentType type,
-            Long refId,                          // ENROLLMENT: courseId
-            SubscriptionType subscriptionType    // SUBSCRIPTION: 구독 종류
+            @Min(1) long amount
     ) {}
 
     /** 주문 생성 응답. 프론트는 이 값으로 토스 결제창을 연다. */
@@ -40,13 +32,10 @@ public final class PaymentDtos {
             @Min(1) long amount
     ) {}
 
-    /** 결제 승인 결과. */
+    /** 결제 승인 결과(충전 후 잔액 안내). */
     public record ConfirmResponse(
             String orderId,
-            PaymentType type,
             long amount,
-            Long enrolledCourseId,             // 수강결제면 등록된 courseId
-            SubscriptionType subscriptionType, // 구독결제면 구독 종류
-            LocalDateTime subscriptionExpiresAt // 구독결제면 만료일
+            long creditBalance   // 충전 적립 후 잔액
     ) {}
 }

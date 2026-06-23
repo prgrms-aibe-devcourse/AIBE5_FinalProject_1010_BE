@@ -110,12 +110,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    // 구독 필요(402) — 프론트는 code=SUBSCRIPTION_REQUIRED 받으면 구독 안내로 유도
-    @ExceptionHandler(com.studyflow.domain.subscription.exception.SubscriptionRequiredException.class)
-    public ResponseEntity<Map<String, Object>> handleSubscriptionRequired(
-            com.studyflow.domain.subscription.exception.SubscriptionRequiredException ex) {
-        return ResponseEntity.status(ErrorCode.SUBSCRIPTION_REQUIRED.getStatus())
-                .body(ErrorCode.SUBSCRIPTION_REQUIRED.toBody(ex.getMessage()));
+    // 크레딧 부족(402) — 프론트는 code=INSUFFICIENT_CREDIT 받으면 충전 안내로 유도
+    @ExceptionHandler(com.studyflow.domain.credit.exception.InsufficientCreditException.class)
+    public ResponseEntity<Map<String, Object>> handleInsufficientCredit(
+            com.studyflow.domain.credit.exception.InsufficientCreditException ex) {
+        return ResponseEntity.status(ErrorCode.INSUFFICIENT_CREDIT.getStatus())
+                .body(ErrorCode.INSUFFICIENT_CREDIT.toBody(ex.getMessage()));
     }
 
     // 결제 처리 실패(400)

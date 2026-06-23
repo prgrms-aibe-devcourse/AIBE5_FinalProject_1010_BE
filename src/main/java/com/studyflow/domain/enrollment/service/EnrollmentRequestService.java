@@ -7,6 +7,9 @@ import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.credit.CreditPolicy;
+import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.credit.service.CreditService;
 import com.studyflow.domain.enrollment.dto.EnrollmentRequestCreateRequest;
 import com.studyflow.domain.enrollment.dto.EnrollmentRequestResponse;
 import com.studyflow.domain.enrollment.entity.Enrollment;
@@ -48,6 +51,7 @@ public class EnrollmentRequestService {
     private final ChatService chatService;
     private final TeacherProfileRepository teacherProfileRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CreditService creditService;
 
     @Transactional
     public EnrollmentRequestResponse createEnrollmentRequest(
@@ -134,32 +138,70 @@ public class EnrollmentRequestService {
     }
 
     /**
-     * 결제 완료 기반 즉시 수강 등록(결제=신청=확정). 결제 서비스가 토스 승인 성공 후 호출한다.
-     * 자동 수락된 EnrollmentRequest 1건을 만들고 그에 연결된 Enrollment를 생성한다
-     * (enrollment_request_id가 NOT NULL이라 요청 레코드가 필요).
+     * 크레딧 결제 기반 즉시 수강 등록(신청=결제=확정). 학생이 수강신청을 누르면 호출된다.
      *
-     * @return 등록된 courseId
+     * <p>돈의 흐름: 학생 크레딧에서 수업료를 차감하고, 그중 수수료(10%)를 제외한 90%를
+     * 선생님 크레딧으로 적립한다(나머지 10%는 플랫폼 수익). 차감·적립·수강등록을 한 트랜잭션으로
+     * 묶어, 어느 하나라도 실패하면 전부 롤백된다.</p>
+     *
+     * @return 결제 후 학생의 크레딧 잔액
      */
     @Transactional
-    public Long enrollByPayment(Long courseId, Long studentUserId) {
-        Course course = courseRepository.findById(courseId)
+    public long enrollByCredit(Long courseId, Long studentUserId) {
+        // teacherProfile → user 까지 페치(선생님 userId·수업료가 필요)
+        Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
+
+        // 모집 중인 수업에만 신청 가능
+        if (course.getStatus() != CourseStatus.RECRUITING) {
+            throw new CourseNotRecruitingException();
+        }
+
+        Long teacherUserId = course.getTeacherProfile().getUser().getId();
+
+        // 본인 수업에는 신청 불가
+        if (teacherUserId.equals(studentUserId)) {
+            throw new SelfEnrollmentException();
+        }
+
+        // 이미 수강 중이면 중복 결제 차단(결제 전에 막아야 돈이 안 빠짐)
+        if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(studentUserId, courseId, EnrollmentStatus.ACTIVE)) {
+            throw new AlreadyEnrolledException();
+        }
+
         User student = userRepository.findById(studentUserId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        // 이미 수강 중이면 중복 등록하지 않음(결제는 이미 승인됐으므로 등록만 멱등 처리)
-        if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(studentUserId, courseId, EnrollmentStatus.ACTIVE)) {
-            return courseId;
+        long price = course.getPricePerSession();
+        if (price <= 0) {
+            throw new CourseNotRecruitingException(); // 수업료가 비정상인 수업은 결제 진행하지 않음
         }
 
+        // 1) 학생 크레딧 차감(잔액 부족이면 InsufficientCreditException → 충전 유도)
+        long studentBalance = creditService.deduct(studentUserId, price, CreditReason.ENROLLMENT_PAY, courseId);
+
+        // 2) 선생님에게 수수료(10%) 제외한 90% 적립
+        long teacherIncome = CreditPolicy.teacherIncome(price);
+        creditService.charge(teacherUserId, teacherIncome, CreditReason.ENROLLMENT_INCOME, courseId);
+
+        // 3) 즉시 수강 확정(자동 수락된 EnrollmentRequest + Enrollment 생성)
         EnrollmentRequest request = EnrollmentRequest.create(
-                course, student, null, null, null, null, "결제로 자동 수강 등록");
+                course, student, null, null, null, null, "크레딧 결제로 자동 수강 등록");
         request.accept();
         enrollmentRequestRepository.save(request);
 
         Enrollment enrollment = Enrollment.create(student, course, request);
         enrollmentRepository.save(enrollment);
-        return courseId;
+
+        // 선생님에게 수강 등록 + 수익 알림
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                teacherUserId, NotificationType.ENROLLMENT_ACCEPTED,
+                "새 수강 등록",
+                String.format("%s님이 '%s' 수업을 결제하고 수강을 시작했어요. (+%d 크레딧)",
+                        student.getName(), course.getTitle(), teacherIncome),
+                enrollment.getId()));
+
+        return studentBalance;
     }
 
     @Transactional

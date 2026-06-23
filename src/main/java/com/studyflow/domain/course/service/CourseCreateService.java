@@ -4,8 +4,9 @@ import com.studyflow.domain.course.dto.create.CourseCreateRequest;
 import com.studyflow.domain.course.dto.create.CourseCreateResponse;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.repository.CourseRepository;
-import com.studyflow.domain.subscription.enums.SubscriptionType;
-import com.studyflow.domain.subscription.service.SubscriptionService;
+import com.studyflow.domain.credit.CreditPolicy;
+import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.credit.service.CreditService;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -24,7 +25,7 @@ public class CourseCreateService {
     private final CourseRepository courseRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final SubjectRepository subjectRepository;
-    private final SubscriptionService subscriptionService;
+    private final CreditService creditService;
 
     @Transactional
     public CourseCreateResponse createCourse(Long teacherUserId, CourseCreateRequest request) {
@@ -32,8 +33,8 @@ public class CourseCreateService {
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(teacherUserId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacherUserId));
 
-        // 강의 개설 구독(이용권) 활성 검사 — 없으면 SubscriptionRequiredException → 구독 유도.
-        subscriptionService.requireActive(teacherUserId, SubscriptionType.COURSE_OPEN);
+        // 강의 개설 사용료(크레딧) 차감 — 잔액 부족이면 InsufficientCreditException → 충전 유도.
+        creditService.deduct(teacherUserId, CreditPolicy.COURSE_OPEN_COST, CreditReason.COURSE_OPEN, null);
 
         // 요청한 과목 조회
         Subject subject = subjectRepository.findById(request.getSubjectId())
