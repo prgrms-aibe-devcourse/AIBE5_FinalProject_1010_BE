@@ -1,9 +1,7 @@
 package com.studyflow.domain.chat.service;
 
 import com.studyflow.domain.chat.dto.request.ChatMessageSendRequest;
-import com.studyflow.domain.chat.dto.request.CourseGroupChatParticipantRequest;
 import com.studyflow.domain.chat.dto.request.ChatRoomCreateRequest;
-import com.studyflow.domain.chat.dto.request.CourseGroupChatRoomCreateRequest;
 import com.studyflow.domain.chat.dto.response.*;
 import com.studyflow.domain.chat.entity.ChatMessage;
 import com.studyflow.domain.chat.entity.ChatMessageAttachment;
@@ -14,11 +12,6 @@ import com.studyflow.domain.chat.repository.ChatMessageAttachmentRepository;
 import com.studyflow.domain.chat.repository.ChatMessageRepository;
 import com.studyflow.domain.chat.repository.ChatRoomParticipantRepository;
 import com.studyflow.domain.chat.repository.ChatRoomRepository;
-import com.studyflow.domain.course.entity.Course;
-import com.studyflow.domain.course.repository.CourseRepository;
-import com.studyflow.domain.enrollment.entity.Enrollment;
-import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
-import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.user.entity.User;
@@ -32,7 +25,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -49,8 +41,6 @@ public class ChatService {
     private final ChatMessageAttachmentRepository chatMessageAttachmentRepository;
     private final FileAssetRepository fileAssetRepository;
     private final UserRepository userRepository;
-    private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
 
     /**
      * 자기 자신을 프록시 경유로 호출하기 위한 참조.
@@ -184,70 +174,6 @@ public class ChatService {
         ChatRoom saved = chatRoomRepository.save(newRoom);
 
         return toChatRoomResponse(saved, currentUserId);
-    }
-
-    /**
-     * 수업 단체 채팅방 생성 또는 기존 방 반환.
-     *
-     * 수업당 단체톡은 하나만 유지하고, 담당 선생님만 만들 수 있다.
-     * studentIds가 비어 있으면 현재 ACTIVE 수강생 전체를 초대한다.
-     */
-    @Transactional
-    public ChatRoomResponse createCourseGroupRoom(Long currentUserId, CourseGroupChatRoomCreateRequest request) {
-        Course course = loadCourseWithTeacher(request.getCourseId());
-        validateCourseTeacher(course, currentUserId);
-
-        String roomKey = createCourseGroupRoomKey(course.getId());
-        ChatRoom room = chatRoomRepository.findByRoomKey(roomKey)
-                .orElseGet(() -> {
-                    ChatRoom newRoom = ChatRoom.createCourseGroupRoom(course, roomKey);
-                    ChatRoomParticipant.createTeacher(newRoom, course.getTeacherProfile().getUser());
-                    return chatRoomRepository.save(newRoom);
-                });
-
-        List<Long> studentIds = request.getStudentIds();
-        if (studentIds == null || studentIds.isEmpty()) {
-            studentIds = enrollmentRepository.findWithUserByCourseIdAndStatus(course.getId(), EnrollmentStatus.ACTIVE)
-                    .stream()
-                    .map(enrollment -> enrollment.getUser().getId())
-                    .toList();
-        }
-        inviteStudents(room, course, studentIds);
-
-        return toChatRoomResponse(room, currentUserId);
-    }
-
-    /**
-     * 담당 선생님이 수업 단체톡에 ACTIVE 수강생을 추가 초대한다.
-     */
-    @Transactional
-    public ChatRoomResponse inviteCourseGroupStudents(
-            Long currentUserId,
-            Long roomId,
-            CourseGroupChatParticipantRequest request
-    ) {
-        ChatRoom room = loadCourseGroupRoomForTeacher(roomId, currentUserId);
-        inviteStudents(room, room.getCourse(), request.getStudentIds());
-        return toChatRoomResponse(room, currentUserId);
-    }
-
-    /**
-     * 담당 선생님이 수업 단체톡에서 학생을 내보낸다.
-     */
-    @Transactional
-    public ChatRoomResponse removeCourseGroupStudent(Long currentUserId, Long roomId, Long studentId) {
-        ChatRoom room = loadCourseGroupRoomForTeacher(roomId, currentUserId);
-
-        ChatRoomParticipant participant = chatRoomParticipantRepository
-                .findByChatRoomIdAndUserIdAndLeftAtIsNull(roomId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("현재 수업톡 참여 학생이 아닙니다."));
-
-        if (!participant.isStudent()) {
-            throw new IllegalArgumentException("선생님은 수업톡에서 내보낼 수 없습니다.");
-        }
-
-        participant.leave();
-        return toChatRoomResponse(room, currentUserId);
     }
 
     /**
@@ -502,68 +428,7 @@ public class ChatService {
         return "DIRECT:T:%d:S:%d".formatted(teacherId, studentId);
     }
 
-    private String createCourseGroupRoomKey(Long courseId) {
-        return "COURSE_GROUP:COURSE:%d".formatted(courseId);
-    }
-
-    private Course loadCourseWithTeacher(Long courseId) {
-        if (courseId == null) {
-            throw new IllegalArgumentException("수업 ID는 필수입니다.");
-        }
-        return courseRepository.findWithTeacherAndSubjectById(courseId)
-                .orElseThrow(() -> new IllegalArgumentException("수업을 찾을 수 없습니다."));
-    }
-
-    private ChatRoom loadCourseGroupRoomForTeacher(Long roomId, Long currentUserId) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
-        if (!room.isCourseGroupRoom() || room.getCourse() == null) {
-            throw new IllegalArgumentException("수업 단체톡이 아닙니다.");
-        }
-        validateCourseTeacher(room.getCourse(), currentUserId);
-        return room;
-    }
-
-    private void validateCourseTeacher(Course course, Long currentUserId) {
-        Long teacherUserId = course.getTeacherProfile().getUser().getId();
-        if (!teacherUserId.equals(currentUserId)) {
-            throw new IllegalArgumentException("담당 선생님만 수업톡을 관리할 수 있습니다.");
-        }
-    }
-
-    private void inviteStudents(ChatRoom room, Course course, List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty()) {
-            return;
-        }
-
-        List<Long> distinctStudentIds = new LinkedHashSet<>(studentIds).stream().toList();
-        Map<Long, User> activeStudents = enrollmentRepository
-                .findWithUserByCourseIdAndStatus(course.getId(), EnrollmentStatus.ACTIVE)
-                .stream()
-                .collect(Collectors.toMap(
-                        enrollment -> enrollment.getUser().getId(),
-                        Enrollment::getUser
-                ));
-
-        for (Long studentId : distinctStudentIds) {
-            User student = activeStudents.get(studentId);
-            if (student == null) {
-                throw new IllegalArgumentException("해당 수업의 활성 수강생만 초대할 수 있습니다. (studentId: " + studentId + ")");
-            }
-
-            ChatRoomParticipant participant = chatRoomParticipantRepository
-                    .findByChatRoomIdAndUserId(room.getId(), studentId)
-                    .orElse(null);
-
-            if (participant == null) {
-                chatRoomParticipantRepository.save(ChatRoomParticipant.createStudent(room, student));
-            } else if (!participant.isActive()) {
-                participant.rejoin();
-            }
-        }
-    }
-
-    private ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
+    ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
         List<ChatRoomParticipant> participants =
                 chatRoomParticipantRepository.findByChatRoomIdAndLeftAtIsNull(chatRoom.getId());
 

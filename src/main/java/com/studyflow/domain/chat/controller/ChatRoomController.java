@@ -8,6 +8,7 @@ import com.studyflow.domain.chat.dto.response.ChatMessagePageResponse;
 import com.studyflow.domain.chat.dto.response.ChatReadResponse;
 import com.studyflow.domain.chat.dto.response.ChatRoomResponse;
 import com.studyflow.domain.chat.service.ChatService;
+import com.studyflow.domain.chat.service.CourseGroupChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import java.util.List;
 public class ChatRoomController {
 
     private final ChatService chatService;
+    private final CourseGroupChatService courseGroupChatService;
 
     /**
      * 내 채팅방 목록 조회.
@@ -64,7 +66,7 @@ public class ChatRoomController {
             @Valid @RequestBody CourseGroupChatRoomCreateRequest request,
             @AuthenticationPrincipal Long userId
     ) {
-        return chatService.createCourseGroupRoom(userId, request);
+        return courseGroupChatService.createCourseGroupRoom(userId, request);
     }
 
     /**
@@ -76,7 +78,7 @@ public class ChatRoomController {
             @Valid @RequestBody CourseGroupChatParticipantRequest request,
             @AuthenticationPrincipal Long userId
     ) {
-        return chatService.inviteCourseGroupStudents(userId, roomId, request);
+        return courseGroupChatService.inviteCourseGroupStudents(userId, roomId, request);
     }
 
     /**
@@ -88,7 +90,7 @@ public class ChatRoomController {
             @PathVariable Long studentId,
             @AuthenticationPrincipal Long userId
     ) {
-        return chatService.removeCourseGroupStudent(userId, roomId, studentId);
+        return courseGroupChatService.removeCourseGroupStudent(userId, roomId, studentId);
     }
 
     /**
