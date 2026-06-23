@@ -61,6 +61,7 @@ public class ClassroomService {
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
     private final AudioStateStore audioStateStore;
+    private final ClassroomQuizStateStore classroomQuizStateStore;
     private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
     private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
@@ -239,6 +240,8 @@ public class ClassroomService {
         whiteboardDrawPermissionStore.clear(session.getId());
         // 오디오 재생 상태도 메모리에서 정리(이슈 #182).
         audioStateStore.clear(session.getId());
+        // 세션 중 진행 중이던 문제풀이 상태도 정리한다.
+        classroomQuizStateStore.clear(session.getId());
         // 종료 이벤트 브로드캐스트 → 모든 클라이언트가 강의실에서 자동으로 나간다.
         broadcaster.send(
                 "/sub/classroom-sessions/" + session.getId() + "/events",
