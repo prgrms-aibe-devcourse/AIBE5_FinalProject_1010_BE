@@ -5,7 +5,9 @@ import com.studyflow.domain.naegong.repository.NaegongHistoryRepository.WeeklyNa
 import com.studyflow.domain.teacher.dto.HotTeacherResponse;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
+import com.studyflow.global.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,11 +27,15 @@ public class HotTeacherService {
 
     private static final int LIMIT = 3;       // 노출 인원
     private static final int WEEK_DAYS = 7;   // 집계 기간(일)
+    /** JPQL NOT IN 절에 빈 리스트를 넘길 수 없어 noExclusions=true 분기에서 사용하는 더미값.
+     *  noExclusions=true 일 때 JPQL이 short-circuit되므로 실제 SQL 조건에 영향을 주지 않는다. */
+    private static final Long EMPTY_EXCLUDE_SENTINEL = -1L;
 
     private final NaegongHistoryRepository naegongHistoryRepository;
     private final TeacherProfileRepository teacherProfileRepository;
 
     // 이번주 HOT 선생님 조회 — 주간 획득자 우선, 3명 미만이면 전체기간 내공순으로 채운다(hybrid).
+    @Cacheable(CacheConfig.HOT_TEACHERS)
     public List<HotTeacherResponse> getWeeklyHotTeachers() {
         LocalDateTime since = LocalDateTime.now().minusDays(WEEK_DAYS);
 
@@ -61,7 +67,7 @@ public class HotTeacherService {
             boolean noExclusions = excludeUserIds.isEmpty();
             List<TeacherProfile> fillers = teacherProfileRepository.findTopByNaegongScore(
                     noExclusions,
-                    noExclusions ? List.of(-1L) : excludeUserIds,
+                    noExclusions ? List.of(EMPTY_EXCLUDE_SENTINEL) : excludeUserIds,
                     PageRequest.of(0, LIMIT - ordered.size()));
             ordered.addAll(fillers);
         }

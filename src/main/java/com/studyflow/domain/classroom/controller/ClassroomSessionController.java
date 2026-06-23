@@ -16,6 +16,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -103,8 +106,8 @@ public class ClassroomSessionController {
     @Operation(summary = "강의실 미리보기 화이트보드 스냅샷",
             description = "비로그인 포함 공개. 진행 중인 강의실의 현재 화이트보드 상태(pages+seq)를 반환합니다.")
     @GetMapping("/classroom-sessions/{sessionId}/whiteboard-preview")
-    public ResponseEntity<java.util.Map<String, Object>> getWhiteboardPreview(@PathVariable Long sessionId) {
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
+    public ResponseEntity<Map<String, Object>> getWhiteboardPreview(@PathVariable Long sessionId) {
+        Map<String, Object> body = new HashMap<>();
         body.put("board", classroomService.getWhiteboardPreviewSnapshot(sessionId));
         return ResponseEntity.ok(body);
     }

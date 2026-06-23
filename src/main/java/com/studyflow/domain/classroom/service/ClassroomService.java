@@ -33,6 +33,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -383,7 +384,7 @@ public class ClassroomService {
      * ⚠️ 같은 룸에 입장하므로 커스텀 클라이언트로 카메라 트랙을 구독할 여지가 이론상 남는다.
      * 완화책은 위 항목이며, 정식 해결은 LiveKit 서버 SDK로 트랙 단위 구독 제한(후속 과제).</p>
      */
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public LivekitPreviewTokenResponse issuePreviewToken(Long sessionId, Long userId) {
         ClassroomSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ClassroomSessionNotFoundException(

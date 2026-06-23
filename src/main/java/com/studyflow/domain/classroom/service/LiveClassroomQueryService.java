@@ -9,6 +9,7 @@ import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,15 +41,17 @@ public class LiveClassroomQueryService {
         LocalDateTime freshAfter = LocalDateTime.now().minusSeconds(FRESH_SECONDS);
 
         List<ClassroomSession> sessions =
-                sessionRepository.findLiveSessions(ClassroomStatus.OPEN, freshAfter);
+                sessionRepository.findLiveSessions(ClassroomStatus.OPEN, freshAfter,
+                        PageRequest.of(0, MAX_RESULTS));
         if (sessions.isEmpty()) {
             return List.of();
         }
-        if (sessions.size() > MAX_RESULTS) {
-            sessions = sessions.subList(0, MAX_RESULTS);
-        }
 
         List<Long> sessionIds = sessions.stream().map(ClassroomSession::getId).toList();
+        // sessions.isEmpty() 체크 위에서 이미 완료됐지만, 레포 호출 전 방어적으로 한 번 더 확인
+        if (sessionIds.isEmpty()) {
+            return List.of();
+        }
         Map<Long, Long> countBySessionId = participantRepository
                 .countParticipantsBySessionIds(sessionIds).stream()
                 .collect(Collectors.toMap(

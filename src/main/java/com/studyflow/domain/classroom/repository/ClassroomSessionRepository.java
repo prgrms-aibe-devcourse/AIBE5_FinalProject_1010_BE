@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -35,5 +37,6 @@ public interface ClassroomSessionRepository extends JpaRepository<ClassroomSessi
            "WHERE s.status = :status AND s.lastHostSeenAt >= :freshAfter AND c.isListed = true " +
            "ORDER BY s.startedAt DESC")
     List<ClassroomSession> findLiveSessions(@Param("status") ClassroomStatus status,
-                                            @Param("freshAfter") LocalDateTime freshAfter);
+                                            @Param("freshAfter") LocalDateTime freshAfter,
+                                            Pageable pageable);
 }
