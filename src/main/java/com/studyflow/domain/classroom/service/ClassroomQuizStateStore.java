@@ -48,27 +48,33 @@ public class ClassroomQuizStateStore {
         int seconds = normalizeDuration(durationSec);
         long now = System.currentTimeMillis();
 
-        Quiz quiz = new Quiz();
-        quiz.quizId = UUID.randomUUID().toString();
-        quiz.teacherUserId = teacherUserId;
-        quiz.question = normalizedQuestion;
-        quiz.answer = normalizedAnswer;
-        quiz.durationSec = seconds;
-        quiz.startedAtMs = now;
-        quiz.endsAtMs = now + seconds * 1000L;
+        return lock.withLock(lockName(sessionId), () -> {
+            SessionQuizState state = load(sessionId);
+            Quiz prev = currentQuiz(state);
+            int nextSeq = (prev.quizId == null) ? 1 : prev.sequence + 1;
 
-        lock.withLock(lockName(sessionId), () -> {
-            save(sessionId, quiz);
-            return null;
+            Quiz quiz = new Quiz();
+            quiz.quizId = UUID.randomUUID().toString();
+            quiz.sequence = nextSeq;
+            quiz.teacherUserId = teacherUserId;
+            quiz.question = normalizedQuestion;
+            quiz.answer = normalizedAnswer;
+            quiz.durationSec = seconds;
+            quiz.startedAtMs = now;
+            quiz.endsAtMs = now + seconds * 1000L;
+
+            state.quizzes.add(quiz);
+            save(sessionId, state);
+            return publicSnapshot(quiz, now);
         });
-        return publicSnapshot(quiz, now);
     }
 
     public Map<String, Object> submit(Long sessionId, Long studentUserId, String quizId, String answer) {
         return lock.withLock(lockName(sessionId), () -> {
-            Quiz quiz = load(sessionId);
+            SessionQuizState state = load(sessionId);
+            Quiz quiz = findQuiz(state, quizId);
             long now = System.currentTimeMillis();
-            if (quiz.quizId == null || !Objects.equals(quiz.quizId, quizId)) {
+            if (quiz == null) {
                 throw new IllegalArgumentException("진행 중인 문제가 아닙니다.");
             }
             if (now > quiz.endsAtMs) {
@@ -82,46 +88,73 @@ public class ClassroomQuizStateStore {
             submission.correct = isCorrect(submittedAnswer, quiz.answer);
             submission.submittedAtMs = now;
             quiz.submissions.put(String.valueOf(studentUserId), submission);
-            save(sessionId, quiz);
+            save(sessionId, state);
             return userSubmissionSnapshot(quiz, submission, now, false);
         });
     }
 
     public Map<String, Object> snapshotFor(Long sessionId, Long userId, boolean host) {
-        Quiz quiz = load(sessionId);
+        SessionQuizState state = load(sessionId);
+        Quiz current = currentQuiz(state);
         long now = System.currentTimeMillis();
-        if (quiz.quizId == null) {
-            return Map.of("type", "idle", "serverNowMs", now);
-        }
-        Map<String, Object> out = host ? hostSnapshot(quiz, now) : publicSnapshot(quiz, now);
-        Submission submission = quiz.submissions.get(String.valueOf(userId));
-        if (submission != null) {
-            out.put("mySubmission", userSubmissionSnapshot(quiz, submission, now, isEnded(quiz, now)));
-        }
-        if (isEnded(quiz, now)) {
-            out.put("type", "ended");
-            out.put("answer", quiz.answer);
-            if (submission == null && !host) {
-                out.put("mySubmission", Map.of(
-                        "submitted", false,
-                        "correct", false,
-                        "message", "조금 더 분발하세요"
-                ));
+        
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (current.quizId == null) {
+            out.put("type", "idle");
+            out.put("serverNowMs", now);
+        } else {
+            out.putAll(host ? hostSnapshot(current, now) : publicSnapshot(current, now));
+            Submission submission = current.submissions.get(String.valueOf(userId));
+            if (submission != null) {
+                out.put("mySubmission", userSubmissionSnapshot(current, submission, now, isEnded(current, now)));
+            }
+            if (isEnded(current, now)) {
+                out.put("type", "ended");
+                out.put("answer", current.answer);
+                if (submission == null && !host) {
+                    out.put("mySubmission", Map.of(
+                            "submitted", false,
+                            "correct", false,
+                            "message", "조금 더 분발하세요"
+                    ));
+                }
             }
         }
+
+        java.util.List<Map<String, Object>> history = new java.util.ArrayList<>();
+        for (int i = 0; i < state.quizzes.size(); i++) {
+            Quiz q = state.quizzes.get(i);
+            if (Objects.equals(q.quizId, current.quizId) && !isEnded(current, now)) continue;
+            Map<String, Object> h = host ? hostSnapshot(q, now) : publicSnapshot(q, now);
+            h.put("type", "ended");
+            h.put("answer", q.answer);
+            Submission sub = q.submissions.get(String.valueOf(userId));
+            if (sub != null) {
+                h.put("mySubmission", userSubmissionSnapshot(q, sub, now, true));
+            } else if (!host) {
+                h.put("mySubmission", Map.of(
+                        "submitted", false,
+                        "correct", false,
+                        "message", "제출 안 함"
+                ));
+            }
+            history.add(h);
+        }
+        out.put("history", history);
         return out;
     }
 
     public Map<String, Object> end(Long sessionId) {
         return lock.withLock(lockName(sessionId), () -> {
-            Quiz quiz = load(sessionId);
+            SessionQuizState state = load(sessionId);
+            Quiz quiz = currentQuiz(state);
             if (quiz.quizId == null) {
                 return Map.of("type", "idle", "serverNowMs", System.currentTimeMillis());
             }
             long now = System.currentTimeMillis();
             if (quiz.endsAtMs > now) {
                 quiz.endsAtMs = now;
-                save(sessionId, quiz);
+                save(sessionId, state);
             }
             return endedPublicSnapshot(quiz, now);
         });
@@ -129,16 +162,34 @@ public class ClassroomQuizStateStore {
 
     public Map<String, Object> endIfSame(Long sessionId, String quizId) {
         return lock.withLock(lockName(sessionId), () -> {
-            Quiz quiz = load(sessionId);
-            if (quiz.quizId == null || !Objects.equals(quiz.quizId, quizId)) {
+            SessionQuizState state = load(sessionId);
+            Quiz quiz = findQuiz(state, quizId);
+            if (quiz == null) {
                 return null;
             }
             long now = System.currentTimeMillis();
             if (quiz.endsAtMs > now) {
                 quiz.endsAtMs = now;
-                save(sessionId, quiz);
+                save(sessionId, state);
             }
             return endedPublicSnapshot(quiz, now);
+        });
+    }
+
+    public Map<String, Object> toggleCorrect(Long sessionId, String quizId, Long studentUserId) {
+        return lock.withLock(lockName(sessionId), () -> {
+            SessionQuizState state = load(sessionId);
+            Quiz quiz = findQuiz(state, quizId);
+            if (quiz == null) {
+                throw new IllegalArgumentException("진행 중인 문제가 아닙니다.");
+            }
+            Submission submission = quiz.submissions.get(String.valueOf(studentUserId));
+            if (submission == null) {
+                throw new IllegalArgumentException("해당 학생의 제출 내역이 없습니다.");
+            }
+            submission.correct = !submission.correct;
+            save(sessionId, state);
+            return Map.of("type", "submissionUpdate", "quizId", quiz.quizId, "serverNowMs", System.currentTimeMillis());
         });
     }
 
@@ -150,6 +201,7 @@ public class ClassroomQuizStateStore {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("type", isEnded(quiz, now) ? "ended" : "started");
         out.put("quizId", quiz.quizId);
+        out.put("sequence", quiz.sequence);
         out.put("question", quiz.question);
         out.put("durationSec", quiz.durationSec);
         out.put("startedAtMs", quiz.startedAtMs);
@@ -164,6 +216,19 @@ public class ClassroomQuizStateStore {
         out.put("answer", quiz.answer);
         out.put("correctCount", quiz.submissions.values().stream().filter(s -> s.correct).count());
         out.put("wrongCount", quiz.submissions.values().stream().filter(s -> !s.correct).count());
+        
+        java.util.List<Map<String, Object>> list = quiz.submissions.values().stream()
+                .map(s -> {
+                    Map<String, Object> detail = new LinkedHashMap<>();
+                    detail.put("userId", s.userId);
+                    detail.put("answer", s.answer);
+                    detail.put("correct", s.correct);
+                    detail.put("submittedAtMs", s.submittedAtMs);
+                    return detail;
+                })
+                .toList();
+        out.put("submissionsList", list);
+        
         return out;
     }
 
@@ -193,29 +258,69 @@ public class ClassroomQuizStateStore {
         return quiz.endsAtMs > 0 && now >= quiz.endsAtMs;
     }
 
-    private void save(Long sessionId, Quiz quiz) {
+    private void save(Long sessionId, SessionQuizState state) {
         try {
-            redisTemplate.opsForValue().set(key(sessionId), objectMapper.writeValueAsString(toMap(quiz)), TTL);
+            redisTemplate.opsForValue().set(key(sessionId), objectMapper.writeValueAsString(toMap(state)), TTL);
         } catch (Exception e) {
             log.warn("[classroom-quiz] 상태 저장 실패(sessionId={})", sessionId, e);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private Quiz load(Long sessionId) {
+    private SessionQuizState load(Long sessionId) {
         String json = redisTemplate.opsForValue().get(key(sessionId));
-        if (json == null) return new Quiz();
+        if (json == null) return new SessionQuizState();
         try {
             return fromMap(objectMapper.readValue(json, Map.class));
         } catch (Exception e) {
             log.warn("[classroom-quiz] 상태 역직렬화 실패(sessionId={})", sessionId, e);
-            return new Quiz();
+            return new SessionQuizState();
         }
+    }
+
+    private Map<String, Object> toMap(SessionQuizState state) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        java.util.List<Map<String, Object>> list = new java.util.ArrayList<>();
+        for (Quiz q : state.quizzes) {
+            list.add(toMap(q));
+        }
+        out.put("quizzes", list);
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private SessionQuizState fromMap(Map<String, Object> map) {
+        SessionQuizState state = new SessionQuizState();
+        if (map == null) return state;
+        Object rawQuizzes = map.get("quizzes");
+        if (rawQuizzes instanceof java.util.List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> m) {
+                    state.quizzes.add(quizFromMap((Map<String, Object>) m));
+                }
+            }
+        } else if (map.containsKey("quizId")) {
+            state.quizzes.add(quizFromMap(map));
+        }
+        return state;
+    }
+
+    private Quiz currentQuiz(SessionQuizState state) {
+        return state.quizzes.isEmpty() ? new Quiz() : state.quizzes.get(state.quizzes.size() - 1);
+    }
+
+    private Quiz findQuiz(SessionQuizState state, String quizId) {
+        for (int i = state.quizzes.size() - 1; i >= 0; i--) {
+            Quiz q = state.quizzes.get(i);
+            if (Objects.equals(q.quizId, quizId)) return q;
+        }
+        return null;
     }
 
     private Map<String, Object> toMap(Quiz quiz) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("quizId", quiz.quizId);
+        out.put("sequence", quiz.sequence);
         out.put("teacherUserId", quiz.teacherUserId);
         out.put("question", quiz.question);
         out.put("answer", quiz.answer);
@@ -229,9 +334,10 @@ public class ClassroomQuizStateStore {
     }
 
     @SuppressWarnings("unchecked")
-    private Quiz fromMap(Map<String, Object> map) {
+    private Quiz quizFromMap(Map<String, Object> map) {
         Quiz quiz = new Quiz();
         quiz.quizId = str(map.get("quizId"));
+        quiz.sequence = intVal(map.get("sequence"));
         quiz.teacherUserId = longVal(map.get("teacherUserId"));
         quiz.question = str(map.get("question"));
         quiz.answer = str(map.get("answer"));
@@ -319,8 +425,13 @@ public class ClassroomQuizStateStore {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 
+    static final class SessionQuizState {
+        final java.util.List<Quiz> quizzes = new java.util.ArrayList<>();
+    }
+
     static final class Quiz {
         String quizId;
+        int sequence;
         Long teacherUserId;
         String question;
         String answer;

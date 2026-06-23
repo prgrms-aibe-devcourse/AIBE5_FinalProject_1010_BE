@@ -44,6 +44,7 @@ public class ClassroomQuizWebSocketController {
                 case "start" -> start(sessionId, userId, message);
                 case "submit" -> submit(sessionId, userId, message);
                 case "end" -> end(sessionId, userId);
+                case "toggle" -> toggle(sessionId, userId, message);
                 default -> sendError(userId, sessionId, "알 수 없는 문제풀이 메시지입니다.");
             }
         } catch (Exception e) {
@@ -82,6 +83,16 @@ public class ClassroomQuizWebSocketController {
 
     private void end(Long sessionId, Long userId) {
         broadcaster.send(topic(sessionId), quizService.end(sessionId, userId));
+    }
+
+    private void toggle(Long sessionId, Long userId, Map<String, Object> message) {
+        Map<String, Object> payload = quizService.toggleCorrect(
+                sessionId,
+                userId,
+                str(message.get("quizId")),
+                longVal(message.get("studentUserId"))
+        );
+        broadcaster.send(topic(sessionId), payload);
     }
 
     private void scheduleEnd(Long sessionId, String quizId, Long endsAtMs) {

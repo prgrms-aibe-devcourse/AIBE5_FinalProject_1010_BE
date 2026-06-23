@@ -58,6 +58,16 @@ public class ClassroomQuizService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> toggleCorrect(Long sessionId, Long teacherUserId, String quizId, Long studentUserId) {
+        ClassroomSession session = openSession(sessionId);
+        boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), teacherUserId);
+        if (!host) {
+            throw new ClassroomForbiddenException("담당 선생님만 채점 결과를 변경할 수 있습니다.");
+        }
+        return quizStateStore.toggleCorrect(sessionId, quizId, studentUserId);
+    }
+
+    @Transactional(readOnly = true)
     public Map<String, Object> snapshot(Long sessionId, Long userId) {
         ClassroomSession session = openSession(sessionId);
         boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
