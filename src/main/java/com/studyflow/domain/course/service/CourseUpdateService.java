@@ -52,19 +52,18 @@ public class CourseUpdateService {
             throw new CourseAccessForbiddenException();
         }
 
+        // 수강 중인 학생이 1명이라도 있으면 수정 불가
+        long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
+        if (activeStudents > 0) {
+            throw new CourseHasActiveStudentsException();
+        }
+
         // 과목 변경 시 새 Subject 조회
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.getSubjectId()));
 
         // maxStudents 미입력 시 기존 값 유지
         int maxStudents = request.getMaxStudents() != null ? request.getMaxStudents() : course.getMaxStudents();
-
-        // 현재 수강 중인 학생 수보다 정원을 작게 설정하는 것 방지
-        long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
-        if (maxStudents < activeStudents) {
-            throw new IllegalArgumentException(
-                    "현재 수강 중인 학생(" + activeStudents + "명)보다 정원을 작게 설정할 수 없습니다.");
-        }
 
         course.update(
                 subject,
