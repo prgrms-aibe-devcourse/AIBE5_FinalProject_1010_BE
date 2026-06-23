@@ -4,6 +4,9 @@ import com.studyflow.domain.course.dto.create.CourseCreateRequest;
 import com.studyflow.domain.course.dto.create.CourseCreateResponse;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.credit.CreditPolicy;
+import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.credit.service.CreditService;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
@@ -22,12 +25,16 @@ public class CourseCreateService {
     private final CourseRepository courseRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final SubjectRepository subjectRepository;
+    private final CreditService creditService;
 
     @Transactional
     public CourseCreateResponse createCourse(Long teacherUserId, CourseCreateRequest request) {
         // 로그인한 선생님의 프로필 조회 — 수업에 teacher_profile_id 연결 필요
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(teacherUserId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacherUserId));
+
+        // 강의 개설 사용료(크레딧) 차감 — 잔액 부족이면 InsufficientCreditException → 충전 유도.
+        creditService.deduct(teacherUserId, CreditPolicy.COURSE_OPEN_COST, CreditReason.COURSE_OPEN, null);
 
         // 요청한 과목 조회
         Subject subject = subjectRepository.findById(request.getSubjectId())

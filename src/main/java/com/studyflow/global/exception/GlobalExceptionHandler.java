@@ -110,6 +110,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    // 크레딧 부족(402) — 프론트는 code=INSUFFICIENT_CREDIT 받으면 충전 안내로 유도
+    @ExceptionHandler(com.studyflow.domain.credit.exception.InsufficientCreditException.class)
+    public ResponseEntity<Map<String, Object>> handleInsufficientCredit(
+            com.studyflow.domain.credit.exception.InsufficientCreditException ex) {
+        return ResponseEntity.status(ErrorCode.INSUFFICIENT_CREDIT.getStatus())
+                .body(ErrorCode.INSUFFICIENT_CREDIT.toBody(ex.getMessage()));
+    }
+
+    // 결제 처리 실패(400)
+    @ExceptionHandler(com.studyflow.domain.payment.exception.PaymentException.class)
+    public ResponseEntity<Map<String, Object>> handlePayment(
+            com.studyflow.domain.payment.exception.PaymentException ex) {
+        return ResponseEntity.status(ErrorCode.PAYMENT_FAILED.getStatus())
+                .body(ErrorCode.PAYMENT_FAILED.toBody(ex.getMessage()));
+    }
+
     // 커스텀 Exception Handling
 
     // ── 회원 인증 도메인(회원가입, 로그인 등) 예외 처리 ──────────────────────

@@ -151,6 +151,13 @@ cors:
   # 배포에서는 프론트 도메인(예: https://app.team-10.example.com)을 환경변수로 주입.
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
+# 토스페이먼츠(결제). client-key=프론트 결제창, secret-key=백엔드 승인(노출 금지).
+# 공개 테스트 키로 시연 가능. 운영은 실제 상점 키를 환경변수로 주입.
+toss:
+  client-key: ${TOSS_CLIENT_KEY:test_ck_docs_Ovk5rk1EwkEbP0W43n07xlzm}
+  secret-key: ${TOSS_SECRET_KEY:}
+  confirm-url: ${TOSS_CONFIRM_URL:https://api.tosspayments.com/v1/payments/confirm}
+
 # OpenAI 키는 application-secret.yml 에 작성한다(아래 예시).
 #   spring:
 #     ai:

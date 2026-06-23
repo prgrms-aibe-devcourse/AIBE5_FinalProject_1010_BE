@@ -133,6 +133,35 @@ public class EnrollmentRequestService {
                 request.getId()));
     }
 
+    /**
+     * 결제 완료 기반 즉시 수강 등록(결제=신청=확정). 결제 서비스가 토스 승인 성공 후 호출한다.
+     * 자동 수락된 EnrollmentRequest 1건을 만들고 그에 연결된 Enrollment를 생성한다
+     * (enrollment_request_id가 NOT NULL이라 요청 레코드가 필요).
+     *
+     * @return 등록된 courseId
+     */
+    @Transactional
+    public Long enrollByPayment(Long courseId, Long studentUserId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotFoundException(courseId));
+        User student = userRepository.findById(studentUserId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        // 이미 수강 중이면 중복 등록하지 않음(결제는 이미 승인됐으므로 등록만 멱등 처리)
+        if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(studentUserId, courseId, EnrollmentStatus.ACTIVE)) {
+            return courseId;
+        }
+
+        EnrollmentRequest request = EnrollmentRequest.create(
+                course, student, null, null, null, null, "결제로 자동 수강 등록");
+        request.accept();
+        enrollmentRequestRepository.save(request);
+
+        Enrollment enrollment = Enrollment.create(student, course, request);
+        enrollmentRepository.save(enrollment);
+        return courseId;
+    }
+
     @Transactional
     public void rejectEnrollmentRequest(Long requestId, Long userId) {
         EnrollmentRequest request = validateAndGetPendingRequest(requestId, userId);
