@@ -4,13 +4,16 @@ import com.studyflow.domain.classroom.dto.request.LivekitTokenRequest;
 import com.studyflow.domain.classroom.dto.request.ParticipantPermissionUpdateRequest;
 import com.studyflow.domain.classroom.dto.response.*;
 import com.studyflow.domain.classroom.entity.ClassroomParticipant;
+import com.studyflow.domain.classroom.entity.ClassroomPreviewLog;
 import com.studyflow.domain.classroom.entity.ClassroomSession;
 import com.studyflow.domain.classroom.enums.ClassroomStatus;
 import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
 import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
+import com.studyflow.domain.classroom.exception.PreviewLimitExceededException;
 import com.studyflow.domain.classroom.repository.ClassroomParticipantRepository;
+import com.studyflow.domain.classroom.repository.ClassroomPreviewLogRepository;
 import com.studyflow.domain.classroom.repository.ClassroomSessionRepository;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
@@ -30,6 +33,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -54,6 +58,7 @@ public class ClassroomService {
 
     private final ClassroomSessionRepository sessionRepository;
     private final ClassroomParticipantRepository participantRepository;
+    private final ClassroomPreviewLogRepository previewLogRepository;
     private final CourseRepository courseRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -69,6 +74,9 @@ public class ClassroomService {
 
     /** 호스트(선생님)가 이 시간 동안 하트비트가 없으면 강의실을 자동 종료한다. */
     private static final long HOST_ABSENCE_LIMIT_SECONDS = 5 * 60; // 5분
+
+    /** 비수강생 미리보기 허용 시간(초) — LiveKit 토큰 TTL과 FE 카운트다운이 공유하는 단일 출처. */
+    private static final int PREVIEW_SECONDS = 60;
 
     /**
      * 강의실 열기 (22-1) — 담당 선생님만.
@@ -364,6 +372,67 @@ public class ClassroomService {
 
         return new LivekitTokenResponse(
                 liveKitTokenService.getUrl(), roomName, token, identity, displayName, role);
+    }
+
+    /**
+     * 미리보기 토큰 발급 — 메인 홈 "실시간 강의중"에서 30~60초 강의실 미리보기용.
+     *
+     * <p><b>비로그인 포함 누구나</b> 진행 중인 강의실을 들여다볼 수 있다(멤버십 검증 생략).
+     * 대신 다음으로 제한한다:
+     * <ul>
+     *   <li>보기 전용(canPublish=false), 데이터 전송 금지(canPublishData=false), TTL 60초</li>
+     *   <li>FE는 카메라 트랙을 구독/렌더링하지 않고 화면공유·음성만 노출(선생님·학생 얼굴 비노출)</li>
+     *   <li>identity는 매 요청 고유한 게스트 값으로 발급(멤버 user-{id}와 구분)</li>
+     * </ul>
+     * ⚠️ 같은 룸에 입장하므로 커스텀 클라이언트로 카메라 트랙을 구독할 여지가 이론상 남는다.
+     * 완화책은 위 항목이며, 정식 해결은 LiveKit 서버 SDK로 트랙 단위 구독 제한(후속 과제).</p>
+     */
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public LivekitPreviewTokenResponse issuePreviewToken(Long sessionId, Long userId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        if (!session.isOpen()) {
+            throw new ClassroomNotOpenException("종료된 강의실은 미리보기할 수 없습니다.");
+        }
+
+        Course course = session.getCourse();
+        Long courseId = course.getId();
+
+        // 수업당 2회 제한 — 초과하면 429
+        int previewed = previewLogRepository.countByUserIdAndCourseId(userId, courseId);
+        if (previewed >= 2) {
+            throw new PreviewLimitExceededException(
+                    "이 수업의 미리보기 횟수(" + previewed + "/2)를 모두 사용했습니다.");
+        }
+        previewLogRepository.save(ClassroomPreviewLog.of(userId, courseId));
+
+        Long teacherUserId = course.getTeacherProfile().getUser().getId();
+        String roomName = "course-" + courseId + "-session-" + sessionId;
+        String identity = "preview-user-" + userId;
+        String displayName = "미리보기";
+        String hostIdentity = "user-" + teacherUserId;
+
+        String token = liveKitTokenService.createPreviewToken(roomName, identity, displayName);
+
+        return new LivekitPreviewTokenResponse(
+                liveKitTokenService.getUrl(), roomName, token, identity, displayName,
+                hostIdentity, PREVIEW_SECONDS);
+    }
+
+    /**
+     * 미리보기용 화이트보드 스냅샷 — 비로그인 포함 공개. OPEN 세션만 멤버십 없이 현재 보드를 반환한다.
+     * 실시간 변경은 게스트 WebSocket 구독(/sub/classroom-sessions/{id}/whiteboard)이 담당한다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getWhiteboardPreviewSnapshot(Long sessionId) {
+        ClassroomSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ClassroomSessionNotFoundException(
+                        "강의실 세션을 찾을 수 없습니다. (sessionId: " + sessionId + ")"));
+        if (!session.isOpen()) {
+            throw new ClassroomNotOpenException("종료된 강의실은 미리볼 수 없습니다.");
+        }
+        return whiteboardStateStore.snapshot(sessionId);
     }
 
     /**
