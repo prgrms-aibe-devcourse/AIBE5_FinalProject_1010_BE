@@ -64,6 +64,7 @@ public class CourseUpdateService {
 
         // maxStudents 미입력 시 기존 값 유지
         int maxStudents = request.getMaxStudents() != null ? request.getMaxStudents() : course.getMaxStudents();
+        // ACTIVE 수강생이 있으면 수업 수정 자체를 차단하므로, 기존 정원 축소 검증은 별도로 수행하지 않는다.
 
         course.update(
                 subject,
