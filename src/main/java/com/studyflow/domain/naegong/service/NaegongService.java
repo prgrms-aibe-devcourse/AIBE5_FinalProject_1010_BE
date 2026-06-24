@@ -1,12 +1,20 @@
 package com.studyflow.domain.naegong.service;
 
+import com.studyflow.domain.course.entity.Course;
+import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.naegong.dto.NaegongHistoryItem;
+import com.studyflow.domain.naegong.dto.NaegongHistoryPageResponse;
 import com.studyflow.domain.naegong.entity.NaegongHistory;
 import com.studyflow.domain.naegong.enums.NaegongReason;
 import com.studyflow.domain.naegong.repository.NaegongHistoryRepository;
+import com.studyflow.domain.qna.entity.QnaAnswer;
+import com.studyflow.domain.qna.repository.QnaAnswerRepository;
 import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +22,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 내공 점수 적립/이력 도메인 서비스.
@@ -27,6 +39,8 @@ public class NaegongService {
 
     private final TeacherProfileRepository teacherProfileRepository;
     private final NaegongHistoryRepository naegongHistoryRepository;
+    private final QnaAnswerRepository qnaAnswerRepository;
+    private final CourseRepository courseRepository;
 
     /**
      * 화상수업 종료 시 선생님 내공 적립 — 시간 기반 계산 + 일일 한도(courseId 기준 하루 최대 50점).
@@ -77,6 +91,51 @@ public class NaegongService {
         return teacherProfileRepository.findByUserId(userId)
                 .map(TeacherProfile::getNaegongScore)
                 .orElse(0);
+    }
+
+    /**
+     * 선생님 마이페이지 내공 탭 — 내공 변동 이력을 페이지 단위로 반환한다.
+     *
+     * <p>totalScore는 TeacherProfile의 현재 누적 내공이다.
+     * relatedTitle은 reason별로 다른 엔티티를 참조하므로 페이지 내 id를 모아 일괄 조회(N+1 방지)한다.
+     * 참조 대상이 삭제된 경우 relatedTitle은 null로 반환한다.</p>
+     */
+    @Transactional(readOnly = true)
+    public NaegongHistoryPageResponse getHistoryPage(Long userId, Pageable pageable) {
+        int totalScore = teacherProfileRepository.findByUserId(userId)
+                .map(TeacherProfile::getNaegongScore)
+                .orElse(0);
+
+        Page<NaegongHistory> historyPage = naegongHistoryRepository
+                .findByUserIdOrderByCreatedAtDesc(userId, pageable);
+
+        Set<Long> answerIds = historyPage.getContent().stream()
+                .filter(h -> h.getReason() == NaegongReason.ANSWER_ACCEPTED)
+                .map(NaegongHistory::getReferenceId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> courseIds = historyPage.getContent().stream()
+                .filter(h -> h.getReason() == NaegongReason.CLASSROOM_SESSION_CLOSED)
+                .map(NaegongHistory::getReferenceId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> answerTitleMap = answerIds.isEmpty() ? Map.of()
+                : qnaAnswerRepository.findAllWithQuestionByIdIn(answerIds).stream()
+                        .collect(Collectors.toMap(QnaAnswer::getId, a -> a.getQuestion().getTitle()));
+        Map<Long, String> courseTitleMap = courseIds.isEmpty() ? Map.of()
+                : courseRepository.findAllById(courseIds).stream()
+                        .collect(Collectors.toMap(Course::getId, Course::getTitle));
+
+        Page<NaegongHistoryItem> itemPage = historyPage.map(h -> {
+            String title = switch (h.getReason()) {
+                case ANSWER_ACCEPTED -> answerTitleMap.get(h.getReferenceId());
+                case CLASSROOM_SESSION_CLOSED -> courseTitleMap.get(h.getReferenceId());
+            };
+            return NaegongHistoryItem.of(h, title);
+        });
+
+        return NaegongHistoryPageResponse.of(totalScore, itemPage);
     }
 
     /**
