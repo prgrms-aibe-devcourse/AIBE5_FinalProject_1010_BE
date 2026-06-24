@@ -19,8 +19,7 @@ public class EnrollmentRequestController {
 
      // 수강 신청 관련 API는 CourseDetailController에 포함되어 있음 (POST /api/v1/courses/{courseId}/enrollment-requests)
      // 추가적으로 수강 신청 상태 변경(승인/거절/취소) API가 필요하다면 여기에 구현 가능
-
-    // 수강 신청 취소 (본인이 신청한 수업에 한하여, status=PENDING일 때만 가능)
+// 수강 신청 취소 (본인이 신청한 수업에 한하여, status=PENDING일 때만 가능)
     @PatchMapping("/{requestId}/cancel")
     public ResponseEntity<?> cancelEnrollmentRequest(@PathVariable Long requestId,
                                                      @AuthenticationPrincipal Long userId) {
