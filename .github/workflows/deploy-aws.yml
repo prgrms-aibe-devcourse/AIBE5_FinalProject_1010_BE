@@ -99,6 +99,8 @@ jobs:
           MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
           BACKEND_URL=${{ vars.BACKEND_URL }}
           FRONTEND_URL=${{ vars.FRONTEND_URL }}
+          TOSS_CLIENT_KEY=${{ secrets.TOSS_CLIENT_KEY }}
+          TOSS_SECRET_KEY=${{ secrets.TOSS_SECRET_KEY }}
           ENVEOF
 
       - name: Copy app files to EC2 (${{ matrix.host }})
