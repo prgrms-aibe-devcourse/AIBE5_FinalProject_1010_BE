@@ -101,7 +101,7 @@ public class WrongAnswerNote extends BaseTimeEntity {
     @Column(name = "next_review_at")
     private LocalDateTime nextReviewAt;
 
-    @BatchSize(size = 20)
+    @BatchSize(size = 100)
     @ElementCollection
     @CollectionTable(
             name = "wrong_answer_note_tag",
