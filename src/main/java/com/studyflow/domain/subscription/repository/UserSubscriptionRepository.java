@@ -14,4 +14,7 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     Optional<UserSubscription> findTopByUserIdAndTypeOrderByExpiresAtDesc(Long userId, SubscriptionType type);
 
     boolean existsByUserIdAndTypeAndExpiresAtGreaterThanEqual(Long userId, SubscriptionType type, LocalDateTime now);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(u) > 0 FROM UserSubscription u WHERE u.user.id = :userId AND u.type = :type AND u.refundedAt IS NULL AND u.startsAt <= :now AND u.expiresAt >= :now")
+    boolean hasActiveSubscription(@org.springframework.data.repository.query.Param("userId") Long userId, @org.springframework.data.repository.query.Param("type") SubscriptionType type, @org.springframework.data.repository.query.Param("now") LocalDateTime now);
 }
