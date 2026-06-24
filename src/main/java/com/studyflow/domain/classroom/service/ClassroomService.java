@@ -100,7 +100,7 @@ public class ClassroomService {
         boolean hasLiveClassSubscription = userSubscriptionRepository.hasActiveSubscription(
                 teacherUserId, SubscriptionType.LIVE_CLASS, LocalDateTime.now());
         if (!hasLiveClassSubscription) {
-            throw new ClassroomForbiddenException("Live 강의 구독권이 없습니다. 마이페이지에서 먼저 구독권을 구매해주세요.");
+            throw new ClassroomForbiddenException("Live 강의 구독권이 없습니다. 구독권 구매 페이지에서 먼저 구독권을 구매해주세요.");
         }
 
         // 동시성: course 행에 쓰기 락을 걸어 "열기" 더블클릭 시 OPEN 세션이 2개 생기는 경쟁을 막는다.
