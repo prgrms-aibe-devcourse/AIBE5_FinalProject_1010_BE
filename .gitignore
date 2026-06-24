@@ -52,3 +52,7 @@ Desktop.ini
 
 ### Uploaded files (로컬 채팅 이미지 저장 경로) ###
 uploads/
+
+### 더미데이터 관련
+dummy_data.sql
+dummy_data_deleted.sql
