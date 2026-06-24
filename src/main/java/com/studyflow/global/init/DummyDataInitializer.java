@@ -22,10 +22,10 @@ import java.sql.ResultSet;
  *
  * <p>실행 순서:
  * <ol>
- *   <li>dummy_data.sql — 선생님 10명 + 학생 100명</li>
+ *   <li>dummy_data.sql — 선생님 30명 + 학생 100명</li>
  *   <li>dummy_data_deleted.sql — 탈퇴 사용자 15명</li>
- *   <li>dummy_data_teacher_verification.sql — 선생님 인증 10건</li>
- *   <li>dummy_data_courses.sql — 수업 12개 (앱 기동으로 subject 시딩 후 실행됨)</li>
+ *   <li>dummy_data_teacher_verification.sql — 선생님 인증 30건 (APPROVED 25 / REJECTED 3 / PENDING 2)</li>
+ *   <li>dummy_data_courses.sql — 수업 36개 (앱 기동으로 subject 시딩 후 실행됨)</li>
  * </ol>
  * </p>
  */
