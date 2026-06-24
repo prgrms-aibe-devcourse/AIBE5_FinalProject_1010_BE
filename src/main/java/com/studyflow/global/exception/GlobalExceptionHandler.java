@@ -16,6 +16,7 @@ import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundExce
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.course.exception.CourseAlreadyClosedException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotDeletableException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
@@ -305,6 +306,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
+    }
+
+    // 이미 종료된 수업 재종료 시도 (400)
+    @ExceptionHandler(CourseAlreadyClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseAlreadyClosed(CourseAlreadyClosedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_ALREADY_CLOSED.toBody(ex.getMessage()));
     }
 
     @ExceptionHandler(CourseNotDeletableException.class)
