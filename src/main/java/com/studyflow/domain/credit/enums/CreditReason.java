@@ -11,5 +11,7 @@ public enum CreditReason {
     ENROLLMENT_INCOME,  // 수강 정산 수익(+) — 선생님(수업료의 90%)
     SUBSCRIPTION_PURCHASE, // 구독권 구매(-)
     REFUND,             // 환불/취소 복원(+)
-    WITHDRAWAL          // 마일리지 환급 출금(-)
+    WITHDRAWAL,         // 마일리지 환급 출금(-)
+    CANCEL_ENROLLMENT,  // 수강 취소 환불(+)
+    CANCEL_INCOME       // 수강 취소로 인한 수익 차감(-)
 }

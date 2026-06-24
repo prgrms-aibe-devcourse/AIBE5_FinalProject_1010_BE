@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.studyflow.domain.user.enums.UserRole;
+import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +45,10 @@ public class SubscriptionService {
     public UserSubscriptionResponse purchase(Long userId, SubscriptionType type) {
         User user = userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        if (type == SubscriptionType.LIVE_CLASS && user.getRole() != UserRole.TEACHER) {
+            throw new AccessDeniedException("선생님만 Live 강의 구독권을 구매할 수 있습니다.");
+        }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startsAt = userSubscriptionRepository.findTopByUserIdAndTypeOrderByExpiresAtDesc(userId, type)
@@ -82,8 +88,7 @@ public class SubscriptionService {
 
     @Transactional(readOnly = true)
     public boolean hasActiveSubscription(Long userId, SubscriptionType type) {
-        return userSubscriptionRepository.existsByUserIdAndTypeAndExpiresAtGreaterThanEqual(
-                userId, type, LocalDateTime.now());
+        return userSubscriptionRepository.hasActiveSubscription(userId, type, LocalDateTime.now());
     }
 
     private List<SubscriptionProductResponse> products() {

@@ -213,7 +213,7 @@ public class EnrollmentRequestService {
     private long settleCreditPayment(Course course, Long studentUserId, Long teacherUserId) {
         long price = course.getPricePerSession();
         if (price <= 0) {
-            throw new CourseNotRecruitingException(); // 수업료가 비정상인 수업은 결제 진행하지 않음
+            return 0L; // 무료 강의: 결제 건너뜀
         }
         long studentBalance = creditService.deduct(studentUserId, price, CreditReason.ENROLLMENT_PAY, course.getId());
         creditService.charge(teacherUserId, CreditPolicy.teacherIncome(price), CreditReason.ENROLLMENT_INCOME, course.getId());

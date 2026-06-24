@@ -5,6 +5,9 @@ import com.studyflow.domain.credit.entity.WithdrawalRequest;
 import com.studyflow.domain.credit.enums.CreditReason;
 import com.studyflow.domain.credit.enums.WithdrawalStatus;
 import com.studyflow.domain.credit.repository.WithdrawalRequestRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.studyflow.domain.credit.dto.WithdrawalResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +18,11 @@ public class WithdrawalService {
 
     private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final CreditService creditService;
+
+    @Transactional(readOnly = true)
+    public Page<WithdrawalResponseDto> getWithdrawals(WithdrawalStatus status, Pageable pageable) {
+        return withdrawalRequestRepository.findAdminWithdrawals(status, pageable);
+    }
 
     // 사용자: 마일리지 환급 신청
     @Transactional
