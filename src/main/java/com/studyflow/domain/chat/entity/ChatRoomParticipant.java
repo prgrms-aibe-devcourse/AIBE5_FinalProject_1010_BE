@@ -117,6 +117,11 @@ public class ChatRoomParticipant extends BaseTimeEntity {
         this.lastReadAt = LocalDateTime.now();
     }
 
+    public void rejoin() {
+        this.leftAt = null;
+        this.joinedAt = LocalDateTime.now();
+    }
+
     public void leave() {
         this.leftAt = LocalDateTime.now();
     }

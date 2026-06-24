@@ -308,12 +308,15 @@ public class ChatService {
             throw new IllegalArgumentException("해당 채팅방의 메시지가 아닙니다.");
         }
 
-        participant.readUpTo(message);
+        ChatMessage previous = participant.getLastReadMessage();
+        if (previous == null || previous.getId() < message.getId()) {
+            participant.readUpTo(message);
+        }
 
         return new ChatReadResponse(
                 roomId,
                 currentUserId,
-                message.getId(),
+                participant.getLastReadMessage() == null ? message.getId() : participant.getLastReadMessage().getId(),
                 participant.getLastReadAt()
         );
     }
@@ -425,7 +428,7 @@ public class ChatService {
         return "DIRECT:T:%d:S:%d".formatted(teacherId, studentId);
     }
 
-    private ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
+    public ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
         List<ChatRoomParticipant> participants =
                 chatRoomParticipantRepository.findByChatRoomIdAndLeftAtIsNull(chatRoom.getId());
 
@@ -457,12 +460,20 @@ public class ChatService {
                 chatRoom.getId(),
                 chatRoom.getRoomType(),
                 chatRoom.getCourse() == null ? null : chatRoom.getCourse().getId(),
+                chatRoom.getCourse() == null ? null : chatRoom.getCourse().getTitle(),
+                canManageParticipants(chatRoom, currentUserId),
                 participantResponses,
                 lastMessageResponse,
                 chatRoom.getLastMessageAt(),
                 unreadCount,
                 chatRoom.getCreatedAt()
         );
+    }
+
+    private boolean canManageParticipants(ChatRoom chatRoom, Long currentUserId) {
+        return chatRoom.isCourseGroupRoom()
+                && chatRoom.getCourse() != null
+                && chatRoom.getCourse().getTeacherProfile().getUser().getId().equals(currentUserId);
     }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage message) {

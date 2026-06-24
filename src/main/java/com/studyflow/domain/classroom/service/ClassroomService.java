@@ -21,6 +21,7 @@ import com.studyflow.domain.course.repository.CourseRepository;
 import com.studyflow.domain.enrollment.entity.Enrollment;
 import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
 import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
+import com.studyflow.domain.naegong.service.NaegongService;
 import com.studyflow.domain.notification.enums.NotificationType;
 import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
@@ -69,6 +70,7 @@ public class ClassroomService {
     private final ClassroomQuizStateStore classroomQuizStateStore;
     private final WhiteboardDrawPermissionStore whiteboardDrawPermissionStore;
     private final com.studyflow.global.realtime.RealtimeBroadcaster broadcaster;
+    private final NaegongService naegongService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectProvider<ClassroomService> selfProvider; // 프록시 경유 self 호출(@Transactional 재시도용)
 
@@ -231,6 +233,11 @@ public class ClassroomService {
             throw new ClassroomNotOpenException("이미 종료된 강의실입니다.");
         }
         endSession(session, "host");
+        // 수동 종료 시에만 내공 지급 (자동 종료 host-absent 제외)
+        naegongService.addScoreForClassroomSession(
+                userRepository.getReferenceById(teacherUserId),
+                session.getCourse().getId(),
+                session.getDurationSeconds());
         return ClassroomCloseResponse.from(session);
     }
 
