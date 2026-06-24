@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -120,9 +121,14 @@ public class NaegongService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> answerTitleMap = answerIds.isEmpty() ? Map.of()
-                : qnaAnswerRepository.findAllWithQuestionByIdIn(answerIds).stream()
-                        .collect(Collectors.toMap(QnaAnswer::getId, a -> a.getQuestion().getTitle()));
+        // findAllWithQuestionByIdIn 1회 호출 후 title/questionId 두 Map을 동시에 구성
+        List<QnaAnswer> answers = answerIds.isEmpty() ? List.of()
+                : qnaAnswerRepository.findAllWithQuestionByIdIn(answerIds);
+        Map<Long, String> answerTitleMap = answers.stream()
+                .collect(Collectors.toMap(QnaAnswer::getId, a -> a.getQuestion().getTitle()));
+        Map<Long, Long> answerQuestionIdMap = answers.stream()
+                .collect(Collectors.toMap(QnaAnswer::getId, a -> a.getQuestion().getId()));
+
         Map<Long, String> courseTitleMap = courseIds.isEmpty() ? Map.of()
                 : courseRepository.findAllById(courseIds).stream()
                         .collect(Collectors.toMap(Course::getId, Course::getTitle));
@@ -132,7 +138,10 @@ public class NaegongService {
                 case ANSWER_ACCEPTED -> answerTitleMap.get(h.getReferenceId());
                 case CLASSROOM_SESSION_CLOSED -> courseTitleMap.get(h.getReferenceId());
             };
-            return NaegongHistoryItem.of(h, title);
+            Long questionId = h.getReason() == NaegongReason.ANSWER_ACCEPTED
+                    ? answerQuestionIdMap.get(h.getReferenceId())
+                    : null;
+            return NaegongHistoryItem.of(h, title, questionId);
         });
 
         return NaegongHistoryPageResponse.of(totalScore, itemPage);
