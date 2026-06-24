@@ -21,7 +21,7 @@ public class ClassroomQuizService {
     private final ClassroomQuizStateStore quizStateStore;
     private final UserRepository userRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> start(Long sessionId, Long userId, String question, String answer, Integer durationSec) {
         ClassroomSession session = openSession(sessionId);
         boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
@@ -33,7 +33,7 @@ public class ClassroomQuizService {
         return snapshot;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> submit(Long sessionId, Long userId, String quizId, String answer) {
         ClassroomSession session = openSession(sessionId);
         boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
@@ -43,7 +43,7 @@ public class ClassroomQuizService {
         return quizStateStore.submit(sessionId, userId, quizId, answer);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> end(Long sessionId, Long userId) {
         ClassroomSession session = openSession(sessionId);
         boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), userId);
@@ -53,11 +53,12 @@ public class ClassroomQuizService {
         return quizStateStore.end(sessionId);
     }
 
+    @Transactional
     public Map<String, Object> endIfSame(Long sessionId, String quizId) {
         return quizStateStore.endIfSame(sessionId, quizId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> toggleCorrect(Long sessionId, Long teacherUserId, String quizId, Long studentUserId) {
         ClassroomSession session = openSession(sessionId);
         boolean host = classroomService.verifyMemberAndIsHost(session.getCourse(), teacherUserId);

@@ -39,7 +39,7 @@ public class ClassroomQuizStateStore {
     }
 
     private String lockName(Long sessionId) {
-        return "classroom-quiz:" + sessionId;
+        return "classroom-quiz-lock:" + sessionId;
     }
 
     public Map<String, Object> start(Long sessionId, Long teacherUserId, String question, String answer, Integer durationSec) {
@@ -79,6 +79,9 @@ public class ClassroomQuizStateStore {
             }
             if (now > quiz.endsAtMs) {
                 throw new IllegalArgumentException("제출 시간이 종료되었습니다.");
+            }
+            if (quiz.submissions.containsKey(String.valueOf(studentUserId))) {
+                throw new IllegalStateException("이미 답을 제출했습니다.");
             }
 
             String submittedAnswer = requiredText(answer, "답안은 필수입니다.");
@@ -299,8 +302,6 @@ public class ClassroomQuizStateStore {
                     state.quizzes.add(quizFromMap((Map<String, Object>) m));
                 }
             }
-        } else if (map.containsKey("quizId")) {
-            state.quizzes.add(quizFromMap(map));
         }
         return state;
     }

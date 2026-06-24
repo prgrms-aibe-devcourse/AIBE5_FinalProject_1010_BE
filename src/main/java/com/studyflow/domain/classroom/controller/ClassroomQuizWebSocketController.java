@@ -10,9 +10,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import org.springframework.scheduling.TaskScheduler;
 
 /**
  * 강의실 실시간 문제풀이 WebSocket 컨트롤러.
@@ -28,6 +28,7 @@ public class ClassroomQuizWebSocketController {
 
     private final ClassroomQuizService quizService;
     private final RealtimeBroadcaster broadcaster;
+    private final TaskScheduler taskScheduler;
 
     @MessageMapping("/classroom-sessions/{sessionId}/quiz")
     public void handle(
@@ -49,7 +50,10 @@ public class ClassroomQuizWebSocketController {
             }
         } catch (Exception e) {
             log.debug("[classroom-quiz] 메시지 처리 실패(sessionId={}, userId={}, type={})", sessionId, userId, type, e);
-            sendError(userId, sessionId, e.getMessage() != null ? e.getMessage() : "문제풀이 요청 처리에 실패했습니다.");
+            String errorMsg = (e instanceof IllegalArgumentException || e instanceof IllegalStateException) 
+                    ? e.getMessage() 
+                    : "일시적인 오류가 발생했습니다. 다시 시도해 주세요.";
+            sendError(userId, sessionId, errorMsg);
         }
     }
 
@@ -98,12 +102,12 @@ public class ClassroomQuizWebSocketController {
     private void scheduleEnd(Long sessionId, String quizId, Long endsAtMs) {
         if (quizId == null || endsAtMs == null) return;
         long delayMs = Math.max(0L, endsAtMs - System.currentTimeMillis());
-        CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> {
+        taskScheduler.schedule(() -> {
             Map<String, Object> ended = quizService.endIfSame(sessionId, quizId);
             if (ended != null) {
                 broadcaster.send(topic(sessionId), ended);
             }
-        });
+        }, Instant.ofEpochMilli(System.currentTimeMillis() + delayMs));
     }
 
     private void sendError(Long userId, Long sessionId, String message) {
