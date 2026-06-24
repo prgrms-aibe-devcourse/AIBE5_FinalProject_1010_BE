@@ -14,6 +14,10 @@ import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.service.AdminService;
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.credit.dto.WithdrawalResponseDto;
+import com.studyflow.domain.credit.enums.WithdrawalStatus;
+import com.studyflow.domain.credit.repository.WithdrawalRequestRepository;
+import com.studyflow.domain.credit.service.WithdrawalService;
 import com.studyflow.domain.user.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +35,8 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
+    private final WithdrawalService withdrawalService;
+    private final WithdrawalRequestRepository withdrawalRequestRepository;
 
     // 선생님 인증요청 목록 조회
     // 예시: GET /api/v1/admin/teacher-verifications?status=PENDING&page=0&size=12
@@ -169,5 +175,27 @@ public class AdminController {
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(required = false) CreditReason reason) {
         return ResponseEntity.ok(adminService.getCreditSummary(email, startDate, endDate, reason));
+    }
+
+    // 마일리지 환급 내역 조회
+    @GetMapping("/withdrawals")
+    public ResponseEntity<Page<WithdrawalResponseDto>> getWithdrawals(
+            @RequestParam(required = false) WithdrawalStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(withdrawalRequestRepository.findAdminWithdrawals(status, pageable));
+    }
+
+    // 마일리지 환급 승인
+    @PostMapping("/withdrawals/{id}/approve")
+    public ResponseEntity<Void> approveWithdrawal(@PathVariable Long id) {
+        withdrawalService.approveWithdrawal(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // 마일리지 환급 거절
+    @PostMapping("/withdrawals/{id}/reject")
+    public ResponseEntity<Void> rejectWithdrawal(@PathVariable Long id) {
+        withdrawalService.rejectWithdrawal(id);
+        return ResponseEntity.ok().build();
     }
 }

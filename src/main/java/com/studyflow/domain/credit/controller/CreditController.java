@@ -1,8 +1,10 @@
 package com.studyflow.domain.credit.controller;
 
 import com.studyflow.domain.credit.CreditPolicy;
+import com.studyflow.domain.credit.dto.WithdrawRequestDto;
 import com.studyflow.domain.credit.entity.CreditHistory;
 import com.studyflow.domain.credit.service.CreditService;
+import com.studyflow.domain.credit.service.WithdrawalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +12,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,6 +31,15 @@ import java.util.Map;
 public class CreditController {
 
     private final CreditService creditService;
+    private final WithdrawalService withdrawalService;
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<Void> requestWithdrawal(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody WithdrawRequestDto dto) {
+        withdrawalService.requestWithdrawal(userId, dto);
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> myCredit(@AuthenticationPrincipal Long userId) {
