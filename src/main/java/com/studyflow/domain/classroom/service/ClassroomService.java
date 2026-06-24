@@ -24,6 +24,7 @@ import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.notification.enums.NotificationType;
 import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
+import com.studyflow.domain.teacher.service.TeacherVerificationGuard;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
@@ -63,6 +64,7 @@ public class ClassroomService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
+    private final TeacherVerificationGuard teacherVerificationGuard;
     private final LiveKitTokenService liveKitTokenService;
     private final WhiteboardStateStore whiteboardStateStore;
     private final AudioStateStore audioStateStore;
@@ -85,6 +87,9 @@ public class ClassroomService {
      */
     @Transactional
     public ClassroomSessionResponse openSession(Long courseId, Long teacherUserId) {
+        // 관리자 인증을 받은 선생님만 강의실 열기 가능
+        teacherVerificationGuard.requireVerified(teacherUserId);
+
         // 동시성: course 행에 쓰기 락을 걸어 "열기" 더블클릭 시 OPEN 세션이 2개 생기는 경쟁을 막는다.
         Course course = courseRepository.findByIdForUpdate(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));

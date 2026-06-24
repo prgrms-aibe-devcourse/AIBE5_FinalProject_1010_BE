@@ -9,5 +9,6 @@ public enum NotificationType {
     ENROLLMENT_DROPPED,    // 학생이 수강 중도 포기 → 선생님 수신 (relatedId = enrollmentId)
     QNA_ANSWERED,          // 선생님이 답변 작성 → 질문 작성 학생 수신 (relatedId = questionId)
     QNA_ANSWER_ACCEPTED,   // 학생이 답변 채택 → 채택된 답변 작성 선생님 수신 (relatedId = questionId)
-    CLASSROOM_OPENED       // 선생님이 강의실 열기 → ACTIVE 수강생 수신 (relatedId = courseId)
+    CLASSROOM_OPENED,      // 선생님이 강의실 열기 → ACTIVE 수강생 수신 (relatedId = courseId)
+    TEACHER_VERIFIED       // 관리자가 선생님 인증 수락 → 해당 선생님 수신
 }

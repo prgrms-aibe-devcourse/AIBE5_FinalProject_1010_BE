@@ -30,6 +30,7 @@ import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.exception.TeacherHasListedCoursesException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import com.studyflow.domain.teacher.exception.TeacherNotVerifiedException;
 import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
 import com.studyflow.domain.admin.exception.VerificationNotFoundException;
 import com.studyflow.domain.admin.exception.VerificationNotPendingException;
@@ -297,6 +298,13 @@ public class GlobalExceptionHandler {
     // 이미 심사 중인 인증 요청이 있을 때 중복 요청 시도 (409)
     @ExceptionHandler(VerificationAlreadyPendingException.class)
     public ResponseEntity<Map<String, Object>> handleVerificationAlreadyPending(VerificationAlreadyPendingException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 관리자 인증이 안 된 선생님이 선생님 전용 기능 사용 시도 (403)
+    @ExceptionHandler(TeacherNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleTeacherNotVerified(TeacherNotVerifiedException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }

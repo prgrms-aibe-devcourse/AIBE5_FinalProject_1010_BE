@@ -29,9 +29,12 @@ import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.domain.user.exception.UserNotFoundException;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.domain.notification.enums.NotificationType;
+import com.studyflow.domain.notification.event.NotificationCreatedEvent;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -54,6 +57,7 @@ public class AdminService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 선생님 인증 요청 목록 조회 — status가 null이면 전체 반환
     public Page<AdminVerificationSummaryResponse> getTeacherVerifications(
@@ -196,16 +200,27 @@ public class AdminService {
         }
 
         verification.process(VerificationStatus.APPROVED, null);
-        verification.getUser().verify();
 
-        teacherProfileRepository.findByUserId(verification.getUser().getId())
-                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(verification.getUser().getId()))
+        User teacher = verification.getUser();
+        teacher.verify();
+
+        teacherProfileRepository.findByUserId(teacher.getId())
+                .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacher.getId()))
                 .updateVerifiedInfo(
                         verification.getAwards(),
                         verification.getCareer(),
                         verification.getMajor(),
                         verification.getAdmissionYear()
                 );
+
+        // 인증 수락 알림 → 해당 선생님에게 전송 (AFTER_COMMIT 리스너가 처리)
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                teacher.getId(),
+                NotificationType.TEACHER_VERIFIED,
+                "인증이 완료되었어요 🎉",
+                "관리자 인증이 승인되었어요. 이제 수업 등록, 강의실 열기 등 모든 기능을 이용할 수 있어요!",
+                null
+        ));
     }
 
     // 선생님 인증 요청 거절
