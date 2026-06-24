@@ -1,0 +1,14 @@
+package com.studyflow.domain.notification.enums;
+
+// 알림 종류 — FE는 type + relatedId 조합으로 클릭 시 이동할 경로를 결정함
+public enum NotificationType {
+    ENROLLMENT_REQUESTED,  // 학생이 수강 신청 → 선생님 수신
+    ENROLLMENT_ACCEPTED,   // 선생님이 신청 수락 → 학생 수신
+    ENROLLMENT_REJECTED,   // 선생님이 신청 거절 → 학생 수신
+    ENROLLMENT_CANCELLED,  // 학생이 신청 취소 → 선생님 수신
+    ENROLLMENT_DROPPED,    // 학생이 수강 중도 포기 → 선생님 수신 (relatedId = enrollmentId)
+    QNA_ANSWERED,          // 선생님이 답변 작성 → 질문 작성 학생 수신 (relatedId = questionId)
+    QNA_ANSWER_ACCEPTED,   // 학생이 답변 채택 → 채택된 답변 작성 선생님 수신 (relatedId = questionId)
+    CLASSROOM_OPENED,      // 선생님이 강의실 열기 → ACTIVE 수강생 수신 (relatedId = courseId)
+    TEACHER_VERIFIED       // 관리자가 선생님 인증 수락 → 해당 선생님 수신
+}

@@ -1,0 +1,106 @@
+package com.studyflow.domain.teacher.repository;
+
+import com.studyflow.domain.teacher.entity.TeacherProfile;
+import com.studyflow.domain.user.enums.Gender;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, Long> {
+
+    // 선생님 목록 검색/필터 — 선생님 찾기 페이지용
+    //  · keyword     : 이름 부분 일치 (서비스에서 !, %, _ escape 처리 후 전달, ESCAPE '!')
+    //  · gender      : 성별 (null이면 무시)
+    //  · birthFrom/To: 만 나이 범위를 출생일 범위로 변환한 값 (null이면 해당 경계 무시)
+    //  · regions     : 활동 지역(address) 정확 일치 — 빈 목록이면 regionsEmpty=true로 무시
+    //  · universities: 대학교(career) 정확 일치 — 빈 목록이면 universitiesEmpty=true로 무시
+    //  · subjectIds  : 전문 과목 중 하나라도 포함하면 노출(OR) — 빈 목록이면 subjectsEmpty=true로 무시
+    // null/빈 목록 파라미터는 (:xxxEmpty = true OR ...) 패턴으로 조건에서 제외됩니다.
+    // 과목은 컬렉션 조인이라 DISTINCT로 중복 행을 제거합니다 (specialtySubjects는 fetch하지 않아 페이지네이션 안전).
+    @Query(value =
+           "SELECT DISTINCT tp FROM TeacherProfile tp " +
+           "JOIN FETCH tp.user u " +
+           "LEFT JOIN tp.specialtySubjects s " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true AND tp.isListed = true " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
+           "AND (:gender IS NULL OR u.gender = :gender) " +
+           "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +
+           "AND (:birthTo IS NULL OR u.birthDate <= :birthTo) " +
+           "AND (:regionsEmpty = true OR tp.address IN :regions) " +
+           "AND (:universitiesEmpty = true OR tp.career IN :universities) " +
+           "AND (:subjectsEmpty = true OR s.id IN :subjectIds)",
+           countQuery =
+           "SELECT COUNT(DISTINCT tp) FROM TeacherProfile tp " +
+           "JOIN tp.user u " +
+           "LEFT JOIN tp.specialtySubjects s " +
+           "WHERE u.isDeleted = 0 AND u.isActive = true AND tp.isListed = true " +
+           "AND (:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!') " +
+           "AND (:gender IS NULL OR u.gender = :gender) " +
+           "AND (:birthFrom IS NULL OR u.birthDate >= :birthFrom) " +
+           "AND (:birthTo IS NULL OR u.birthDate <= :birthTo) " +
+           "AND (:regionsEmpty = true OR tp.address IN :regions) " +
+           "AND (:universitiesEmpty = true OR tp.career IN :universities) " +
+           "AND (:subjectsEmpty = true OR s.id IN :subjectIds)")
+    Page<TeacherProfile> findAllWithUserFiltered(
+            @Param("keyword") String keyword,
+            @Param("gender") Gender gender,
+            @Param("birthFrom") LocalDate birthFrom,
+            @Param("birthTo") LocalDate birthTo,
+            @Param("regionsEmpty") boolean regionsEmpty,
+            @Param("regions") List<String> regions,
+            @Param("universitiesEmpty") boolean universitiesEmpty,
+            @Param("universities") List<String> universities,
+            @Param("subjectsEmpty") boolean subjectsEmpty,
+            @Param("subjectIds") List<Long> subjectIds,
+            Pageable pageable);
+
+    // 여러 선생님의 전문 과목명 일괄 조회 — 목록 카드에서 N+1 방지
+    // 반환: TeacherSpecialty{ teacherProfileId, subjectName } (선생님당 과목 수만큼 행)
+    interface TeacherSpecialty {
+        Long getTeacherProfileId();
+        String getSubjectName();
+    }
+
+    @Query("SELECT tp.id AS teacherProfileId, s.name AS subjectName " +
+           "FROM TeacherProfile tp JOIN tp.specialtySubjects s " +
+           "WHERE tp.id IN :teacherProfileIds")
+    List<TeacherSpecialty> findSpecialtySubjectsByTeacherProfileIds(
+            @Param("teacherProfileIds") List<Long> teacherProfileIds);
+
+    // 선생님 상세 조회 — user JOIN FETCH
+    @Query("SELECT tp FROM TeacherProfile tp " +
+           "JOIN FETCH tp.user u " +
+           "WHERE tp.id = :id AND u.isDeleted = 0 AND u.isActive = true")
+    Optional<TeacherProfile> findWithUserById(@Param("id") Long id);
+
+    // 이번주 HOT 선생님 — userId 목록으로 노출(isListed)·활성 선생님 프로필 일괄 조회 (주간 내공 획득자용)
+    // 본인을 검색에서 숨긴(isListed=false) 선생님은 메인 노출에서 제외한다.
+    @Query("SELECT tp FROM TeacherProfile tp JOIN FETCH tp.user u " +
+           "WHERE u.id IN :userIds AND tp.isListed = true AND u.isActive = true AND u.isDeleted = 0")
+    List<TeacherProfile> findListedWithUserByUserIds(@Param("userIds") List<Long> userIds);
+
+    // 이번주 HOT 선생님 fallback — 주간 획득자가 3명 미만일 때 전체기간 내공순으로 채움
+    // excludeUserIds: 이미 포함된 주간 획득자(중복 방지). 빈 목록이면 noExclusions=true로 NOT IN 무력화.
+    @Query("SELECT tp FROM TeacherProfile tp JOIN FETCH tp.user u " +
+           "WHERE tp.isListed = true AND u.isActive = true AND u.isDeleted = 0 " +
+           "AND (:noExclusions = true OR u.id NOT IN :excludeUserIds) " +
+           "ORDER BY tp.naegongScore DESC, tp.id ASC")
+    List<TeacherProfile> findTopByNaegongScore(@Param("noExclusions") boolean noExclusions,
+                                               @Param("excludeUserIds") List<Long> excludeUserIds,
+                                               Pageable pageable);
+
+    // 로그인한 선생님의 프로필 조회 — 수업 생성 시 teacherProfile 참조용
+    Optional<TeacherProfile> findByUserId(Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT tp FROM TeacherProfile tp WHERE tp.user.id = :userId")
+    Optional<TeacherProfile> findByUserIdWithLock(@Param("userId") Long userId);
+}

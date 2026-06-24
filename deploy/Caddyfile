@@ -1,0 +1,22 @@
+# Caddy — 도메인(Host) 기준 분리. 같은 EIP(EC2-A)로 두 도메인이 들어오며 Host로 구분한다.
+# Let's Encrypt 자동 HTTPS. 경로 충돌 없음(프론트/백엔드가 도메인 자체로 분리됨).
+
+# 프론트엔드: 정적 SPA 서빙 (모든 경로 → index.html 폴백)
+{$FRONTEND_DOMAIN} {
+	root * /srv/www
+	encode gzip
+
+	# 해시 없는 파일(index.html 등)은 캐시 금지 → 새 배포가 즉시 반영(옛 번들 캐시 방지).
+	# /assets/* 는 콘텐츠 해시가 박혀 있어 장기 캐시해도 안전.
+	@noncached not path /assets/*
+	header @noncached Cache-Control "no-cache, no-store, must-revalidate"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+
+	try_files {path} /index.html
+	file_server
+}
+
+# 백엔드: 전부 ALB로 프록시 (API·WS·OAuth·Swagger 모두). WebSocket/SSE 자동 처리.
+{$BACKEND_DOMAIN} {
+	reverse_proxy http://{$ALB_DNS}
+}

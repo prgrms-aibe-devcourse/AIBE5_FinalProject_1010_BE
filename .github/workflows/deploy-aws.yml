@@ -1,0 +1,168 @@
+# =====================================================================
+# AWS 멀티 인스턴스 배포 — GHCR 이미지 빌드 → EC2 2대(A·B)에 앱 배포 → (선택)EC2-A에 Caddy
+#
+# 아키텍처: DuckDNS → EIP → Caddy(EC2-A, 자동HTTPS) → ALB(HTTP) → EC2-A/EC2-B app
+# 상태 저장소: RDS(MySQL) · ElastiCache(Redis) · S3 — 모두 컨테이너 밖 공유.
+#
+# 필요한 GitHub 설정:
+#  Secrets: EC2_HOST_A, EC2_HOST_B, EC2_USER, EC2_SSH_KEY(team-10-key),
+#           DB_PASSWORD, JWT_SECRET, OPENAI_API_KEY,
+#           KAKAO/GOOGLE/NAVER_CLIENT_ID/SECRET, AWS_ACCESS_KEY/SECRET, LIVEKIT_API_KEY/SECRET
+#  Variables: DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, REDIS_HOST, REDIS_PORT,
+#             S3_BUCKET, AWS_REGION, ALB_DNS, BACKEND_URL, FRONTEND_URL, LIVEKIT_URL,
+#             BACKEND_DOMAIN(설정 시에만 Caddy 배포)
+# =====================================================================
+name: Deploy AWS Multi-Instance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  IMAGE: ghcr.io/prgrms-aibe-devcourse/aibe5_finalproject_1010_be
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target host
+        id: tgt
+        run: |
+          if [ "${{ matrix.host }}" = "A" ]; then
+            echo "host=${{ secrets.EC2_HOST_A }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "host=${{ secrets.EC2_HOST_B }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Render .env
+        run: |
+          cat > .env << 'ENVEOF'
+          DOCKER_IMAGE=${{ env.IMAGE }}:latest
+          DB_HOST=${{ vars.DB_HOST }}
+          DB_PORT=${{ vars.DB_PORT }}
+          DB_NAME=${{ vars.DB_NAME }}
+          DB_USERNAME=${{ vars.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_HOST=${{ vars.REDIS_HOST }}
+          REDIS_PORT=${{ vars.REDIS_PORT }}
+          REDIS_PASSWORD=
+          APP_STORAGE_TYPE=s3
+          S3_BUCKET=${{ vars.S3_BUCKET }}
+          S3_PUBLIC_BASE_URL=
+          AWS_REGION=${{ vars.AWS_REGION }}
+          AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+          KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
+          LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
+          LIVEKIT_URL=${{ vars.LIVEKIT_URL }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          BACKEND_URL=${{ vars.BACKEND_URL }}
+          FRONTEND_URL=${{ vars.FRONTEND_URL }}
+          TOSS_CLIENT_KEY=${{ secrets.TOSS_CLIENT_KEY }}
+          TOSS_SECRET_KEY=${{ secrets.TOSS_SECRET_KEY }}
+          ENVEOF
+
+      - name: Copy app files to EC2 (${{ matrix.host }})
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.tgt.outputs.host }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy/docker-compose.app.yml,.env"
+          target: /home/ec2-user/studyflow
+          strip_components: 0
+
+      - name: Deploy app on EC2 (${{ matrix.host }})
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.tgt.outputs.host }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ~/studyflow
+            mv -f deploy/docker-compose.app.yml ./docker-compose.app.yml 2>/dev/null || true
+            chmod 600 .env
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.app.yml pull app
+            docker compose -f docker-compose.app.yml up -d
+            docker image prune -f
+
+  caddy:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: vars.BACKEND_DOMAIN != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render Caddy env (별도 파일 — 앱 .env 클로버 방지)
+        run: |
+          cat > .env.caddy << 'ENVEOF'
+          FRONTEND_DOMAIN=${{ vars.FRONTEND_DOMAIN }}
+          BACKEND_DOMAIN=${{ vars.BACKEND_DOMAIN }}
+          ALB_DNS=${{ vars.ALB_DNS }}
+          ENVEOF
+      - name: Copy Caddy files to EC2-A
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST_A }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy/docker-compose.caddy.yml,deploy/Caddyfile,deploy/www/*,.env.caddy"
+          target: /home/ec2-user/studyflow
+          strip_components: 0
+      - name: Start Caddy on EC2-A
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST_A }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ~/studyflow
+            mv -f deploy/docker-compose.caddy.yml ./docker-compose.caddy.yml 2>/dev/null || true
+            mv -f deploy/Caddyfile ./Caddyfile 2>/dev/null || true
+            mkdir -p www
+            # www가 비어있을 때만 placeholder 시드 (실제 FE가 올라가 있으면 보존)
+            if [ -z "$(ls -A www 2>/dev/null)" ]; then cp -rf deploy/www/. www/ 2>/dev/null || true; fi
+            docker compose --env-file .env.caddy -f docker-compose.caddy.yml up -d

@@ -1,0 +1,160 @@
+# =====================================================================
+# 운영(prod) 프로필 — AWS 멀티 인스턴스(EC2 2대) 배포용
+# - 모든 시크릿은 환경변수(${...})로 주입된다. 이 파일에 비밀값 직접 기입 금지!
+# - 상태 저장소는 컨테이너 밖: DB=RDS, Redis=ElastiCache, 업로드=S3.
+# - application.yml(로컬 전용)은 gitignore라 CI jar에 미포함 → 이 파일이 self-contained.
+# =====================================================================
+spring:
+  application:
+    name: studyflow
+  datasource:
+    # RDS 엔드포인트 (compose 서비스명이 아니라 외부 호스트)
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:studyflow}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update   # TODO: 스키마 안정화 후 validate로 전환
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  # 이메일 인증(JavaMailSender). host가 있어야 빈이 생성되어 앱이 기동된다.
+  # 실제 발송하려면 MAIL_USERNAME/MAIL_PASSWORD(Gmail 앱 비밀번호)를 .env로 주입.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  data:
+    redis:
+      # ElastiCache 엔드포인트 — 인메모리 상태/WS 릴레이/ShedLock 공유 (무인증이면 비번 빈값)
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:dummy}
+      chat:
+        options:
+          model: gpt-4o-mini
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/kakao
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+            client-name: Kakao
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: authorization_code
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/google
+            scope:
+              - profile
+              - email
+            client-name: Google
+          naver:
+            client-id: ${NAVER_CLIENT_ID}
+            client-secret: ${NAVER_CLIENT_SECRET}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: authorization_code
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/naver
+            scope:
+              - name
+              - email
+              - nickname
+              - profile_image
+              - gender
+              - birthday
+              - age
+              - birthyear
+              - mobile
+            client-name: Naver
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://www.googleapis.com/oauth2/v4/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+          naver:
+            authorization-uri: https://nid.naver.com/oauth2.0/authorize
+            token-uri: https://nid.naver.com/oauth2.0/token
+            user-info-uri: https://openapi.naver.com/v1/nid/me
+            user-name-attribute: response
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: 3600000      # 1시간
+  refresh-token-expiration: 604800000   # 7일
+
+# 업로드 저장소 — 멀티 인스턴스라 S3 사용(인스턴스 로컬 디스크 금지)
+app:
+  storage:
+    type: ${APP_STORAGE_TYPE:s3}
+
+cloud:
+  aws:
+    s3:
+      bucket: ${S3_BUCKET:team-10-studyflow-uploads}
+      public-base-url: ${S3_PUBLIC_BASE_URL:}
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY:dummy}
+      secret-key: ${AWS_SECRET_KEY:dummy}
+
+livekit:
+  api-key: ${LIVEKIT_API_KEY:dummy}
+  api-secret: ${LIVEKIT_API_SECRET:dummy}
+  url: ${LIVEKIT_URL:wss://dummy}
+
+server:
+  port: 8080
+  # Caddy(리버스 프록시) 뒤에서 X-Forwarded-Proto를 신뢰해 OAuth redirect 등 절대 URL이 https로 생성되도록
+  forward-headers-strategy: framework
+
+# 운영 프론트 도메인(CORS). allowCredentials=true라 와일드카드 불가 — 정확히 명시
+cors:
+  allowed-origins: ${FRONTEND_URL}
+
+# 소셜 로그인 성공/실패 후 돌아갈 프론트 주소
+oauth2:
+  frontend-url: ${FRONTEND_URL}
+
+# 토스페이먼츠(결제). 운영은 실제 상점 키를 환경변수로 주입(시크릿 노출 금지).
+toss:
+  client-key: ${TOSS_CLIENT_KEY:test_ck_docs_Ovk5rk1EwkEbP0W43n07xlzm}
+  secret-key: ${TOSS_SECRET_KEY:}
+  confirm-url: ${TOSS_CONFIRM_URL:https://api.tosspayments.com/v1/payments/confirm}
+
+openai:
+  base-url: https://api.openai.com/v1
+  model: gpt-4o-mini
+  timeout-seconds: 60
+  api-key: ${OPENAI_API_KEY:dummy}

@@ -1,0 +1,54 @@
+### Gradle ###
+.gradle/
+build/
+gradle.properties
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+out/
+bin/
+
+### Java ###
+*.class
+
+### Spring Boot ###
+build/**/*.jar
+build/**/*.war
+HELP.md
+
+### Env / Secrets ###
+src/main/resources/application.yml
+src/main/resources/application-*.yml
+src/main/resources/application-secret.yml   # OpenAI 키 등 비밀값 (절대 커밋 금지)
+!src/main/resources/application.yml.example
+src/test/resources/application.yml
+
+### AWS ###
+*.pem
+*.p12
+*.jks
+
+### Docker ###
+.env
+.env.*
+!.env-example
+!.env.aws-example
+docker-compose.override.yml
+
+### Logs ###
+logs/
+*.log
+
+### Claude Code ###
+.claude/
+
+### OS ###
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+
+### Uploaded files (로컬 채팅 이미지 저장 경로) ###
+uploads/
