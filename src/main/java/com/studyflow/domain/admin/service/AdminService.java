@@ -15,6 +15,7 @@ import com.studyflow.domain.admin.dto.AdminUserDetailResponse;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
+import com.studyflow.domain.admin.dto.AdminCreditHistoryResponse;
 import com.studyflow.domain.admin.dto.CountResponse;
 import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
@@ -22,7 +23,12 @@ import com.studyflow.domain.admin.entity.UserCountStatistics;
 import com.studyflow.domain.admin.repository.UserCountStatisticsRepository;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.credit.repository.CreditHistoryRepository;
+import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.student.repository.StudentProfileRepository;
+import com.studyflow.domain.subscription.entity.UserSubscription;
+import com.studyflow.domain.subscription.repository.UserSubscriptionRepository;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
 import com.studyflow.domain.user.entity.User;
@@ -39,9 +45,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -54,6 +62,8 @@ public class AdminService {
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
+    private final CreditHistoryRepository creditHistoryRepository;
+    private final UserSubscriptionRepository userSubscriptionRepository;
 
     // 선생님 인증 요청 목록 조회 — status가 null이면 전체 반환
     public Page<AdminVerificationSummaryResponse> getTeacherVerifications(
@@ -219,5 +229,47 @@ public class AdminService {
         }
 
         verification.process(VerificationStatus.REJECTED, rejectReason);
+    }
+
+    // 결제 및 마일리지 변동 내역 조회
+    public Page<AdminCreditHistoryResponse> getCreditHistories(String email, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(23, 59, 59, 999999999) : null;
+        Page<AdminCreditHistoryResponse> page = creditHistoryRepository.findAdminCreditHistories(email, startDateTime, endDateTime, pageable);
+
+        List<Long> courseIds = page.getContent().stream()
+                .filter(res -> res.getRefId() != null &&
+                        (res.getReason() == CreditReason.COURSE_OPEN ||
+                         res.getReason() == CreditReason.ENROLLMENT_PAY ||
+                         res.getReason() == CreditReason.ENROLLMENT_INCOME))
+                .map(AdminCreditHistoryResponse::getRefId)
+                .toList();
+
+        List<Long> subscriptionIds = page.getContent().stream()
+                .filter(res -> res.getRefId() != null &&
+                        (res.getReason() == CreditReason.SUBSCRIPTION_PURCHASE ||
+                         res.getReason() == CreditReason.REFUND))
+                .map(AdminCreditHistoryResponse::getRefId)
+                .toList();
+
+        Map<Long, String> courseTitles = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Course::getTitle));
+
+        Map<Long, String> subNames = userSubscriptionRepository.findAllById(subscriptionIds).stream()
+                .collect(Collectors.toMap(UserSubscription::getId, sub -> sub.getType().getDisplayName()));
+
+        page.getContent().forEach(res -> {
+            if (res.getRefId() == null) return;
+            if (res.getReason() == CreditReason.COURSE_OPEN ||
+                res.getReason() == CreditReason.ENROLLMENT_PAY ||
+                res.getReason() == CreditReason.ENROLLMENT_INCOME) {
+                res.setDetail("수업명: " + courseTitles.getOrDefault(res.getRefId(), "알 수 없음"));
+            } else if (res.getReason() == CreditReason.SUBSCRIPTION_PURCHASE ||
+                       res.getReason() == CreditReason.REFUND) {
+                res.setDetail("구독권: " + subNames.getOrDefault(res.getRefId(), "알 수 없음"));
+            }
+        });
+
+        return page;
     }
 }

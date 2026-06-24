@@ -1,6 +1,7 @@
 package com.studyflow.domain.admin.controller;
 
 import com.studyflow.domain.teacher.enums.VerificationStatus;
+import com.studyflow.domain.admin.dto.AdminCreditHistoryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
@@ -144,5 +145,16 @@ public class AdminController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<AdminUserDetailInterface> getUserDetail(@PathVariable Long userId) {
         return ResponseEntity.ok(adminService.getUserDetail(userId));
+    }
+
+    // 관리자 페이지 - 결제/마일리지 내역 전체 조회
+    // 예시: GET /api/v1/admin/credit-histories?startDate=2026-06-01&endDate=2026-06-30&email=test@test.com&page=0&size=20
+    @GetMapping("/credit-histories")
+    public ResponseEntity<Page<AdminCreditHistoryResponse>> getCreditHistories(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(adminService.getCreditHistories(email, startDate, endDate, pageable));
     }
 }

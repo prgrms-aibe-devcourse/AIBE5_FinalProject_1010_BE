@@ -44,8 +44,6 @@ public class SubscriptionService {
         User user = userRepository.findActiveById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        creditService.deduct(userId, type.getPriceMileage(), CreditReason.SUBSCRIPTION_PURCHASE, null);
-
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startsAt = userSubscriptionRepository.findTopByUserIdAndTypeOrderByExpiresAtDesc(userId, type)
                 .filter(subscription -> subscription.getExpiresAt().isAfter(now))
@@ -54,7 +52,32 @@ public class SubscriptionService {
         LocalDateTime expiresAt = startsAt.plusDays(type.getDurationDays());
 
         UserSubscription saved = userSubscriptionRepository.save(UserSubscription.create(user, type, startsAt, expiresAt));
+
+        creditService.deduct(userId, type.getPriceMileage(), CreditReason.SUBSCRIPTION_PURCHASE, saved.getId());
+
         return UserSubscriptionResponse.from(saved, now);
+    }
+
+    @Transactional
+    public void refund(Long subscriptionId, Long userId) {
+        UserSubscription subscription = userSubscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독권을 찾을 수 없습니다."));
+
+        if (!subscription.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("본인의 구독권만 환불할 수 있습니다.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (subscription.getRefundedAt() != null) {
+            throw new IllegalArgumentException("이미 환불 처리된 구독권입니다.");
+        }
+
+        if (!subscription.getStartsAt().isAfter(now)) {
+            throw new IllegalArgumentException("이미 사용이 시작된 구독권은 환불할 수 없습니다.");
+        }
+
+        subscription.refund(now);
+        creditService.charge(userId, subscription.getPriceMileage(), CreditReason.REFUND, subscription.getId());
     }
 
     @Transactional(readOnly = true)

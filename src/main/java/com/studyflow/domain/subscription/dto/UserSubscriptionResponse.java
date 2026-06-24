@@ -12,9 +12,21 @@ public record UserSubscriptionResponse(
         long priceMileage,
         LocalDateTime startsAt,
         LocalDateTime expiresAt,
-        boolean active
+        boolean active,
+        String status
 ) {
     public static UserSubscriptionResponse from(UserSubscription subscription, LocalDateTime now) {
+        String status;
+        if (subscription.getRefundedAt() != null) {
+            status = "REFUNDED";
+        } else if (subscription.getStartsAt().isAfter(now)) {
+            status = "SCHEDULED";
+        } else if (subscription.getExpiresAt().isBefore(now)) {
+            status = "EXPIRED";
+        } else {
+            status = "ACTIVE";
+        }
+
         return new UserSubscriptionResponse(
                 subscription.getId(),
                 subscription.getType(),
@@ -22,6 +34,7 @@ public record UserSubscriptionResponse(
                 subscription.getPriceMileage(),
                 subscription.getStartsAt(),
                 subscription.getExpiresAt(),
-                subscription.isActive(now));
+                subscription.isActive(now),
+                status);
     }
 }

@@ -47,6 +47,9 @@ public class UserSubscription extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
     public static UserSubscription create(User user, SubscriptionType type, LocalDateTime startsAt, LocalDateTime expiresAt) {
         UserSubscription subscription = new UserSubscription();
         subscription.user = user;
@@ -58,6 +61,10 @@ public class UserSubscription extends BaseTimeEntity {
     }
 
     public boolean isActive(LocalDateTime now) {
-        return !expiresAt.isBefore(now);
+        return refundedAt == null && !startsAt.isAfter(now) && !expiresAt.isBefore(now);
+    }
+
+    public void refund(LocalDateTime now) {
+        this.refundedAt = now;
     }
 }

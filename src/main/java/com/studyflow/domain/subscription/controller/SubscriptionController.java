@@ -32,4 +32,11 @@ public class SubscriptionController {
             @Valid @RequestBody SubscriptionPurchaseRequest request) {
         return ResponseEntity.ok(subscriptionService.purchase(userId, request.type()));
     }
+    @PostMapping("/{subscriptionId}/refund")
+    public ResponseEntity<Void> refund(
+            @AuthenticationPrincipal Long userId,
+            @org.springframework.web.bind.annotation.PathVariable Long subscriptionId) {
+        subscriptionService.refund(subscriptionId, userId);
+        return ResponseEntity.ok().build();
+    }
 }
