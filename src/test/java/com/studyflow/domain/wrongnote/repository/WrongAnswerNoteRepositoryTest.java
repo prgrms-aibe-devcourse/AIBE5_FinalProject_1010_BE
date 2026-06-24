@@ -100,7 +100,7 @@ class WrongAnswerNoteRepositoryTest {
     @DisplayName("삭제된 오답노트는 문제풀이 추천에서 제외한다")
     void findPracticeRecommendationsExcludesDeletedNotes() {
         WrongAnswerNote deleted = note("삭제된 문제", "추천되면 안 되는 문제");
-        deleted.delete();
+        deleted.delete(LocalDateTime.now());
         em.persist(deleted);
         em.flush();
         em.clear();
@@ -127,9 +127,10 @@ class WrongAnswerNoteRepositoryTest {
         em.flush();
         em.clear();
 
-        Page<WrongAnswerNoteReview> result = reviewRepository.findByNoteIdAndNoteOwnerIdOrderByReviewedAtDesc(
+        Page<WrongAnswerNoteReview> result = reviewRepository.findByNoteIdAndNoteOwnerIdAndResultNotOrderByReviewedAtDesc(
                 dueNoteId,
                 ownerId,
+                WrongAnswerReviewResult.INCORRECT,
                 PageRequest.of(0, 10)
         );
 
