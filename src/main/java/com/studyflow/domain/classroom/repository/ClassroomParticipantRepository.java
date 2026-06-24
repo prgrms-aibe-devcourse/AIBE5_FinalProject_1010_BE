@@ -31,4 +31,16 @@ public interface ClassroomParticipantRepository extends JpaRepository<ClassroomP
         Long getUserId();
         Long getCount();
     }
+
+    // 메인 홈 "실시간 강의중" — 세션별 입장 인원 집계 (LiveKit 실시간 시청자 수는 미연동이라 참가행 수로 노출)
+    @Query("SELECT p.session.id AS sessionId, COUNT(p) AS count " +
+           "FROM ClassroomParticipant p " +
+           "WHERE p.session.id IN :sessionIds " +
+           "GROUP BY p.session.id")
+    List<SessionParticipantCount> countParticipantsBySessionIds(@Param("sessionIds") List<Long> sessionIds);
+
+    interface SessionParticipantCount {
+        Long getSessionId();
+        Long getCount();
+    }
 }

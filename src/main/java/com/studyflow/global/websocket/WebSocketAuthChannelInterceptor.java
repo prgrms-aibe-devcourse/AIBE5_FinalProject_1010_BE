@@ -33,23 +33,47 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
          */
         StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null) {
+            return message;
+        }
 
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+        StompCommand command = accessor.getCommand();
+
+        // CONNECT: 토큰이 있으면 검증해 userId Principal, 없으면 게스트(비로그인 미리보기) Principal.
+        if (StompCommand.CONNECT.equals(command)) {
             String authorization = accessor.getFirstNativeHeader("Authorization");
-            String token = resolveToken(authorization);
+            if (StringUtils.hasText(authorization) && authorization.startsWith("Bearer ")) {
+                Long userId = jwtTokenProvider.getUserId(authorization.substring(7));
+                accessor.setUser(new StompPrincipal(userId));
+            } else {
+                // 비로그인 게스트 — 실시간 강의실 미리보기 시청자. 화이트보드 구독만 허용된다.
+                accessor.setUser(new StompPrincipal(null));
+            }
+            return message;
+        }
 
-            Long userId = jwtTokenProvider.getUserId(token);
-            accessor.setUser(new StompPrincipal(userId));
+        // 게스트는 화이트보드 토픽 구독만 허용 — 채팅 등 다른 토픽 구독/발행은 차단(드롭).
+        if (isGuest(accessor.getUser())) {
+            if (StompCommand.SUBSCRIBE.equals(command)) {
+                if (!isWhiteboardTopic(accessor.getDestination())) {
+                    return null; // 비허용 구독 드롭
+                }
+            } else if (StompCommand.SEND.equals(command)) {
+                return null; // 게스트는 발행 불가(판서/채팅 등)
+            }
         }
 
         return message;
     }
 
-    private String resolveToken(String authorization) {
-        if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("WebSocket Authorization 헤더가 필요합니다.");
-        }
+    private boolean isGuest(java.security.Principal principal) {
+        return principal instanceof StompPrincipal sp && sp.isGuest();
+    }
 
-        return authorization.substring(7);
+    // /sub/classroom-sessions/{sessionId}/whiteboard 형태만 게스트에게 허용
+    private boolean isWhiteboardTopic(String destination) {
+        return destination != null
+                && destination.startsWith("/sub/classroom-sessions/")
+                && destination.endsWith("/whiteboard");
     }
 }
