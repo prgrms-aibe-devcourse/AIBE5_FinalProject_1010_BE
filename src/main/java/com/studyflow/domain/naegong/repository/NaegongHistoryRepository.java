@@ -2,6 +2,7 @@ package com.studyflow.domain.naegong.repository;
 
 import com.studyflow.domain.naegong.entity.NaegongHistory;
 import com.studyflow.domain.naegong.enums.NaegongReason;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,9 @@ public interface NaegongHistoryRepository extends JpaRepository<NaegongHistory, 
 
     // 특정 사용자의 내공 이력을 최신순으로 조회 (GET /api/v1/users/{userId}/naegong-histories 용)
     List<NaegongHistory> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // 선생님 마이페이지 내공 탭 — 페이지네이션 적용
+    Page<NaegongHistory> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     // 테스트 데이터 정리 전용 — 프로덕션 서비스에서 직접 호출 금지
     void deleteAllByUserId(Long userId);
