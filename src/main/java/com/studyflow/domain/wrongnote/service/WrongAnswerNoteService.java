@@ -118,7 +118,7 @@ public class WrongAnswerNoteService {
     @Transactional(readOnly = true)
     public Page<WrongAnswerNoteReviewResponse> getReviewLogs(Long noteId, Long userId, Pageable pageable) {
         findMine(noteId, userId);
-        return reviewRepository.findByNoteIdAndNoteOwnerIdAndReviewResultNotOrderByReviewedAtDesc(
+        return reviewRepository.findByNoteIdAndNoteOwnerIdAndResultNotOrderByReviewedAtDesc(
                 noteId, userId, WrongAnswerReviewResult.ANSWER_VIEWED, pageable)
                 .map(WrongAnswerNoteReviewResponse::from);
     }
