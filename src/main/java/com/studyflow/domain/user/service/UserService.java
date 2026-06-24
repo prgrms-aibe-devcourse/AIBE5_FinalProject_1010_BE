@@ -63,6 +63,13 @@ public class UserService {
                 birthDate, request.getMarketingAgreed(), request.getProfileImageUrl());
     }
 
+    // 보이스톡 수신 설정 변경 로직
+    public void updateVoiceCallSetting(Long userId, boolean enabled) {
+        User user = userRepository.findActiveById(userId)
+                .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        user.updateVoiceCallEnabled(enabled);
+    }
+
     // 비밀번호 변경 로직
     public void changePassword(Long userId, PasswordChangeRequest request) {
         User user = userRepository.findActiveById(userId)
