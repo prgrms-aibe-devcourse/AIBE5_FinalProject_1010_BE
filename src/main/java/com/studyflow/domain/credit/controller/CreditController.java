@@ -25,6 +25,9 @@ import java.util.Map;
  * - GET /api/v1/credits/me          : 내 잔액 + 기능별 단가
  * - GET /api/v1/credits/me/history  : 내 마일리지 변동 내역(페이지)
  */
+import com.studyflow.domain.credit.dto.TeacherEarningsItemDto;
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
@@ -77,17 +80,20 @@ public class CreditController {
     @GetMapping("/me/earnings")
     public ResponseEntity<Map<String, Object>> myEarnings(
             @AuthenticationPrincipal Long userId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) LocalDate startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) LocalDate endDate,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<CreditHistory> page = creditService.getEarningsHistory(userId, pageable);
-        Long totalEarnings = creditService.getTotalEarnings(userId);
+        Page<TeacherEarningsItemDto> page = creditService.getEarningsHistory(userId, startDate, endDate, pageable);
+        Long totalEarnings = creditService.getTotalEarnings(userId, startDate, endDate);
         
         List<Map<String, Object>> items = page.getContent().stream()
                 .map(h -> Map.<String, Object>of(
-                        "id", h.getId(),
-                        "amount", h.getAmount(),
-                        "reason", h.getReason().name(),
-                        "balanceAfter", h.getBalanceAfter(),
-                        "createdAt", h.getCreatedAt()
+                        "id", h.id(),
+                        "amount", h.amount(),
+                        "reason", h.reason(),
+                        "balanceAfter", h.balanceAfter(),
+                        "createdAt", h.createdAt(),
+                        "courseTitle", h.courseTitle()
                 ))
                 .toList();
                 

@@ -1,5 +1,8 @@
 package com.studyflow.domain.credit.service;
 
+import com.studyflow.domain.course.repository.CourseRepository;
+import com.studyflow.domain.course.entity.Course;
+import com.studyflow.domain.credit.dto.TeacherEarningsItemDto;
 import com.studyflow.domain.credit.entity.CreditAccount;
 import com.studyflow.domain.credit.entity.CreditHistory;
 import com.studyflow.domain.credit.enums.CreditReason;
@@ -10,6 +13,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 마일리지 적립/차감 도메인 서비스.
@@ -23,6 +32,7 @@ public class CreditService {
 
     private final CreditAccountRepository creditAccountRepository;
     private final CreditHistoryRepository creditHistoryRepository;
+    private final CourseRepository courseRepository;
 
     @Transactional(readOnly = true)
     public long getBalance(Long userId) {
@@ -37,13 +47,36 @@ public class CreditService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CreditHistory> getEarningsHistory(Long userId, Pageable pageable) {
-        return creditHistoryRepository.findByUserIdAndReasonOrderByIdDesc(userId, CreditReason.ENROLLMENT_INCOME, pageable);
+    public Page<TeacherEarningsItemDto> getEarningsHistory(Long userId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(23, 59, 59, 999999999) : null;
+        
+        Page<CreditHistory> page = creditHistoryRepository.findEarningsWithDates(userId, CreditReason.ENROLLMENT_INCOME, startDateTime, endDateTime, pageable);
+        
+        List<Long> courseIds = page.getContent().stream()
+                .filter(h -> h.getRefId() != null)
+                .map(CreditHistory::getRefId)
+                .distinct()
+                .toList();
+                
+        Map<Long, String> courseTitles = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Course::getTitle));
+                
+        return page.map(h -> new TeacherEarningsItemDto(
+                h.getId(),
+                h.getAmount(),
+                h.getReason().name(),
+                h.getBalanceAfter(),
+                h.getCreatedAt(),
+                h.getRefId() != null ? courseTitles.getOrDefault(h.getRefId(), "알 수 없는 수업") : "알 수 없는 수업"
+        ));
     }
 
     @Transactional(readOnly = true)
-    public Long getTotalEarnings(Long userId) {
-        return creditHistoryRepository.sumAmountByUserIdAndReason(userId, CreditReason.ENROLLMENT_INCOME);
+    public Long getTotalEarnings(Long userId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(23, 59, 59, 999999999) : null;
+        return creditHistoryRepository.sumEarningsWithDates(userId, CreditReason.ENROLLMENT_INCOME, startDateTime, endDateTime);
     }
 
     /** 마일리지 적립(충전/환불). 적립 후 잔액 반환. */
