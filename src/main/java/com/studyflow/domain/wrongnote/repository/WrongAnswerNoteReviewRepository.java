@@ -9,6 +9,6 @@ import com.studyflow.domain.wrongnote.enums.WrongAnswerReviewResult;
 
 public interface WrongAnswerNoteReviewRepository extends JpaRepository<WrongAnswerNoteReview, Long> {
 
-    Page<WrongAnswerNoteReview> findByNoteIdAndNoteOwnerIdAndReviewResultNotOrderByReviewedAtDesc(
+    Page<WrongAnswerNoteReview> findByNoteIdAndNoteOwnerIdAndResultNotOrderByReviewedAtDesc(
             Long noteId, Long ownerId, WrongAnswerReviewResult excludedResult, Pageable pageable);
 }

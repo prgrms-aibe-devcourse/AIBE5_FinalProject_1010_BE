@@ -73,6 +73,9 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean marketingAgreed = false;
 
+    @Column(nullable = false)
+    private boolean voiceCallEnabled = true;
+
     public static User createUser(SignupRequest request, PasswordEncoder passwordEncoder, 
                                   boolean marketingAgreed, LocalDate birthDateParsed, 
                                   Gender genderEnum, UserRole userRole) {
@@ -87,6 +90,7 @@ public class User extends BaseTimeEntity {
         user.birthDate = birthDateParsed;
         user.role = userRole;
         user.marketingAgreed = marketingAgreed;
+        user.voiceCallEnabled = true;
         user.isDeleted = 0L;
         user.isActive = true;
 
@@ -115,6 +119,7 @@ public class User extends BaseTimeEntity {
         user.isActive = true;
         user.isDeleted = 0L;
         user.marketingAgreed = marketingAgreed;
+        user.voiceCallEnabled = true;
         return user;
     }
 
@@ -126,6 +131,10 @@ public class User extends BaseTimeEntity {
         this.birthDate = birthDate;
         this.marketingAgreed = marketingAgreed;
         this.profileImageUrl = profileImageUrl; // null 허용 (프로필 이미지 삭제 시 null)
+    }
+
+    public void updateVoiceCallEnabled(boolean enabled) {
+        this.voiceCallEnabled = enabled;
     }
 
     public void changePassword(String encodedNewPassword) {

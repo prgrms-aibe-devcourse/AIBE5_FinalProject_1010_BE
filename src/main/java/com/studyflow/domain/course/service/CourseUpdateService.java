@@ -8,6 +8,7 @@ import com.studyflow.domain.course.dto.update.CourseUpdateRequest;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
+import com.studyflow.domain.course.exception.CourseAlreadyClosedException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotDeletableException;
@@ -94,6 +95,11 @@ public class CourseUpdateService {
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
 
         assertTeacherOwner(course, teacherUserId);
+
+        // 이미 종료된 수업 재종료 방지 — 내공 중복 지급 차단
+        if (course.getStatus() == CourseStatus.CLOSED) {
+            throw new CourseAlreadyClosedException();
+        }
 
         // 수강 중인 학생이 있으면 종료 불가
         long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);

@@ -22,6 +22,10 @@ public class ChatRoomResponse {
 
     private Long courseId;
 
+    private String courseTitle;
+
+    private boolean canManageParticipants;
+
     private List<ChatParticipantResponse> participants;
 
     private ChatMessageResponse lastMessage;

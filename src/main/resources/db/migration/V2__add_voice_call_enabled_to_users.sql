@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN voice_call_enabled BOOLEAN NOT NULL DEFAULT TRUE;

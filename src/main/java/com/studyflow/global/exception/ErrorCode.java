@@ -45,6 +45,7 @@ public enum ErrorCode {
     COURSE_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "해당 강의의 참여자가 아닙니다."),
     COURSE_ACCESS_FORBIDDEN(HttpStatus.FORBIDDEN, "강의에 대한 접근 권한이 없습니다."),
     COURSE_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있어 해당 작업을 수행할 수 없습니다."),
+    COURSE_ALREADY_CLOSED(HttpStatus.BAD_REQUEST, "이미 종료된 수업입니다."),
     COURSE_NOT_DELETABLE(HttpStatus.CONFLICT, "아무도 사용하지 않은 모집중 수업만 삭제할 수 있습니다. 이미 사용된 수업은 PATCH /close를 이용해 종료하세요."),
 
     // 공지사항

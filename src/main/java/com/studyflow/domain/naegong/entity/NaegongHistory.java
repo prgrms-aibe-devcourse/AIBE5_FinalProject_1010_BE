@@ -38,7 +38,8 @@ public class NaegongHistory extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private NaegongReason reason;
 
-    // 변동을 유발한 대상의 식별자 (예: 채택된 답변 id). 사유별로 의미가 다르다.
+    // 변동을 유발한 대상의 식별자. 사유별로 의미가 다르다.
+    // ANSWER_ACCEPTED: 채택된 답변 id / CLASSROOM_SESSION_CLOSED: courseId (하루+수업 기준 한도 조회에 활용)
     @Column(name = "reference_id")
     private Long referenceId;
 
