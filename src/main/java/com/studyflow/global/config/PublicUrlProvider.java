@@ -24,6 +24,12 @@ public class PublicUrlProvider {
                 // 과목 목록 — 수업 등록/검색 폼에서 비로그인 사용자도 조회 가능
                 "/api/v1/subjects",
 
+                // 메인 홈 "실시간 강의중" 공개 목록 — 비로그인 사용자도 진행 중인 강의실을 볼 수 있음
+                "/api/v1/live-classrooms",
+
+                // 화이트보드 스냅샷 — 미리보기 중 게스트 WebSocket 구독과 함께 초기 판서 상태를 1회 받는 용도
+                "/api/v1/classroom-sessions/*/whiteboard-preview",
+
                 // WebSocket handshake와 SockJS 부가 요청은 HTTP 필터에서 막지 않는다.
                 // 실제 채팅 메시지 인증은 WebSocketAuthChannelInterceptor가 STOMP CONNECT에서 처리한다.
                 "/ws-stomp/**",
