@@ -14,70 +14,70 @@ SET FOREIGN_KEY_CHECKS = 0;
 INSERT INTO users (email, password, name, phone, profile_image_url, role, social_provider, social_id, is_verified, gender, birth_date, is_active, deleted_at, is_deleted, marketing_agreed, created_at, updated_at) VALUES
 
 -- 6/19 탈퇴 (1명: 선생님)
-('del_teacher01@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher01@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '강태양', '010-9001-0001', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE', '1991-04-12',
  FALSE, '2026-06-19 21:45:00', 0, FALSE, '2026-06-18 10:20:00', '2026-06-19 21:45:00'),
 
 -- 6/20 탈퇴 (4명: 학생2, 선생님2, 학생3, 학생4)
-('del_student01@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student01@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '조민채', '010-9002-0001', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'FEMALE', '2008-07-03',
  FALSE, '2026-06-20 10:15:00', 0, FALSE, '2026-06-20 08:50:00', '2026-06-20 10:15:00'),
 
-('del_teacher02@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher02@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '한소희', '010-9001-0002', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1989-02-28',
  FALSE, '2026-06-20 14:30:00', 0, FALSE, '2026-06-17 16:40:00', '2026-06-20 14:30:00'),
 
-('del_student02@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student02@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '임서율', '010-9002-0002', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'MALE', '2007-11-19',
  FALSE, '2026-06-20 18:55:00', 0, TRUE, '2026-06-20 13:10:00', '2026-06-20 18:55:00'),
 
-('del_student03@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student03@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '신지호', '010-9002-0003', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'MALE', '2009-03-22',
  FALSE, '2026-06-20 23:20:00', 0, FALSE, '2026-06-20 19:45:00', '2026-06-20 23:20:00'),
 
 -- 6/21 탈퇴 (2명: 선생님3, 학생4)
-('del_teacher03@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher03@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '오준혁', '010-9001-0003', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE', '1993-08-15',
  FALSE, '2026-06-21 11:20:00', 0, FALSE, '2026-06-19 08:55:00', '2026-06-21 11:20:00'),
 
-('del_student04@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student04@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '배유진', '010-9002-0004', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'FEMALE', '2007-06-08',
  FALSE, '2026-06-21 20:40:00', 0, TRUE, '2026-06-20 14:15:00', '2026-06-21 20:40:00'),
 
 -- 6/22 탈퇴 없음
 
 -- 6/23 탈퇴 (4명: 선생님4, 학생5, 선생님5, 학생6)
-('del_teacher04@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher04@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '문아름', '010-9001-0004', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1990-12-05',
  FALSE, '2026-06-23 09:50:00', 0, FALSE, '2026-06-22 09:00:00', '2026-06-23 09:50:00'),
 
-('del_student05@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student05@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '고은서', '010-9002-0005', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'FEMALE', '2008-10-17',
  FALSE, '2026-06-23 13:25:00', 0, FALSE, '2026-06-22 18:20:00', '2026-06-23 13:25:00'),
 
-('del_teacher05@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher05@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '서도훈', '010-9001-0005', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE', '1987-05-30',
  FALSE, '2026-06-23 17:10:00', 0, FALSE, '2026-06-18 11:30:00', '2026-06-23 17:10:00'),
 
-('del_student06@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student06@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '남현준', '010-9002-0006', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'MALE', '2007-02-14',
  FALSE, '2026-06-23 22:35:00', 0, TRUE, '2026-06-23 10:50:00', '2026-06-23 22:35:00'),
 
 -- 6/24 탈퇴 (3명: 선생님6, 학생7, 선생님7)
-('del_teacher06@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher06@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '윤재민', '010-9001-0006', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE', '1992-09-01',
  FALSE, '2026-06-24 11:05:00', 0, FALSE, '2026-06-21 13:10:00', '2026-06-24 11:05:00'),
 
-('del_student07@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student07@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '장하나', '010-9002-0007', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'FEMALE', '2009-08-29',
  FALSE, '2026-06-24 16:30:00', 0, FALSE, '2026-06-24 12:00:00', '2026-06-24 16:30:00'),
 
-('del_teacher07@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_teacher07@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '이나라', '010-9001-0007', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1994-01-18',
  FALSE, '2026-06-24 21:15:00', 0, FALSE, '2026-06-23 20:45:00', '2026-06-24 21:15:00'),
 
 -- 6/25 탈퇴 (1명: 학생8)
-('del_student08@studyflow.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lHhu',
+('del_student08@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe',
  '권도영', '010-9002-0008', NULL, 'STUDENT', 'LOCAL', NULL, FALSE, 'MALE', '2008-04-25',
  FALSE, '2026-06-25 19:50:00', 0, TRUE, '2026-06-25 11:20:00', '2026-06-25 19:50:00');
 
