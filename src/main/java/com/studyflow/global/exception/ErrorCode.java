@@ -90,6 +90,7 @@ public enum ErrorCode {
     CLASSROOM_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의실 참가자를 찾을 수 없습니다."),
     CLASSROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "강의실에 대한 권한이 없습니다."),
     CLASSROOM_NOT_OPEN(HttpStatus.BAD_REQUEST, "열려 있는 강의실이 아닙니다."),
+    PREVIEW_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "수업당 미리보기는 최대 2회까지 가능합니다."),
 
     // 파일
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),

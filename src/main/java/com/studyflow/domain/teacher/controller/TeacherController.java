@@ -8,6 +8,8 @@ import java.util.Map;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
 import com.studyflow.global.exception.ProfileAuthInfoException;
+import com.studyflow.domain.teacher.dto.HotTeacherResponse;
+import com.studyflow.domain.teacher.service.HotTeacherService;
 import com.studyflow.domain.teacher.service.TeacherService;
 import com.studyflow.domain.user.enums.UserRole;
 import com.studyflow.global.auth.controllerutil.CheckAuthInController;
@@ -33,6 +35,16 @@ import org.springframework.web.bind.annotation.*;
 public class TeacherController {
 
     private final TeacherService teacherService;
+    private final HotTeacherService hotTeacherService;
+
+    // 이번주 HOT 선생님 — 지난 7일 내공 획득 상위 TOP3 (비로그인 포함 공개). 메인 홈 노출용.
+    // 주간 획득자가 3명 미만이면 전체기간 내공순으로 채워 항상 최대 3명을 반환한다.
+    // 주의: 리터럴 경로 "/hot"이 "/{teacherProfileId}"보다 우선 매칭됨.
+    @Operation(summary = "이번주 HOT 선생님 조회", description = "지난 7일 내공 획득량 상위 선생님 TOP3. 비로그인 공개.")
+    @GetMapping("/hot")
+    public ResponseEntity<List<HotTeacherResponse>> getWeeklyHotTeachers() {
+        return ResponseEntity.ok(hotTeacherService.getWeeklyHotTeachers());
+    }
 
     // 선생님 목록 — 검색/필터 지원 (이름·성별·나이·지역·대학교·과목 + 최신/오래된순)
     // 예시: GET /api/v1/teachers?keyword=홍길동&gender=MALE&minAge=20&maxAge=39
