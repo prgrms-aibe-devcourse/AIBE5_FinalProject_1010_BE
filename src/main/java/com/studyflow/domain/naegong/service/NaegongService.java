@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 /**
  * 내공 점수 적립/이력 도메인 서비스.
@@ -48,7 +49,11 @@ public class NaegongService {
                 .orElseThrow(() -> new IllegalStateException(
                         "내공 적립 대상 선생님 프로필이 없습니다. userId=" + teacher.getId()));
 
-        LocalDateTime startOfDay = LocalDate.now(ZoneId.of("Asia/Seoul")).atStartOfDay();
+        ZoneId seoulZone = ZoneId.of("Asia/Seoul");
+        LocalDateTime startOfDay = LocalDate.now(seoulZone)
+                .atStartOfDay(seoulZone)
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
         int todayPaid = naegongHistoryRepository.sumScoreByUserIdAndReasonAndCourseIdSince(
                 teacher.getId(), NaegongReason.CLASSROOM_SESSION_CLOSED, courseId, startOfDay);
 
