@@ -34,6 +34,7 @@ import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
+import com.studyflow.domain.teacher.service.TeacherVerificationGuard;
 import com.studyflow.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,7 @@ public class QnaService {
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
     private final NaegongService naegongService;
+    private final TeacherVerificationGuard teacherVerificationGuard;
     // 본문 블록 직렬화/역직렬화용. Spring이 관리하는 빈을 주입받아 앱 Jackson 설정을 동일하게 따른다.
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -226,6 +228,9 @@ public class QnaService {
     /** 답변 작성 (TEACHER). */
     @Transactional
     public QnaAnswerCreateResponse createAnswer(Long userId, Long questionId, QnaAnswerRequest request) {
+        // 관리자 인증을 받은 선생님만 답변 작성 가능
+        teacherVerificationGuard.requireVerified(userId);
+
         QnaQuestion question = questionRepository.findByIdWithLock(questionId)
                 .orElseThrow(() -> new QnaQuestionNotFoundException(questionId));
         User author = userRepository.getReferenceById(userId);
