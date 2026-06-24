@@ -9,8 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-import java.util.Optional;
-
 public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, QnaAnswerRepositoryCustom {
 
     long countByQuestionId(Long questionId);

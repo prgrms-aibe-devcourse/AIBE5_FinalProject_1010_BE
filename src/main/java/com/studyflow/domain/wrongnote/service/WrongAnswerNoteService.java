@@ -118,7 +118,8 @@ public class WrongAnswerNoteService {
     @Transactional(readOnly = true)
     public Page<WrongAnswerNoteReviewResponse> getReviewLogs(Long noteId, Long userId, Pageable pageable) {
         findMine(noteId, userId);
-        return reviewRepository.findByNoteIdAndNoteOwnerIdOrderByReviewedAtDesc(noteId, userId, pageable)
+        return reviewRepository.findByNoteIdAndNoteOwnerIdAndReviewResultNotOrderByReviewedAtDesc(
+                noteId, userId, WrongAnswerReviewResult.ANSWER_VIEWED, pageable)
                 .map(WrongAnswerNoteReviewResponse::from);
     }
 
@@ -181,7 +182,7 @@ public class WrongAnswerNoteService {
 
     public void delete(Long noteId, Long userId) {
         WrongAnswerNote note = findMine(noteId, userId);
-        note.delete();
+        note.delete(LocalDateTime.now());
     }
 
     private WrongAnswerNote findMine(Long noteId, Long userId) {

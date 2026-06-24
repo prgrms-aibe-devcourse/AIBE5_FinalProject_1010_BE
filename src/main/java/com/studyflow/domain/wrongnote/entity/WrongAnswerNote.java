@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Entity
@@ -100,6 +101,7 @@ public class WrongAnswerNote extends BaseTimeEntity {
     @Column(name = "next_review_at")
     private LocalDateTime nextReviewAt;
 
+    @BatchSize(size = 20)
     @ElementCollection
     @CollectionTable(
             name = "wrong_answer_note_tag",
@@ -163,8 +165,8 @@ public class WrongAnswerNote extends BaseTimeEntity {
         replaceTags(tags);
     }
 
-    public void delete() {
-        this.deletedAt = LocalDateTime.now();
+    public void delete(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt != null ? deletedAt : LocalDateTime.now();
     }
 
     public void recordReview(WrongAnswerReviewResult result, LocalDateTime reviewedAt) {
