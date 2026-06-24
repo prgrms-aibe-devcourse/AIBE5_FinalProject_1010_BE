@@ -16,6 +16,7 @@ import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminCreditHistoryResponse;
+import com.studyflow.domain.admin.dto.AdminCreditSummaryResponse;
 import com.studyflow.domain.admin.dto.CountResponse;
 import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
@@ -232,10 +233,10 @@ public class AdminService {
     }
 
     // 결제 및 마일리지 변동 내역 조회
-    public Page<AdminCreditHistoryResponse> getCreditHistories(String email, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+    public Page<AdminCreditHistoryResponse> getCreditHistories(String email, LocalDate startDate, LocalDate endDate, CreditReason reason, Pageable pageable) {
         LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(23, 59, 59, 999999999) : null;
-        Page<AdminCreditHistoryResponse> page = creditHistoryRepository.findAdminCreditHistories(email, startDateTime, endDateTime, pageable);
+        Page<AdminCreditHistoryResponse> page = creditHistoryRepository.findAdminCreditHistories(email, startDateTime, endDateTime, reason, pageable);
 
         List<Long> courseIds = page.getContent().stream()
                 .filter(res -> res.getRefId() != null &&
@@ -271,5 +272,31 @@ public class AdminService {
         });
 
         return page;
+    }
+
+    // 결제/수익/사용액 통계 요약
+    public AdminCreditSummaryResponse getCreditSummary(String email, LocalDate startDate, LocalDate endDate, CreditReason reason) {
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(23, 59, 59, 999999999) : null;
+
+        List<Object[]> rows = creditHistoryRepository.getCreditSummary(email, startDateTime, endDateTime, reason);
+        long totalCharge = 0, totalIncome = 0, totalSpent = 0, totalRefund = 0;
+
+        for (Object[] row : rows) {
+            String rStr = String.valueOf(row[0]);
+            long sum = (row[1] != null) ? ((Number) row[1]).longValue() : 0L;
+
+            if ("CHARGE".equals(rStr)) {
+                totalCharge += sum;
+            } else if ("ENROLLMENT_INCOME".equals(rStr)) {
+                totalIncome += sum;
+            } else if ("REFUND".equals(rStr) || "CANCEL_ENROLLMENT".equals(rStr) || "CANCEL_INCOME".equals(rStr)) {
+                totalRefund += sum;
+            } else if (sum < 0) {
+                totalSpent += Math.abs(sum);
+            }
+        }
+
+        return new AdminCreditSummaryResponse(totalCharge, totalIncome, totalSpent, totalRefund);
     }
 }

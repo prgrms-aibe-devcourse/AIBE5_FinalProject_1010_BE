@@ -2,7 +2,9 @@ package com.studyflow.domain.admin.controller;
 
 import com.studyflow.domain.teacher.enums.VerificationStatus;
 import com.studyflow.domain.admin.dto.AdminCreditHistoryResponse;
+import com.studyflow.domain.admin.dto.AdminCreditSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
+import com.studyflow.domain.credit.enums.CreditReason;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
@@ -148,13 +150,24 @@ public class AdminController {
     }
 
     // 관리자 페이지 - 결제/마일리지 내역 전체 조회
-    // 예시: GET /api/v1/admin/credit-histories?startDate=2026-06-01&endDate=2026-06-30&email=test@test.com&page=0&size=20
+    // 예시: GET /api/v1/admin/credit-histories?startDate=2026-06-01&endDate=2026-06-30&email=test@test.com&reason=CHARGE&page=0&size=20
     @GetMapping("/credit-histories")
     public ResponseEntity<Page<AdminCreditHistoryResponse>> getCreditHistories(
             @RequestParam(required = false) String email,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) CreditReason reason,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(adminService.getCreditHistories(email, startDate, endDate, pageable));
+        return ResponseEntity.ok(adminService.getCreditHistories(email, startDate, endDate, reason, pageable));
+    }
+
+    // 관리자 페이지 - 결제/마일리지 내역 통계 요약
+    @GetMapping("/credit-histories/summary")
+    public ResponseEntity<AdminCreditSummaryResponse> getCreditSummary(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) CreditReason reason) {
+        return ResponseEntity.ok(adminService.getCreditSummary(email, startDate, endDate, reason));
     }
 }
