@@ -1,10 +1,11 @@
 -- ============================================================
--- 더미 데이터: 선생님 10명, 학생 100명
+-- 더미 데이터: 선생님 30명, 학생 100명
 -- 비밀번호 모두 Test1234! (BCrypt 해시)
--- is_verified: 전원 FALSE
--- created_at 분포 (총 110명):
---   6/19: 5명 | 6/20: 10명 | 6/21: 14명 | 6/22: 16명
---   6/23: 19명 | 6/24: 22명 | 6/25: 24명
+-- is_verified: 전원 FALSE (TeacherVerification SQL에서 APPROVED 선생님만 TRUE로 업데이트)
+-- created_at 분포 (총 130명):
+--   6/19: 6명 | 6/20: 12명 | 6/21: 17명 | 6/22: 20명
+--   6/23: 23명 | 6/24: 26명 | 6/25: 26명
+-- naegong_score: 전원 0 (서비스 로직에서 산정)
 -- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -27,10 +28,37 @@ INSERT INTO users (email, password, name, phone, profile_image_url, role, social
 ('teacher8@studyflow.com',  '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '한지민', '010-1001-0008', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1994-06-25', TRUE, NULL, 0, FALSE, '2026-06-22 10:30:00', '2026-06-22 10:30:00'),
 -- 6/23 (2명)
 ('teacher9@studyflow.com',  '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '오승현', '010-1001-0009', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1986-04-11', TRUE, NULL, 0, FALSE, '2026-06-23 09:20:00', '2026-06-23 09:20:00'),
-('teacher10@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '신예린', '010-1001-0010', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1995-08-29', TRUE, NULL, 0, FALSE, '2026-06-23 10:40:00', '2026-06-23 10:40:00');
+('teacher10@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '신예린', '010-1001-0010', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1995-08-29', TRUE, NULL, 0, FALSE, '2026-06-23 10:40:00', '2026-06-23 10:40:00'),
+-- 6/19 (1명: teacher11)
+('teacher11@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '남도윤', '010-1001-0011', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1991-06-12', TRUE, NULL, 0, FALSE, '2026-06-19 13:05:00', '2026-06-19 13:05:00'),
+-- 6/20 (2명: teacher12~13)
+('teacher12@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '이지원', '010-1001-0012', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1989-03-25', TRUE, NULL, 0, FALSE, '2026-06-20 09:10:00', '2026-06-20 09:10:00'),
+('teacher13@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '박민혁', '010-1001-0013', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1992-08-07', TRUE, NULL, 0, FALSE, '2026-06-20 14:50:00', '2026-06-20 14:50:00'),
+-- 6/21 (3명: teacher14~16)
+('teacher14@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '송유진', '010-1001-0014', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1988-11-30', TRUE, NULL, 0, FALSE, '2026-06-21 08:20:00', '2026-06-21 08:20:00'),
+('teacher15@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '조준서', '010-1001-0015', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1993-04-18', TRUE, NULL, 0, FALSE, '2026-06-21 13:30:00', '2026-06-21 13:30:00'),
+('teacher16@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '강하은', '010-1001-0016', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1990-07-09', TRUE, NULL, 0, FALSE, '2026-06-21 20:15:00', '2026-06-21 20:15:00'),
+-- 6/22 (4명: teacher17~20)
+('teacher17@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '윤태민', '010-1001-0017', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1987-01-22', TRUE, NULL, 0, FALSE, '2026-06-22 09:40:00', '2026-06-22 09:40:00'),
+('teacher18@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '임소율', '010-1001-0018', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1994-09-15', TRUE, NULL, 0, FALSE, '2026-06-22 13:25:00', '2026-06-22 13:25:00'),
+('teacher19@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '한재현', '010-1001-0019', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1991-12-03', TRUE, NULL, 0, FALSE, '2026-06-22 17:00:00', '2026-06-22 17:00:00'),
+('teacher20@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '오다인', '010-1001-0020', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1989-05-28', TRUE, NULL, 0, FALSE, '2026-06-22 20:30:00', '2026-06-22 20:30:00'),
+-- 6/23 (4명: teacher21~24)
+('teacher21@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '권성민', '010-1001-0021', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1993-02-11', TRUE, NULL, 0, FALSE, '2026-06-23 08:15:00', '2026-06-23 08:15:00'),
+('teacher22@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '장유나', '010-1001-0022', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1990-10-04', TRUE, NULL, 0, FALSE, '2026-06-23 11:30:00', '2026-06-23 11:30:00'),
+('teacher23@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '노준혁', '010-1001-0023', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1988-07-17', TRUE, NULL, 0, FALSE, '2026-06-23 15:45:00', '2026-06-23 15:45:00'),
+('teacher24@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '도아름', '010-1001-0024', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1995-03-30', TRUE, NULL, 0, FALSE, '2026-06-23 19:20:00', '2026-06-23 19:20:00'),
+-- 6/24 (4명: teacher25~28)
+('teacher25@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '마지훈', '010-1001-0025', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1992-11-14', TRUE, NULL, 0, FALSE, '2026-06-24 08:55:00', '2026-06-24 08:55:00'),
+('teacher26@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '배수아', '010-1001-0026', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1989-08-27', TRUE, NULL, 0, FALSE, '2026-06-24 12:40:00', '2026-06-24 12:40:00'),
+('teacher27@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '서현준', '010-1001-0027', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1994-04-06', TRUE, NULL, 0, FALSE, '2026-06-24 16:10:00', '2026-06-24 16:10:00'),
+('teacher28@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '안지수', '010-1001-0028', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1991-01-19', TRUE, NULL, 0, FALSE, '2026-06-24 20:05:00', '2026-06-24 20:05:00'),
+-- 6/25 (2명: teacher29~30)
+('teacher29@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '전도현', '010-1001-0029', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'MALE',   '1988-06-08', TRUE, NULL, 0, FALSE, '2026-06-25 10:15:00', '2026-06-25 10:15:00'),
+('teacher30@studyflow.com', '$2a$10$TBXPlXgJX4XSZ5Sn9K1dbeliKjP4seQnQYXzfGe0pFFEEIaF.BGCe', '최보라', '010-1001-0030', NULL, 'TEACHER', 'LOCAL', NULL, FALSE, 'FEMALE', '1993-09-21', TRUE, NULL, 0, FALSE, '2026-06-25 15:40:00', '2026-06-25 15:40:00');
 
 -- ============================================================
--- TeacherProfile (10명)
+-- TeacherProfile (30명) — naegong_score 전원 0 (서비스 로직 산정)
 -- ============================================================
 INSERT INTO teacher_profile (user_id, career, major, admission_year, awards, address, teaching_style, introduction, naegong_score, is_listed, total_teaching_hours, created_at, updated_at)
 SELECT u.id,
@@ -38,16 +66,36 @@ SELECT u.id,
        u.created_at, u.created_at
 FROM users u
 JOIN (
-  SELECT 'teacher1@studyflow.com'  AS email, '서울대학교'   AS career, '수학과'       AS major, '12학번' AS admission_year, '전국수학올림피아드 금상'     AS awards, '서울 강남구'   AS address, '개념 중심의 단계별 수업'       AS teaching_style, '10년 경력의 수학 전문 강사입니다.'           AS introduction, 95 AS naegong_score, TRUE AS is_listed, 1200.0 AS total_teaching_hours UNION ALL
-  SELECT 'teacher2@studyflow.com',  '연세대학교',   '영어영문학과', '14학번', 'TOEIC 990 보유',               '서울 서초구',  '회화 중심 실용 영어 수업',      '영미문학 전공, 회화·문법 전문 강사입니다.',     88, TRUE,  980.5  UNION ALL
-  SELECT 'teacher3@studyflow.com',  '고려대학교',   '물리학과',    '16학번', '한국물리올림피아드 은상',        '서울 마포구',  '실험과 이론을 결합한 수업',      '물리의 재미를 알려드리는 강사입니다.',           82, TRUE,  750.0  UNION ALL
-  SELECT 'teacher4@studyflow.com',  '성균관대학교', '화학과',      '15학번', '대한화학회 우수논문상',          '경기 성남시',  '시각화 자료 활용 수업',          '화학을 쉽고 재미있게 가르칩니다.',               79, TRUE,  620.5  UNION ALL
-  SELECT 'teacher5@studyflow.com',  '한양대학교',   '국어국문학과','11학번', '전국 논술 지도 우수교사상',      '서울 송파구',  '독해력·논리력 강화 수업',        '국어·논술 17년 경력 강사입니다.',                91, TRUE,  1450.0 UNION ALL
-  SELECT 'teacher6@studyflow.com',  '이화여자대학교','사회학과',   '17학번', '사회탐구 1등급 배출 다수',       '서울 용산구',  '시사 연계 개념 수업',            '사회탐구 전 과목 지도 가능합니다.',              75, TRUE,  480.0  UNION ALL
-  SELECT 'teacher7@studyflow.com',  'KAIST',        '전산학부',    '13학번', '정보올림피아드 입상',            '대전 유성구',  '프로젝트 기반 코딩 수업',        '알고리즘과 SW 개발을 가르칩니다.',               85, TRUE,  860.5  UNION ALL
-  SELECT 'teacher8@studyflow.com',  '부산대학교',   '생물학과',    '18학번', '전국 생물탐구대회 대상',         '부산 해운대구','생명과학 실험 연계 수업',        '생명과학 전공, 탐구 실험 전문 강사입니다.',      72, TRUE,  390.0  UNION ALL
-  SELECT 'teacher9@studyflow.com',  '서강대학교',   '경제학과',    '10학번', '경제 논술 지도 수상',            '서울 영등포구','논리적 사고력 향상 수업',        '경제·사회 16년 강사 경력 보유입니다.',           93, TRUE,  1680.0 UNION ALL
-  SELECT 'teacher10@studyflow.com', '중앙대학교',   '음악교육학과','19학번', '전국 음악 콩쿠르 입상',          '서울 동작구',  '기초부터 심화까지 체계적 수업',  '피아노·음악이론 전공 강사입니다.',               68, TRUE,  270.5
+  SELECT 'teacher1@studyflow.com'  AS email, '서울대학교'       AS career, '수학과'           AS major, '12학번' AS admission_year, '전국수학올림피아드 금상'       AS awards, '서울 강남구'    AS address, '개념 중심의 단계별 수업'       AS teaching_style, '10년 경력의 수학 전문 강사입니다.'           AS introduction, 0 AS naegong_score, TRUE AS is_listed, 1200.0 AS total_teaching_hours UNION ALL
+  SELECT 'teacher2@studyflow.com',  '연세대학교',       '영어영문학과',     '14학번', 'TOEIC 990 보유',                 '서울 서초구',   '회화 중심 실용 영어 수업',      '영미문학 전공, 회화·문법 전문 강사입니다.',      0, TRUE,  980.5  UNION ALL
+  SELECT 'teacher3@studyflow.com',  '고려대학교',       '물리학과',         '16학번', '한국물리올림피아드 은상',         '서울 마포구',   '실험과 이론을 결합한 수업',     '물리의 재미를 알려드리는 강사입니다.',            0, TRUE,  750.0  UNION ALL
+  SELECT 'teacher4@studyflow.com',  '성균관대학교',     '화학과',           '15학번', '대한화학회 우수논문상',           '경기 성남시',   '시각화 자료 활용 수업',         '화학을 쉽고 재미있게 가르칩니다.',                0, TRUE,  620.5  UNION ALL
+  SELECT 'teacher5@studyflow.com',  '한양대학교',       '국어국문학과',     '11학번', '전국 논술 지도 우수교사상',       '서울 송파구',   '독해력·논리력 강화 수업',       '국어·논술 17년 경력 강사입니다.',                 0, TRUE,  1450.0 UNION ALL
+  SELECT 'teacher6@studyflow.com',  '이화여자대학교',   '사회학과',         '17학번', '사회탐구 1등급 배출 다수',        '서울 용산구',   '시사 연계 개념 수업',           '사회탐구 전 과목 지도 가능합니다.',               0, TRUE,  480.0  UNION ALL
+  SELECT 'teacher7@studyflow.com',  'KAIST',            '전산학부',         '13학번', '정보올림피아드 입상',             '대전 유성구',   '프로젝트 기반 코딩 수업',       '알고리즘과 SW 개발을 가르칩니다.',                0, TRUE,  860.5  UNION ALL
+  SELECT 'teacher8@studyflow.com',  '부산대학교',       '생물학과',         '18학번', '전국 생물탐구대회 대상',          '부산 해운대구', '생명과학 실험 연계 수업',       '생명과학 전공, 탐구 실험 전문 강사입니다.',       0, TRUE,  390.0  UNION ALL
+  SELECT 'teacher9@studyflow.com',  '서강대학교',       '경제학과',         '10학번', '경제 논술 지도 수상',             '서울 영등포구', '논리적 사고력 향상 수업',       '경제·사회 16년 강사 경력 보유입니다.',            0, TRUE,  1680.0 UNION ALL
+  SELECT 'teacher10@studyflow.com', '중앙대학교',       '음악교육학과',     '19학번', '전국 음악 콩쿠르 입상',           '서울 동작구',   '기초부터 심화까지 체계적 수업', '피아노·음악이론 전공 강사입니다.',                0, TRUE,  270.5  UNION ALL
+  SELECT 'teacher11@studyflow.com', '연세대학교',       '수학교육학과',     '15학번', '전국 수학올림피아드 동상',        '서울 서대문구', '단계별 개념 완성 수업',         '수학 개념의 본질을 가르치는 강사입니다.',         0, TRUE,  350.0  UNION ALL
+  SELECT 'teacher12@studyflow.com', '고려대학교',       '영어영문학과',     '13학번', 'Cambridge 영어강사 자격증',      '서울 성북구',   '독해와 문법 체계적 수업',       '영어 독해·문법 전문 강사입니다.',                 0, TRUE,  280.0  UNION ALL
+  SELECT 'teacher13@studyflow.com', '서울시립대학교',   '국어국문학과',     '16학번', NULL,                              '서울 동대문구', '문학·문법 통합 수업',           '국어 전 영역 내신·수능 지도합니다.',              0, TRUE,  420.0  UNION ALL
+  SELECT 'teacher14@studyflow.com', '한양대학교',       '생명과학과',       '12학번', NULL,                              '서울 성동구',   '실험 중심 탐구 수업',           '생명과학 개념부터 탐구까지 지도합니다.',          0, TRUE,  510.0  UNION ALL
+  SELECT 'teacher15@studyflow.com', '성균관대학교',     '사회학과',         '17학번', NULL,                              '경기 수원시',   '시사 연계 개념 수업',           '사회탐구 전 영역 지도 가능합니다.',               0, TRUE,  190.0  UNION ALL
+  SELECT 'teacher16@studyflow.com', '이화여자대학교',   '수학과',           '14학번', '이화여대 수학과 우등 졸업',       '서울 서대문구', '심화 문제풀이 중심 수업',       '수학 심화·올림피아드 전문 강사입니다.',           0, TRUE,  630.0  UNION ALL
+  SELECT 'teacher17@studyflow.com', '한국외국어대학교', '영어학과',         '11학번', NULL,                              '서울 동대문구', '회화·작문 통합 수업',           '영어 원어민 수준 발음 교정 강사입니다.',          0, TRUE,  740.0  UNION ALL
+  SELECT 'teacher18@studyflow.com', 'KAIST',            '전산학부',         '18학번', '정보올림피아드 입상',             '대전 유성구',   '프로젝트 기반 수업',            'AI·SW 분야 전문 강사입니다.',                     0, TRUE,  160.0  UNION ALL
+  SELECT 'teacher19@studyflow.com', '중앙대학교',       '국어국문학과',     '15학번', NULL,                              '서울 동작구',   '내신 맞춤형 수업',              '국어 내신 1등급 달성 전문 강사입니다.',           0, TRUE,  380.0  UNION ALL
+  SELECT 'teacher20@studyflow.com', '부산대학교',       '화학과',           '13학번', '한국 화학올림피아드 은상',        '부산 금정구',   '화학 실험 연계 수업',           '화학 이론과 실험을 함께 배웁니다.',               0, TRUE,  460.0  UNION ALL
+  SELECT 'teacher21@studyflow.com', '경희대학교',       '사회학과',         '17학번', NULL,                              '서울 동대문구', '개념·기출 반복 학습 수업',      '수능 사탐 영역 전문 강사입니다.',                 0, TRUE,  220.0  UNION ALL
+  SELECT 'teacher22@studyflow.com', '서강대학교',       '수학과',           '16학번', NULL,                              '서울 마포구',   '기초 개념 반복 강화 수업',      '수학 기초 완성 전문 강사입니다.',                 0, TRUE,  310.0  UNION ALL
+  SELECT 'teacher23@studyflow.com', '인하대학교',       '영어영문학과',     '14학번', 'TOEIC 970',                       '인천 남동구',   '수능 영어 독해 특화 수업',      '수능·내신 영어 전문 강사입니다.',                 0, TRUE,  250.0  UNION ALL
+  SELECT 'teacher24@studyflow.com', '세종대학교',       '생물학과',         '19학번', NULL,                              '서울 광진구',   '개념 중심 탐구 수업',           '생명과학 기초 지도합니다.',                       0, TRUE,  45.0   UNION ALL
+  SELECT 'teacher25@studyflow.com', '건국대학교',       '지리교육학과',     '16학번', NULL,                              '서울 광진구',   '지도·통계 활용 수업',           '사회·지리 과목 지도합니다.',                      0, TRUE,  30.0   UNION ALL
+  SELECT 'teacher26@studyflow.com', '동국대학교',       '수학과',           '18학번', NULL,                              '서울 중구',     '문제풀이 중심 수업',            '수학 문제풀이 전문 강사입니다.',                  0, TRUE,  55.0   UNION ALL
+  SELECT 'teacher27@studyflow.com', '아주대학교',       '영어영문학과',     '20학번', NULL,                              '경기 수원시',   '문법 중심 체계적 수업',         '영어 문법 기초 강사입니다.',                      0, TRUE,  20.0   UNION ALL
+  SELECT 'teacher28@studyflow.com', '숙명여자대학교',   '국어교육학과',     '17학번', NULL,                              '서울 용산구',   '작문·독해 균형 수업',           '국어 기초 문법 지도합니다.',                      0, TRUE,  15.0   UNION ALL
+  SELECT 'teacher29@studyflow.com', '경북대학교',       '화학과',           '15학번', NULL,                              '대구 북구',     '개념 이해 중심 수업',           '화학 기초부터 차근차근 지도합니다.',              0, TRUE,  35.0   UNION ALL
+  SELECT 'teacher30@studyflow.com', '홍익대학교',       '컴퓨터공학과',     '20학번', NULL,                              '서울 마포구',   '실습 위주 코딩 수업',           '정보 과목·코딩 입문 강사입니다.',                 0, TRUE,  10.0
 ) t ON u.email = t.email
 WHERE u.role = 'TEACHER';
 
