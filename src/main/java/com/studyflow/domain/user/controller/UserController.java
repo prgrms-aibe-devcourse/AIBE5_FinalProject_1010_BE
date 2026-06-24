@@ -35,14 +35,6 @@ public class UserController {
     @PatchMapping("/me")
     public ResponseEntity<?> updateUser(@AuthenticationPrincipal Long userId,
                                         @Valid @RequestBody UserUpdateRequest request) {
-        if(userId == null) {
-            Map<String, Object> body = Map.of(
-                    "code", "AUTH_REQUIRED",
-                    "message", "인증 정보가 유효하지 않습니다."
-            );
-            return ResponseEntity.status(401).body(body);
-        }
-
         userService.updateUser(userId, request);
         return ResponseEntity.ok().build();
     }
@@ -51,14 +43,6 @@ public class UserController {
     @PatchMapping("/me/voice-call-setting")
     public ResponseEntity<?> updateVoiceCallSetting(@AuthenticationPrincipal Long userId,
                                                     @Valid @RequestBody VoiceCallSettingRequest request) {
-        if(userId == null) {
-            Map<String, Object> body = Map.of(
-                    "code", "AUTH_REQUIRED",
-                    "message", "인증 정보가 유효하지 않습니다."
-            );
-            return ResponseEntity.status(401).body(body);
-        }
-
         userService.updateVoiceCallSetting(userId, request.isVoiceCallEnabled());
         return ResponseEntity.ok().build();
     }
@@ -67,14 +51,6 @@ public class UserController {
     @PatchMapping("/me/password")
     public ResponseEntity<?> changePassword(@AuthenticationPrincipal Long userId,
                                             @Valid @RequestBody PasswordChangeRequest request) {
-        if (userId == null) {
-            Map<String, Object> body = Map.of(
-                    "code", "AUTH_REQUIRED",
-                    "message", "인증 정보가 유효하지 않습니다."
-            );
-            return ResponseEntity.status(401).body(body);
-        }
-
         userService.changePassword(userId, request);
         return ResponseEntity.ok().build();
     }
@@ -82,14 +58,6 @@ public class UserController {
     // 회원 탈퇴
     @DeleteMapping("/me")
     public ResponseEntity<?> deleteUser(@AuthenticationPrincipal Long userId) {
-        if(userId == null) {
-            Map<String, Object> body = Map.of(
-                    "code", "AUTH_REQUIRED",
-                    "message", "인증 정보가 유효하지 않습니다."
-            );
-            return ResponseEntity.status(401).body(body);
-        }
-
         userService.deleteUser(userId);
 
         ResponseCookie deleteCookie = refreshCookieCreator.createRefreshCookie("",0);

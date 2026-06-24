@@ -428,7 +428,7 @@ public class ChatService {
         return "DIRECT:T:%d:S:%d".formatted(teacherId, studentId);
     }
 
-    ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
+    public ChatRoomResponse toChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
         List<ChatRoomParticipant> participants =
                 chatRoomParticipantRepository.findByChatRoomIdAndLeftAtIsNull(chatRoom.getId());
 
