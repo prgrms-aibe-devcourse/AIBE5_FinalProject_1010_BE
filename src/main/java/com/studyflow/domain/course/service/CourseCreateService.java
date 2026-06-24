@@ -13,6 +13,7 @@ import com.studyflow.domain.teacher.entity.TeacherProfile;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.repository.TeacherProfileRepository;
+import com.studyflow.domain.teacher.service.TeacherVerificationGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,9 +27,13 @@ public class CourseCreateService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final SubjectRepository subjectRepository;
     private final CreditService creditService;
+    private final TeacherVerificationGuard teacherVerificationGuard;
 
     @Transactional
     public CourseCreateResponse createCourse(Long teacherUserId, CourseCreateRequest request) {
+        // 관리자 인증을 받은 선생님만 수업 등록 가능
+        teacherVerificationGuard.requireVerified(teacherUserId);
+
         // 로그인한 선생님의 프로필 조회 — 수업에 teacher_profile_id 연결 필요
         TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(teacherUserId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(teacherUserId));

@@ -14,8 +14,10 @@ import com.studyflow.domain.classroom.exception.ClassroomForbiddenException;
 import com.studyflow.domain.classroom.exception.ClassroomNotOpenException;
 import com.studyflow.domain.classroom.exception.ClassroomParticipantNotFoundException;
 import com.studyflow.domain.classroom.exception.ClassroomSessionNotFoundException;
+import com.studyflow.domain.classroom.exception.PreviewLimitExceededException;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.auth.exception.*;
+import com.studyflow.domain.course.exception.CourseAlreadyClosedException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotDeletableException;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
@@ -29,6 +31,7 @@ import com.studyflow.domain.teacher.exception.InvalidVerificationFileException;
 import com.studyflow.domain.teacher.exception.TeacherProfileNotFoundException;
 import com.studyflow.domain.teacher.exception.TeacherHasListedCoursesException;
 import com.studyflow.domain.teacher.exception.VerificationAlreadyPendingException;
+import com.studyflow.domain.teacher.exception.TeacherNotVerifiedException;
 import com.studyflow.domain.admin.exception.StatisticsDateNotPastException;
 import com.studyflow.domain.admin.exception.VerificationNotFoundException;
 import com.studyflow.domain.admin.exception.VerificationNotPendingException;
@@ -316,11 +319,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }
 
+    // 관리자 인증이 안 된 선생님이 선생님 전용 기능 사용 시도 (403)
+    @ExceptionHandler(TeacherNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleTeacherNotVerified(TeacherNotVerifiedException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
     // 수강 중인 학생이 있는 수업 삭제 시도 (400)
     @ExceptionHandler(CourseHasActiveStudentsException.class)
     public ResponseEntity<Map<String, Object>> handleCourseHasActiveStudents(CourseHasActiveStudentsException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorCode.COURSE_HAS_ACTIVE_STUDENTS.toBody(ex.getMessage()));
+    }
+
+    // 이미 종료된 수업 재종료 시도 (400)
+    @ExceptionHandler(CourseAlreadyClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseAlreadyClosed(CourseAlreadyClosedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorCode.COURSE_ALREADY_CLOSED.toBody(ex.getMessage()));
     }
 
     @ExceptionHandler(CourseNotDeletableException.class)
@@ -510,6 +527,13 @@ public class GlobalExceptionHandler {
     // 이미 종료된 강의실에 참가/종료 시도 등 상태 위배 (400)
     @ExceptionHandler(ClassroomNotOpenException.class)
     public ResponseEntity<Map<String, Object>> handleClassroomNotOpen(ClassroomNotOpenException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
+    }
+
+    // 수업당 미리보기 2회 한도 초과 (429)
+    @ExceptionHandler(PreviewLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handlePreviewLimitExceeded(PreviewLimitExceededException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus()).body(errorCode.toBody(ex.getMessage()));
     }

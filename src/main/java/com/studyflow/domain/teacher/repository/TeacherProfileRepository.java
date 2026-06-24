@@ -81,6 +81,22 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
            "WHERE tp.id = :id AND u.isDeleted = 0 AND u.isActive = true")
     Optional<TeacherProfile> findWithUserById(@Param("id") Long id);
 
+    // 이번주 HOT 선생님 — userId 목록으로 노출(isListed)·활성 선생님 프로필 일괄 조회 (주간 내공 획득자용)
+    // 본인을 검색에서 숨긴(isListed=false) 선생님은 메인 노출에서 제외한다.
+    @Query("SELECT tp FROM TeacherProfile tp JOIN FETCH tp.user u " +
+           "WHERE u.id IN :userIds AND tp.isListed = true AND u.isActive = true AND u.isDeleted = 0")
+    List<TeacherProfile> findListedWithUserByUserIds(@Param("userIds") List<Long> userIds);
+
+    // 이번주 HOT 선생님 fallback — 주간 획득자가 3명 미만일 때 전체기간 내공순으로 채움
+    // excludeUserIds: 이미 포함된 주간 획득자(중복 방지). 빈 목록이면 noExclusions=true로 NOT IN 무력화.
+    @Query("SELECT tp FROM TeacherProfile tp JOIN FETCH tp.user u " +
+           "WHERE tp.isListed = true AND u.isActive = true AND u.isDeleted = 0 " +
+           "AND (:noExclusions = true OR u.id NOT IN :excludeUserIds) " +
+           "ORDER BY tp.naegongScore DESC, tp.id ASC")
+    List<TeacherProfile> findTopByNaegongScore(@Param("noExclusions") boolean noExclusions,
+                                               @Param("excludeUserIds") List<Long> excludeUserIds,
+                                               Pageable pageable);
+
     // 로그인한 선생님의 프로필 조회 — 수업 생성 시 teacherProfile 참조용
     Optional<TeacherProfile> findByUserId(Long userId);
 

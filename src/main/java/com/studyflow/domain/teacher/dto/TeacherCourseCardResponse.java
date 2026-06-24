@@ -21,9 +21,15 @@ public class TeacherCourseCardResponse {
     private int durationMinutes;    // 회당 수업 시간 (분)
     private String thumbnailUrl;
     private CourseStatus status;
+    private boolean hasActiveStudents;
 
+    // ACTIVE 수강생 조회를 생략하는 공개 페이지용 기본 변환 메서드
     // subject는 JOIN FETCH 후 전달해야 LazyInitializationException 방지
     public static TeacherCourseCardResponse from(Course course) {
+        return from(course, false);
+    }
+
+    public static TeacherCourseCardResponse from(Course course, boolean hasActiveStudents) {
         return TeacherCourseCardResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -34,6 +40,7 @@ public class TeacherCourseCardResponse {
                 .durationMinutes(course.getDurationMinutes())
                 .thumbnailUrl(course.getThumbnailUrl())
                 .status(course.getStatus())
+                .hasActiveStudents(hasActiveStudents)
                 .build();
     }
 }

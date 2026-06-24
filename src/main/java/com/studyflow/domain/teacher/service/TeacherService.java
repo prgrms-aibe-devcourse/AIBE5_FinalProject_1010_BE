@@ -8,8 +8,11 @@ import com.studyflow.domain.teacher.dto.TeacherVerificationRequest;
 import com.studyflow.domain.teacher.dto.TeacherVerificationResponse;
 import com.studyflow.domain.teacher.entity.TeacherVerification;
 import com.studyflow.domain.teacher.enums.VerificationStatus;
+import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.enrollment.entity.EnrollmentRequest;
 import com.studyflow.domain.enrollment.enums.EnrollmentRequestStatus;
+import com.studyflow.domain.enrollment.enums.EnrollmentStatus;
+import com.studyflow.domain.enrollment.repository.EnrollmentRepository;
 import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
 import com.studyflow.domain.qna.repository.QnaAnswerRepository;
 import com.studyflow.domain.student.entity.StudentProfile;
@@ -61,6 +64,7 @@ public class TeacherService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentRequestRepository enrollmentRequestRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherVerificationRepository teacherVerificationRepository;
@@ -244,9 +248,28 @@ public class TeacherService {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> TeacherProfileNotFoundException.ofUserId(userId));
 
-        return courseRepository
-                .findWithSubjectByTeacherProfileIdAndStatus(profile.getId(), status, pageable)
-                .map(TeacherCourseCardResponse::from);
+        Page<Course> courses = courseRepository
+                .findWithSubjectByTeacherProfileIdAndStatus(profile.getId(), status, pageable);
+
+        List<Long> courseIds = courses.getContent().stream()
+                .map(Course::getId)
+                .toList();
+
+        // courseIds가 비어있으면 IN 쿼리 생략 (빈 컬렉션 바인딩 오류 방지)
+        Map<Long, Long> activeCounts;
+        if (courseIds.isEmpty()) {
+            activeCounts = Map.of();
+        } else {
+            activeCounts = enrollmentRepository
+                    .countByCourseIdsAndStatus(courseIds, EnrollmentStatus.ACTIVE)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            EnrollmentRepository.CourseEnrollmentCount::getCourseId,
+                            EnrollmentRepository.CourseEnrollmentCount::getCount));
+        }
+
+        return courses.map(course ->
+                TeacherCourseCardResponse.from(course, activeCounts.getOrDefault(course.getId(), 0L) > 0));
     }
 
     // 본인 수업에 대한 수강 신청 목록 조회 — courseId/status 필터 옵션, 12개씩 페이지네이션

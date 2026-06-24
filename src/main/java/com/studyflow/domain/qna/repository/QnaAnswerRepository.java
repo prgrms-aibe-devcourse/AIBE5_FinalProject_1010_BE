@@ -15,6 +15,8 @@ public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, Qna
 
     boolean existsByQuestionIdAndAccepted(Long questionId, boolean accepted);
 
+    Optional<QnaAnswer> findFirstByQuestionIdAndAcceptedTrue(Long questionId);
+
     // 선생님 상세 페이지 활동 통계 — 작성자(author=User) 기준 답변 수 / 채택된 답변 수
     long countByAuthorId(Long authorId);
 

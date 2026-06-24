@@ -39,6 +39,7 @@ public enum ErrorCode {
     TEACHER_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있는 수업이 존재하여 탈퇴할 수 없습니다. 먼저 해당 수업을 종료해주세요."),
 
     // 선생님 인증
+    TEACHER_NOT_VERIFIED(HttpStatus.FORBIDDEN, "관리자 인증이 완료된 선생님만 사용할 수 있는 기능입니다. 마이페이지 > 인증에서 인증을 완료해 주세요."),
     VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 심사 중인 인증 요청이 있습니다."),
     VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "인증 요청을 찾을 수 없습니다."),
     VERIFICATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "심사 중이 아닌 인증 요청입니다."),
@@ -48,6 +49,7 @@ public enum ErrorCode {
     COURSE_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "해당 강의의 참여자가 아닙니다."),
     COURSE_ACCESS_FORBIDDEN(HttpStatus.FORBIDDEN, "강의에 대한 접근 권한이 없습니다."),
     COURSE_HAS_ACTIVE_STUDENTS(HttpStatus.BAD_REQUEST, "수강 중인 학생이 있어 해당 작업을 수행할 수 없습니다."),
+    COURSE_ALREADY_CLOSED(HttpStatus.BAD_REQUEST, "이미 종료된 수업입니다."),
     COURSE_NOT_DELETABLE(HttpStatus.CONFLICT, "아무도 사용하지 않은 모집중 수업만 삭제할 수 있습니다. 이미 사용된 수업은 PATCH /close를 이용해 종료하세요."),
 
     // 공지사항
@@ -93,6 +95,7 @@ public enum ErrorCode {
     CLASSROOM_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "강의실 참가자를 찾을 수 없습니다."),
     CLASSROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "강의실에 대한 권한이 없습니다."),
     CLASSROOM_NOT_OPEN(HttpStatus.BAD_REQUEST, "열려 있는 강의실이 아닙니다."),
+    PREVIEW_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "수업당 미리보기는 최대 2회까지 가능합니다."),
 
     // 파일
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),

@@ -31,4 +31,8 @@ public interface ChatRoomParticipantRepository extends JpaRepository<ChatRoomPar
      * 1:1 매칭 문의 채팅에서는 결과가 선생님 1명 + 학생 1명, 총 2명이어야 한다.
      */
     List<ChatRoomParticipant> findByChatRoomIdAndLeftAtIsNull(Long chatRoomId);
+    /**
+     * 특정 채팅방의 모든 참여자(나간 사람 포함) 목록 조회.
+     */
+    List<ChatRoomParticipant> findByChatRoomId(Long chatRoomId);
 }

@@ -8,6 +8,7 @@ import com.studyflow.domain.course.dto.update.CourseUpdateRequest;
 import com.studyflow.domain.course.entity.Course;
 import com.studyflow.domain.course.enums.CourseStatus;
 import com.studyflow.domain.course.exception.CourseAccessForbiddenException;
+import com.studyflow.domain.course.exception.CourseAlreadyClosedException;
 import com.studyflow.domain.course.exception.CourseHasActiveStudentsException;
 import com.studyflow.domain.course.exception.CourseNotFoundException;
 import com.studyflow.domain.course.exception.CourseNotDeletableException;
@@ -21,6 +22,7 @@ import com.studyflow.domain.enrollment.repository.EnrollmentRequestRepository;
 import com.studyflow.domain.subject.entity.Subject;
 import com.studyflow.domain.subject.exception.SubjectNotFoundException;
 import com.studyflow.domain.subject.repository.SubjectRepository;
+import com.studyflow.domain.teacher.service.TeacherVerificationGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,10 +41,14 @@ public class CourseUpdateService {
     private final AssignmentRepository assignmentRepository;
     private final ClassroomSessionRepository classroomSessionRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final TeacherVerificationGuard teacherVerificationGuard;
 
     // 수업 수정
     @Transactional
     public CourseCreateResponse updateCourse(Long courseId, Long teacherUserId, CourseUpdateRequest request) {
+        // 관리자 인증을 받은 선생님만 수업 수정 가능
+        teacherVerificationGuard.requireVerified(teacherUserId);
+
         // teacherProfile → user 까지 페치 (소유권 확인에 user.id 필요)
         Course course = courseRepository.findWithTeacherAndSubjectById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
@@ -89,6 +95,11 @@ public class CourseUpdateService {
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
 
         assertTeacherOwner(course, teacherUserId);
+
+        // 이미 종료된 수업 재종료 방지 — 내공 중복 지급 차단
+        if (course.getStatus() == CourseStatus.CLOSED) {
+            throw new CourseAlreadyClosedException();
+        }
 
         // 수강 중인 학생이 있으면 종료 불가
         long activeStudents = enrollmentRepository.countByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE);
