@@ -58,11 +58,7 @@ public class QnaQuestion extends BaseTimeEntity {
     // 질문 하나당 내공은 누가 받았는지와 관계없이 1회만 지급한다.
     // 즉, 선생님 A가 채택 후 자신의 답변을 삭제하고 선생님 B가 재채택되어도 B에게 추가 내공은 지급하지 않는다.
     // (내공 복사 악용 방지 목적의 의도된 트레이드오프)
-    @Column(
-            name = "accepted_answer_naegong_paid",
-            nullable = false,
-            columnDefinition = "TINYINT(1) NOT NULL DEFAULT 0"
-    )
+    @Column(name = "accepted_answer_naegong_paid", nullable = false)
     private boolean acceptedAnswerNaegongPaid = false;
 
     @Column(name = "view_count", nullable = false)
