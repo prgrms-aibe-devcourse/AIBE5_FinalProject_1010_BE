@@ -73,4 +73,30 @@ public class CreditController {
                 "page", page.getNumber()
         ));
     }
+
+    @GetMapping("/me/earnings")
+    public ResponseEntity<Map<String, Object>> myEarnings(
+            @AuthenticationPrincipal Long userId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<CreditHistory> page = creditService.getEarningsHistory(userId, pageable);
+        Long totalEarnings = creditService.getTotalEarnings(userId);
+        
+        List<Map<String, Object>> items = page.getContent().stream()
+                .map(h -> Map.<String, Object>of(
+                        "id", h.getId(),
+                        "amount", h.getAmount(),
+                        "reason", h.getReason().name(),
+                        "balanceAfter", h.getBalanceAfter(),
+                        "createdAt", h.getCreatedAt()
+                ))
+                .toList();
+                
+        return ResponseEntity.ok(Map.of(
+                "totalEarnings", totalEarnings,
+                "content", items,
+                "totalElements", page.getTotalElements(),
+                "totalPages", page.getTotalPages(),
+                "page", page.getNumber()
+        ));
+    }
 }

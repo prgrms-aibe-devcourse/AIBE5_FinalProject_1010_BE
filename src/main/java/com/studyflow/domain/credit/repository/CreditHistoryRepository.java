@@ -13,6 +13,11 @@ import java.time.LocalDateTime;
 public interface CreditHistoryRepository extends JpaRepository<CreditHistory, Long> {
     Page<CreditHistory> findByUserIdOrderByIdDesc(Long userId, Pageable pageable);
 
+    Page<CreditHistory> findByUserIdAndReasonOrderByIdDesc(Long userId, CreditReason reason, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM CreditHistory c WHERE c.userId = :userId AND c.reason = :reason")
+    Long sumAmountByUserIdAndReason(@Param("userId") Long userId, @Param("reason") CreditReason reason);
+
     @Query("SELECT new com.studyflow.domain.admin.dto.AdminCreditHistoryResponse(" +
            "c.id, u.id, u.email, u.name, c.amount, c.reason, c.refId, c.balanceAfter, c.createdAt) " +
            "FROM CreditHistory c JOIN User u ON c.userId = u.id " +

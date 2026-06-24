@@ -36,6 +36,16 @@ public class CreditService {
         return creditHistoryRepository.findByUserIdOrderByIdDesc(userId, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public Page<CreditHistory> getEarningsHistory(Long userId, Pageable pageable) {
+        return creditHistoryRepository.findByUserIdAndReasonOrderByIdDesc(userId, CreditReason.ENROLLMENT_INCOME, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Long getTotalEarnings(Long userId) {
+        return creditHistoryRepository.sumAmountByUserIdAndReason(userId, CreditReason.ENROLLMENT_INCOME);
+    }
+
     /** 마일리지 적립(충전/환불). 적립 후 잔액 반환. */
     @Transactional
     public long charge(Long userId, long amount, CreditReason reason, Long refId) {
