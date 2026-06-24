@@ -147,6 +147,12 @@ cors:
 oauth2:
   frontend-url: ${FRONTEND_URL}
 
+# 토스페이먼츠(결제). 운영은 실제 상점 키를 환경변수로 주입(시크릿 노출 금지).
+toss:
+  client-key: ${TOSS_CLIENT_KEY:test_ck_docs_Ovk5rk1EwkEbP0W43n07xlzm}
+  secret-key: ${TOSS_SECRET_KEY:}
+  confirm-url: ${TOSS_CONFIRM_URL:https://api.tosspayments.com/v1/payments/confirm}
+
 openai:
   base-url: https://api.openai.com/v1
   model: gpt-4o-mini

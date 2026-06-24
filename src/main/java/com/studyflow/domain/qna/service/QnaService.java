@@ -314,8 +314,19 @@ public class QnaService {
         question.markResolved();
 
         User teacher = answer.getAuthor();
-        int teacherNaegongScore = naegongService.addScore(
-                teacher, ACCEPT_ANSWER_NAEGONG_SCORE, NaegongReason.ANSWER_ACCEPTED, answer.getId());
+
+        // 질문 하나당 내공은 평생 1회만 지급 — 채택 취소/재채택, 답변 삭제 후 재작성/재채택 등 중복 지급 방지
+        int naegongScoreAwarded = 0;
+        int teacherNaegongScore;
+        if (!question.isAcceptedAnswerNaegongPaid()) {
+            teacherNaegongScore = naegongService.addScore(
+                    teacher, ACCEPT_ANSWER_NAEGONG_SCORE, NaegongReason.ANSWER_ACCEPTED, answer.getId());
+            question.markNaegongPaid();
+            naegongScoreAwarded = ACCEPT_ANSWER_NAEGONG_SCORE;
+        } else {
+            // 이미 지급된 질문 — 내공 지급 스킵, 현재 누적 내공을 그대로 반환
+            teacherNaegongScore = naegongService.getCurrentScore(teacher.getId());
+        }
 
         // 채택된 답변 작성 선생님에게 알림(클릭 시 /qna/{questionId} 이동). 본인 채택 자기알림 방지.
         if (!teacher.getId().equals(userId)) {
@@ -332,7 +343,7 @@ public class QnaService {
                 teacher.getId(),
                 true,
                 true,
-                ACCEPT_ANSWER_NAEGONG_SCORE,
+                naegongScoreAwarded,
                 teacherNaegongScore);
     }
 

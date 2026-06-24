@@ -15,10 +15,15 @@ import com.studyflow.domain.ai.exception.ConversationNotFoundException;
 import com.studyflow.domain.ai.exception.SubjectNotFoundException;
 import com.studyflow.domain.ai.repository.AiQuestionRepository;
 import com.studyflow.domain.ai.repository.ConversationRepository;
+import com.studyflow.domain.credit.CreditPolicy;
+import com.studyflow.domain.credit.enums.CreditReason;
+import com.studyflow.domain.credit.service.CreditService;
 import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.file.service.FileService;
 import com.studyflow.domain.subject.entity.Subject;
+import com.studyflow.domain.subscription.enums.SubscriptionType;
+import com.studyflow.domain.subscription.service.SubscriptionService;
 import com.studyflow.domain.subject.repository.SubjectRepository;
 import com.studyflow.domain.user.entity.User;
 import com.studyflow.domain.user.repository.UserRepository;
@@ -61,6 +66,8 @@ public class AiQuestionService {
     private final ConversationRepository conversationRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
+    private final CreditService creditService;
+    private final SubscriptionService subscriptionService;
     private final FileAssetRepository fileAssetRepository;
     private final OpenAiClient openAiClient;
     private final OpenAiImageClient openAiImageClient;
@@ -102,6 +109,9 @@ public class AiQuestionService {
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
 
+        // 1-1) AI 질문 사용료(마일리지) 차감. 잔액 부족이면 InsufficientCreditException → 충전 유도.
+        chargeAiQuestionIfNeeded(userId);
+
         // 2) 첨부 이미지(선택, 여러 장) 해석: fileId 목록을 FileAsset 목록으로 변환·검증한다.
         List<FileAsset> images = resolveImages(request.questionImageFileIds(), userId);
 
@@ -139,12 +149,20 @@ public class AiQuestionService {
      * @param request 질문 요청
      * @return SSE 이벤트 스트림
      */
+    private void chargeAiQuestionIfNeeded(Long userId) {
+        if (subscriptionService.hasActiveSubscription(userId, SubscriptionType.AI_QUESTION)) {
+            return;
+        }
+        creditService.deduct(userId, CreditPolicy.AI_QUESTION_COST, CreditReason.AI_QUESTION, null);
+    }
     public Flux<ServerSentEvent<String>> askStream(Long userId, AiQuestionCreateRequest request) {
         // 1) 스트림 시작 전에 동기로 검증한다(여기서 던진 예외는 GlobalExceptionHandler가 처리).
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new SubjectNotFoundException(request.subjectId()));
+        // AI 질문 사용료(마일리지) 차감 — 스트림 시작 전에 동기로(잔액 부족이면 여기서 막힘).
+        chargeAiQuestionIfNeeded(userId);
         // 첨부 이미지는 소유/유효성만 검증해 저장 시 연결한다.
         // (1단계: 동기 ask()와 동일하게 OpenAI 호출에는 텍스트만 보내고, 이미지는 vision으로
         //  전달하지 않는다. 2단계에서 images의 URL들을 vision 입력으로 확장 예정.)

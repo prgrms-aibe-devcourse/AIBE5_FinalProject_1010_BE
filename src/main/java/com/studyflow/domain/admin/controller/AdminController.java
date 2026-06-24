@@ -1,7 +1,10 @@
 package com.studyflow.domain.admin.controller;
 
 import com.studyflow.domain.teacher.enums.VerificationStatus;
+import com.studyflow.domain.admin.dto.AdminCreditHistoryResponse;
+import com.studyflow.domain.admin.dto.AdminCreditSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminVerificationDetailResponse;
+import com.studyflow.domain.credit.enums.CreditReason;
 import com.studyflow.domain.admin.dto.AdminVerificationSummaryResponse;
 import com.studyflow.domain.admin.dto.AdminUserDetailInterface;
 import com.studyflow.domain.admin.dto.AdminUserSummaryResponse;
@@ -11,6 +14,10 @@ import com.studyflow.domain.admin.dto.UserCountByRoleResponse;
 import com.studyflow.domain.admin.dto.UserCountStatisticsResponse;
 import com.studyflow.domain.admin.service.AdminService;
 import com.studyflow.domain.course.enums.CourseStatus;
+import com.studyflow.domain.credit.dto.WithdrawalResponseDto;
+import com.studyflow.domain.credit.enums.WithdrawalStatus;
+import com.studyflow.domain.credit.repository.WithdrawalRequestRepository;
+import com.studyflow.domain.credit.service.WithdrawalService;
 import com.studyflow.domain.user.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
+    private final WithdrawalService withdrawalService;
 
     // 선생님 인증요청 목록 조회
     // 예시: GET /api/v1/admin/teacher-verifications?status=PENDING&page=0&size=12
@@ -144,5 +152,50 @@ public class AdminController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<AdminUserDetailInterface> getUserDetail(@PathVariable Long userId) {
         return ResponseEntity.ok(adminService.getUserDetail(userId));
+    }
+
+    // 관리자 페이지 - 결제/마일리지 내역 전체 조회
+    // 예시: GET /api/v1/admin/credit-histories?startDate=2026-06-01&endDate=2026-06-30&email=test@test.com&reason=CHARGE&page=0&size=20
+    @GetMapping("/credit-histories")
+    public ResponseEntity<Page<AdminCreditHistoryResponse>> getCreditHistories(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) CreditReason reason,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(adminService.getCreditHistories(email, startDate, endDate, reason, pageable));
+    }
+
+    // 관리자 페이지 - 결제/마일리지 내역 통계 요약
+    @GetMapping("/credit-histories/summary")
+    public ResponseEntity<AdminCreditSummaryResponse> getCreditSummary(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) CreditReason reason) {
+        return ResponseEntity.ok(adminService.getCreditSummary(email, startDate, endDate, reason));
+    }
+
+    // 마일리지 환급 신청 목록 조회
+    // 예시: GET /api/v1/admin/withdrawals?status=PENDING&page=0&size=20
+    @GetMapping("/withdrawals")
+    public ResponseEntity<Page<WithdrawalResponseDto>> getWithdrawals(
+            @RequestParam(required = false) WithdrawalStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(withdrawalService.getWithdrawals(status, pageable));
+    }
+
+    // 마일리지 환급 승인
+    @PostMapping("/withdrawals/{id}/approve")
+    public ResponseEntity<Void> approveWithdrawal(@PathVariable Long id) {
+        withdrawalService.approveWithdrawal(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // 마일리지 환급 거절
+    @PostMapping("/withdrawals/{id}/reject")
+    public ResponseEntity<Void> rejectWithdrawal(@PathVariable Long id) {
+        withdrawalService.rejectWithdrawal(id);
+        return ResponseEntity.ok().build();
     }
 }
