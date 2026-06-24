@@ -59,7 +59,7 @@ public class CreditService {
                 .distinct()
                 .toList();
                 
-        Map<Long, String> courseTitles = courseRepository.findAllById(courseIds).stream()
+        Map<Long, String> courseTitles = courseIds.isEmpty() ? Map.of() : courseRepository.findAllById(courseIds).stream()
                 .collect(Collectors.toMap(Course::getId, Course::getTitle));
                 
         return page.map(h -> new TeacherEarningsItemDto(
@@ -82,7 +82,7 @@ public class CreditService {
     /** 마일리지 적립(충전/환불). 적립 후 잔액 반환. */
     @Transactional
     public long charge(Long userId, long amount, CreditReason reason, Long refId) {
-        CreditAccount account = getOrCreate(userId);
+        CreditAccount account = getOrCreateWithLock(userId);
         long balance = account.charge(amount);
         creditHistoryRepository.save(CreditHistory.of(userId, amount, reason, refId, balance));
         return balance;
@@ -91,7 +91,7 @@ public class CreditService {
     /** 마일리지 차감(기능 사용). 잔액 부족 시 InsufficientCreditException. 차감 후 잔액 반환. */
     @Transactional
     public long deduct(Long userId, long amount, CreditReason reason, Long refId) {
-        CreditAccount account = getOrCreate(userId);
+        CreditAccount account = getOrCreateWithLock(userId);
         long balance = account.deduct(amount);
         creditHistoryRepository.save(CreditHistory.of(userId, -amount, reason, refId, balance));
         return balance;
@@ -99,6 +99,11 @@ public class CreditService {
 
     private CreditAccount getOrCreate(Long userId) {
         return creditAccountRepository.findByUserId(userId)
+                .orElseGet(() -> creditAccountRepository.save(CreditAccount.createFor(userId)));
+    }
+
+    private CreditAccount getOrCreateWithLock(Long userId) {
+        return creditAccountRepository.findWithLockByUserId(userId)
                 .orElseGet(() -> creditAccountRepository.save(CreditAccount.createFor(userId)));
     }
 }
