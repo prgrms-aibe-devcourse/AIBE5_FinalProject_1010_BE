@@ -54,5 +54,4 @@ Desktop.ini
 uploads/
 
 ### 더미데이터 관련
-dummy_data.sql
-dummy_data_deleted.sql
+dummy_data/
