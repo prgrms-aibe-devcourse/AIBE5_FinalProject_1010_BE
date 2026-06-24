@@ -106,13 +106,13 @@ SELECT u.id,
        u.created_at, u.created_at
 FROM users u
 JOIN (
-  SELECT 'del_teacher01@studyflow.com' AS email, '경희대학교'       AS career, '수학교육학과'  AS major, '15학번' AS admission_year, NULL                           AS awards, '서울 강북구'  AS address, '기초 개념 중심 수업'         AS teaching_style, '수학을 쉽게 가르치는 강사입니다.'      AS introduction, 60 AS naegong_score, FALSE AS is_listed, 120.0 AS total_teaching_hours UNION ALL
-  SELECT 'del_teacher02@studyflow.com', '인하대학교',   '영어교육학과',  '13학번', '전국 영어말하기대회 지도 수상', '인천 남동구',  '발음 교정 중심 수업',           '영어 발음과 회화 전문 강사입니다.',              55, FALSE, 85.5  UNION ALL
-  SELECT 'del_teacher03@studyflow.com', '건국대학교',   '물리학과',      '17학번', NULL,                           '서울 광진구',  '개념과 문제풀이 병행 수업',     '물리 기초부터 심화까지 지도합니다.',             48, FALSE, 42.0  UNION ALL
-  SELECT 'del_teacher04@studyflow.com', '세종대학교',   '국어교육학과',  '14학번', NULL,                           '서울 광진구',  '읽기·쓰기 통합 수업',           '국어 문법과 독해 전문 강사입니다.',              52, FALSE, 65.0  UNION ALL
-  SELECT 'del_teacher05@studyflow.com', '아주대학교',   '화학공학과',    '11학번', '전국 화학 경시 입상',           '경기 수원시',  '실생활 연계 화학 수업',         '화학·과학 15년 경력 보유입니다.',                70, TRUE,  540.0 UNION ALL
-  SELECT 'del_teacher06@studyflow.com', '동국대학교',   '역사교육학과',  '16학번', NULL,                           '서울 중구',    '스토리텔링 역사 수업',          '한국사·세계사 통합 지도합니다.',                 45, FALSE, 30.0  UNION ALL
-  SELECT 'del_teacher07@studyflow.com', '숙명여자대학교','수학과',        '18학번', NULL,                           '서울 용산구',  '단계별 맞춤 수업',              '수학 기초 확립 전문 강사입니다.',                38, FALSE, 15.5
+  SELECT 'del_teacher01@studyflow.com' AS email, '경희대학교'       AS career, '수학교육학과'  AS major, '15학번' AS admission_year, NULL                           AS awards, '서울 강북구'  AS address, '기초 개념 중심 수업'         AS teaching_style, '수학을 쉽게 가르치는 강사입니다.'      AS introduction, 0 AS naegong_score, FALSE AS is_listed, 0.0 AS total_teaching_hours UNION ALL
+  SELECT 'del_teacher02@studyflow.com', '인하대학교',   '영어교육학과',  '13학번', '전국 영어말하기대회 지도 수상', '인천 남동구',  '발음 교정 중심 수업',           '영어 발음과 회화 전문 강사입니다.',              0, FALSE, 0.0 UNION ALL
+  SELECT 'del_teacher03@studyflow.com', '건국대학교',   '물리학과',      '17학번', NULL,                           '서울 광진구',  '개념과 문제풀이 병행 수업',     '물리 기초부터 심화까지 지도합니다.',             0, FALSE, 0.0 UNION ALL
+  SELECT 'del_teacher04@studyflow.com', '세종대학교',   '국어교육학과',  '14학번', NULL,                           '서울 광진구',  '읽기·쓰기 통합 수업',           '국어 문법과 독해 전문 강사입니다.',              0, FALSE, 0.0 UNION ALL
+  SELECT 'del_teacher05@studyflow.com', '아주대학교',   '화학공학과',    '11학번', '전국 화학 경시 입상',           '경기 수원시',  '실생활 연계 화학 수업',         '화학·과학 15년 경력 보유입니다.',                0, TRUE,  0.0 UNION ALL
+  SELECT 'del_teacher06@studyflow.com', '동국대학교',   '역사교육학과',  '16학번', NULL,                           '서울 중구',    '스토리텔링 역사 수업',          '한국사·세계사 통합 지도합니다.',                 0, FALSE, 0.0 UNION ALL
+  SELECT 'del_teacher07@studyflow.com', '숙명여자대학교','수학과',        '18학번', NULL,                           '서울 용산구',  '단계별 맞춤 수업',              '수학 기초 확립 전문 강사입니다.',                0, FALSE, 0.0
 ) t ON u.email = t.email
 WHERE u.role = 'TEACHER';
 
