@@ -68,6 +68,18 @@ public class NaegongService {
     }
 
     /**
+     * 선생님의 현재 누적 내공 점수를 조회한다(읽기 전용 — 점수 변동 없음).
+     * 내공 지급이 스킵된 경우에도 응답에 정확한 누적값을 내려줘야 할 때 사용한다.
+     * TeacherProfile이 없는 경우(비정상 상태) 0을 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public int getCurrentScore(Long userId) {
+        return teacherProfileRepository.findByUserId(userId)
+                .map(TeacherProfile::getNaegongScore)
+                .orElse(0);
+    }
+
+    /**
      * 선생님에게 내공 점수를 적립하고 이력을 기록한다.
      *
      * <p>프로필을 먼저 확인한 뒤 이력을 저장한다. 선생님인데 프로필이 없는 것은 본래 불가능한

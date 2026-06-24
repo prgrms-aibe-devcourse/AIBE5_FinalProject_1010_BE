@@ -5,6 +5,7 @@ import com.studyflow.domain.file.entity.FileAsset;
 import com.studyflow.domain.file.repository.FileAssetRepository;
 import com.studyflow.domain.naegong.enums.NaegongReason;
 import com.studyflow.domain.naegong.service.NaegongService;
+import com.studyflow.domain.teacher.service.TeacherVerificationGuard;
 import com.studyflow.domain.qna.dto.request.QnaAnswerRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionCreateRequest;
 import com.studyflow.domain.qna.dto.request.QnaQuestionUpdateRequest;
@@ -37,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -76,6 +78,8 @@ class QnaServiceTest {
     @Mock FileAssetRepository fileAssetRepository;
     @Mock NaegongService naegongService;
     @Mock ObjectMapper objectMapper;
+    @Mock ApplicationEventPublisher eventPublisher;
+    @Mock TeacherVerificationGuard teacherVerificationGuard;
 
     @InjectMocks QnaService service;
 
@@ -228,7 +232,7 @@ class QnaServiceTest {
     // ── 답변 채택 (핵심: 내공 적립) ────────────────────────────
 
     @Test
-    @DisplayName("acceptAnswer: 질문 작성자가 채택하면 해결처리 + 선생님 내공 10점 적립")
+    @DisplayName("acceptAnswer: 질문 작성자가 채택하면 해결처리 + 선생님 내공 10점 적립 + naegongPaid 플래그 설정")
     void acceptAnswer_resolvesAndAwardsNaegong() {
         User student = mockUser(1L);
         User teacher = mockUser(2L);
@@ -242,12 +246,34 @@ class QnaServiceTest {
 
         assertThat(a.isAccepted()).isTrue();
         assertThat(q.isResolved()).isTrue();
+        assertThat(q.isAcceptedAnswerNaegongPaid()).isTrue();
         assertThat(res.isAccepted()).isTrue();
         assertThat(res.questionResolved()).isTrue();
         assertThat(res.addedNaegongScore()).isEqualTo(10);
         assertThat(res.teacherNaegongScore()).isEqualTo(130);
         assertThat(res.teacherUserId()).isEqualTo(2L);
         verify(naegongService).addScore(teacher, 10, NaegongReason.ANSWER_ACCEPTED, 20L);
+    }
+
+    @Test
+    @DisplayName("acceptAnswer: 이미 내공이 지급된 질문은 재채택해도 내공을 주지 않고 현재 누적 내공을 반환한다 (중복 지급 방지)")
+    void acceptAnswer_naegongAlreadyPaid_skipsNaegongAndReturnsCurrentScore() {
+        User student = mockUser(1L);
+        User teacher = mockUser(2L);
+        QnaQuestion q = question(10L, student, mock(Subject.class));
+        q.markNaegongPaid(); // 이미 내공 지급됨 (채택 답변 삭제 후 재채택 시나리오)
+        QnaAnswer a = answer(30L, q, teacher); // 새로 작성된 답변 (id=30)
+        when(answerRepository.findDetailById(30L)).thenReturn(Optional.of(a));
+        when(naegongService.getCurrentScore(2L)).thenReturn(150); // 선생님 현재 누적 내공
+
+        QnaAnswerAcceptResponse res = service.acceptAnswer(1L, 30L);
+
+        assertThat(a.isAccepted()).isTrue();
+        assertThat(q.isResolved()).isTrue();
+        assertThat(res.addedNaegongScore()).isEqualTo(0);    // 이번 지급액: 0
+        assertThat(res.teacherNaegongScore()).isEqualTo(150); // 현재 누적값 반환
+        verify(naegongService, never()).addScore(any(), anyInt(), any(), any());
+        verify(naegongService).getCurrentScore(2L);
     }
 
     @Test
