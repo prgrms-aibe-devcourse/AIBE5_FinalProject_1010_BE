@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,8 +35,6 @@ public class CreditAccount extends BaseTimeEntity {
     @Column(nullable = false)
     private long balance = 0;
 
-    @Version
-    private Long version;
 
     private CreditAccount(Long userId) {
         this.userId = userId;

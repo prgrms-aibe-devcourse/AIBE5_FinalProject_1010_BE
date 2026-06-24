@@ -36,6 +36,7 @@ public class PaymentService {
     private final PaymentOrderRepository paymentOrderRepository;
     private final TossPaymentsClient tossPaymentsClient;
     private final CreditService creditService;
+    private final PaymentOrderSupport paymentOrderSupport;
 
     /** 충전 결제창을 열기 전 주문을 생성한다(충전 금액 = 적립 마일리지, 1원=1마일리지). */
     @Transactional
@@ -70,7 +71,7 @@ public class PaymentService {
         }
         // ★ 금액 위변조 방지: 프론트가 보낸 금액 == 우리가 정한 주문 금액
         if (order.getAmount() != req.amount()) {
-            order.markFailed();
+            paymentOrderSupport.markFailedInNewTransaction(order.getId());
             throw new PaymentException("결제 금액이 주문 금액과 일치하지 않습니다.");
         }
 

@@ -9,6 +9,7 @@ import com.studyflow.domain.credit.enums.CreditReason;
 import com.studyflow.domain.credit.repository.CreditAccountRepository;
 import com.studyflow.domain.credit.repository.CreditHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -97,13 +98,15 @@ public class CreditService {
         return balance;
     }
 
-    private CreditAccount getOrCreate(Long userId) {
-        return creditAccountRepository.findByUserId(userId)
-                .orElseGet(() -> creditAccountRepository.save(CreditAccount.createFor(userId)));
-    }
-
     private CreditAccount getOrCreateWithLock(Long userId) {
         return creditAccountRepository.findWithLockByUserId(userId)
-                .orElseGet(() -> creditAccountRepository.save(CreditAccount.createFor(userId)));
+                .orElseGet(() -> {
+                    try {
+                        return creditAccountRepository.save(CreditAccount.createFor(userId));
+                    } catch (DataIntegrityViolationException e) {
+                        return creditAccountRepository.findWithLockByUserId(userId)
+                                .orElseThrow(() -> new IllegalStateException("CreditAccount 조회 실패", e));
+                    }
+                });
     }
 }
