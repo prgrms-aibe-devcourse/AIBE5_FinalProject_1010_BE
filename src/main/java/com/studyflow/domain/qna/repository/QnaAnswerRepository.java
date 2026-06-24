@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, QnaAnswerRepositoryCustom {
@@ -28,4 +30,8 @@ public interface QnaAnswerRepository extends JpaRepository<QnaAnswer, Long>, Qna
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM QnaAnswer a WHERE a.id = :id")
     Optional<QnaAnswer> findByIdWithLock(@Param("id") Long id);
+
+    // 내공 이력 relatedTitle 일괄 조회 — N+1 방지용 fetch join. ids가 빈 컬렉션이면 호출하지 말 것.
+    @Query("SELECT a FROM QnaAnswer a JOIN FETCH a.question WHERE a.id IN :ids")
+    List<QnaAnswer> findAllWithQuestionByIdIn(@Param("ids") Collection<Long> ids);
 }

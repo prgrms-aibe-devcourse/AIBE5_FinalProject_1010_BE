@@ -1,5 +1,7 @@
 package com.studyflow.domain.teacher.controller;
 
+import com.studyflow.domain.naegong.dto.NaegongHistoryPageResponse;
+import com.studyflow.domain.naegong.service.NaegongService;
 import com.studyflow.domain.teacher.dto.*;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +38,7 @@ public class TeacherController {
 
     private final TeacherService teacherService;
     private final HotTeacherService hotTeacherService;
+    private final NaegongService naegongService;
 
     // 이번주 HOT 선생님 — 지난 7일 내공 획득 상위 TOP3 (비로그인 포함 공개). 메인 홈 노출용.
     // 주간 획득자가 3명 미만이면 전체기간 내공순으로 채워 항상 최대 3명을 반환한다.
@@ -174,5 +177,19 @@ public class TeacherController {
                 ProfileAuthInfoException::new);
 
         return ResponseEntity.ok(teacherService.getMyVerifications(userId, pageable));
+    }
+
+    // 선생님 마이페이지 내공 탭 — 내공 변동 이력 + 누적 점수 조회
+    // 예시: GET /api/v1/teachers/me/naegong-history?page=0&size=20
+    @Operation(summary = "내 내공 이력 조회", description = "선생님 전용. 내공 변동 이력을 최신순으로 반환합니다. totalScore는 현재 누적 내공입니다. relatedTitle은 참조 대상(답변·수업)이 삭제된 경우 null일 수 있습니다.")
+    @GetMapping("/me/naegong-history")
+    public ResponseEntity<NaegongHistoryPageResponse> getMyNaegongHistory(
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        CheckAuthInController.checkAuth(userId, authentication, UserRole.TEACHER,
+                ProfileAuthInfoException::new);
+
+        return ResponseEntity.ok(naegongService.getHistoryPage(userId, pageable));
     }
 }
