@@ -48,7 +48,9 @@ spring:
       api-key: ${OPENAI_API_KEY:dummy}
       chat:
         options:
-          model: gpt-4o-mini
+          model: gpt-4o
+          temperature: 0.1
+          max-tokens: 4096
   security:
     oauth2:
       client:
@@ -152,9 +154,3 @@ toss:
   client-key: ${TOSS_CLIENT_KEY:test_ck_docs_Ovk5rk1EwkEbP0W43n07xlzm}
   secret-key: ${TOSS_SECRET_KEY:}
   confirm-url: ${TOSS_CONFIRM_URL:https://api.tosspayments.com/v1/payments/confirm}
-
-openai:
-  base-url: https://api.openai.com/v1
-  model: gpt-4o-mini
-  timeout-seconds: 60
-  api-key: ${OPENAI_API_KEY:dummy}
