@@ -48,7 +48,8 @@ spring:
       api-key: ${OPENAI_API_KEY:dummy}
       chat:
         options:
-          model: o1-mini
+          model: gpt-4o
+          temperature: 0.1
   security:
     oauth2:
       client:
